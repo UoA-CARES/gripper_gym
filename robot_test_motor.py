@@ -442,7 +442,7 @@ while 1:
 
     # ---- Transmits packet (goal position) to the motors
     dxl_comm_result = groupSyncWrite.txPacket()
-    if dxl_comm_result != COMM_SUCCESS:
+    if dxl_comm_result == COMM_SUCCESS:
         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 
     # Clear syncwrite parameter storage
