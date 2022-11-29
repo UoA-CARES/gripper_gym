@@ -7,12 +7,9 @@ Beth Cutler
 
 #region ***IMPORTS, SETUP***
 
-import os
+import os, time
 import numpy as np
-from dynamixel_sdk import *    
-#from dynamixel_sdk.port_handler import PortHandler
-#from dynamixel_sdk.packet_handler import PacketHandler
-#from dynamixel_sdk.robotis_def import *                # Uses Dynamixel SDK library
+from dynamixel_sdk import *          # Uses Dynamixel SDK library
 
 
 if os.name == 'nt':
@@ -56,7 +53,7 @@ NUM_MOTORS = 9
 DEVICENAME = 'COM5'
 
 TORQUE_ENABLE  = 1  # Value for enabling the torque
-TORQUE_DISABLE = 0  # Value for disabling the torque
+TORQUE_DISABLE = 0  # Value for disabling the torque        
 
 # setting max velocity and torque
 MAX_VELOCITY_VALUE = 100   # Max possible value=2047
@@ -65,7 +62,7 @@ LIM_TORQUE_VALUE   = 180    # Max possible value=1023
 #doing this without indvidual ids is gonna be interesting but umm ok
 #goal values (make 2d array 2*NUM_MOTORS, set to 0)
 
-goal_values = [[450, 550, 500], #1
+goal_values = np.array([[450, 550, 500], #1
                [450, 550, 500], #2
                [450, 550, 500], #3
                [450, 550, 500], #4
@@ -73,7 +70,7 @@ goal_values = [[450, 550, 500], #1
                [450, 550, 500], #6
                [450, 550, 500], #7
                [450, 550, 500], #8
-               [450, 550, 500]] #9
+               [450, 550, 500]]) #9
 
 portHandler = PortHandler(DEVICENAME)
 packetHandler = PacketHandler(PROTOCOL_VERSION)
@@ -104,58 +101,79 @@ else:
 
 #region ***TORQUE LIMITS***
 
-for i in range(1, NUM_MOTORS):
+for i in range(1, NUM_MOTORS+1):
     dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, i, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE)
     if dxl_comm_result != COMM_SUCCESS:
         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
     elif dxl_error != 0:
         print("%s" % packetHandler.getRxPacketError(dxl_error))
     else:
-        print("Dynamixel#%d has been successfully connected" % i)
+        print("Dynamixel#%d has been successfully torque limited" % i)
 
 #endregion
 
 #region ***TORQUE ENABLE***
-for i in range(1, NUM_MOTORS):
+for i in range(1, NUM_MOTORS+1):
     dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
     if dxl_comm_result != COMM_SUCCESS:
         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
     elif dxl_error != 0:
         print("%s" % packetHandler.getRxPacketError(dxl_error))
     else:
-        print("Dynamixel#%d has been successfully connected" % i)
+        print("Dynamixel#%d has been successfully torque enabled" % i)
 #endregion
 
 #region ***LIMT MOVING SPEED***
-for i in range(1, NUM_MOTORS):
+for i in range(1, NUM_MOTORS+1):
     dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, i, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE)
     if dxl_comm_result != COMM_SUCCESS:
         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
     elif dxl_error != 0:
         print("%s" % packetHandler.getRxPacketError(dxl_error))
     else:
-        print("Dynamixel#%d has been successfully connected" % i)
+        print("Dynamixel#%d has been successfully speed limited" % i)
 
 #endregion
 
 #region ***WRITE GOAL POSITION***
 # Initialize GroupSyncWrite instance ---> GroupSyncWrite(port, ph, start_address, data_length)
 
-data_length = 3 #amount of steps to test
+data_length = 2 #im assuming this is the number of bytes
 
 groupSyncWrite = GroupSyncWrite(portHandler, packetHandler, ADDR_GOAL_POSITION, data_length)
 
-while 1: #start testing --> need to remember that this big loop keeps going for ages
+for j in range(0,2): #start testing --> need to remember that this big loop keeps going for ages
     print("press any key to continue! (or press ESC to quit!)")
     if getch() == chr(0x1b):
         break
     
+    #initialise paramGoalPositions
     paramGoalPositions = np.zeros((NUM_MOTORS, data_length), dtype=np.uint8)
 
-    #add goal positions to paramGoalPositions using special format
+    
+    #add goal positions to paramGoalPositions 
     for i in range(0, NUM_MOTORS-1):
-                paramGoalPositions[i][0] = DXL_LOBYTE(goal_values[i][j])
-                paramGoalPositions[i][1] = DXL_HIBYTE(goal_values[i][j])  #need to figure out how to deal with long data sizes 
+                
+                dxl_addparam_result = groupSyncWrite.addParam(i, [DXL_LOBYTE(goal_values[i, j]), DXL_HIBYTE(goal_values[i, j])])
+                #check for success
+                if dxl_addparam_result != True:
+                    print("[ID:%03d] groupSyncWrite addparam failed" % i)
+                    quit()
         
-#also i remember things being dumb with indexing python arrays so we'll have to figure that out
-#might just replace it with numpy
+
+    #transmit goal position to motors
+    dxl_comm_result = groupSyncWrite.txPacket()
+    if dxl_comm_result == COMM_SUCCESS:
+        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+        
+    #delay
+    #time.sleep(3)
+    groupSyncWrite.clearParam()
+
+
+#clear packet
+
+#clear port
+portHandler.closePort()
+print("port closed")
+    
