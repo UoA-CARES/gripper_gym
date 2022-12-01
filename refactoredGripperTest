@@ -56,31 +56,31 @@ TORQUE_ENABLE  = 1  # Value for enabling the torque
 TORQUE_DISABLE = 0  # Value for disabling the torque        
 
 # setting max velocity and torque
-MAX_VELOCITY_VALUE = 100   # Max possible value=2047
+MAX_VELOCITY_VALUE = 80   # Max possible value=2047
 LIM_TORQUE_VALUE   = 180    # Max possible value=1023
 
 #doing this without indvidual ids is gonna be interesting but umm ok
 #goal values (make 2d array 2*NUM_MOTORS, set to 0)
 
-goal_values_testall = np.array([[400, 500, 600, 500], #1
-               [400, 500, 600, 500], #2
-               [400, 500, 600, 500], #3
-               [400, 500, 600, 500], #4
-               [400, 500, 600, 500], #5
-               [400, 500, 600, 500], #6
-               [400, 500, 600, 500], #7
-               [400, 500, 600, 500], #8
-               [400, 500, 600, 500]]) #9
+goal_values_testall = np.array([[300, 500, 700, 500], #1
+               [300, 500, 700, 500], #2
+               [300, 500, 700, 500], #3
+               [300, 500, 700, 500], #4
+               [300, 500, 700, 500], #5
+               [300, 500, 700, 500], #6
+               [300, 500, 700, 500], #7
+               [300, 500, 700, 500], #8
+               [300, 500, 700, 500]]) #9
 
 goal_values_testone = np.array([[512,512], #1
                                 [512,512], #2
                                 [512,512], #3
-                                [512,512], #4
-                                [512,512], #5
-                                [512,512], #6
+                                [300,700], #4
+                                [300,700], #5
+                                [300,700], #6
                                 [512,512], #7
                                 [512,512], #8
-                                [300, 700]]) #9           
+                                [512, 512]]) #9           
 
 portHandler = PortHandler(DEVICENAME)
 packetHandler = PacketHandler(PROTOCOL_VERSION)
@@ -154,26 +154,52 @@ data_length = 2 #number of bytes to write
 goal_values = goal_values_testall
 
 groupSyncWrite = GroupSyncWrite(portHandler, packetHandler, ADDR_GOAL_POSITION, data_length)
+groupSyncRead = GroupSyncRead(portHandler, packetHandler, ADDR_PRESENT_POSITION, data_length)
+
+
+
+def currentPositionToAngle():
+    #angles go from -150 deg to 150 deg, where 512 corresponds to 0 deg
+    #get current position of all currently operating motors
+    currentPos = np.zeros(NUM_MOTORS)
+    #groupSyncRead = GroupSyncRead(portHandler, packetHandler, ADDR_PRESENT_POSITION, 2)
+
+    groupSyncRead.txRxPacket()
+
+    for i in range(1, NUM_MOTORS+1):
+        #before i get data i have to txrx the packet to get the data
+
+        dxl_addparam_result = groupSyncRead.addParam(i)
+
+        currentPos[i-1] = groupSyncRead.getData(i, ADDR_PRESENT_POSITION, 2)
+        currentPos[i-1] = np.round(((0.2929*currentPos[i-1])-150), 1)    
+    return print(currentPos)  
+
+
 
 while 1:
     #initialise paramGoalPositions
-    paramGoalPositions = np.zeros((NUM_MOTORS, data_length), dtype=np.uint8)
+    paramGoalPositions = np.zeros((NUM_MOTORS, data_length), dtype=np.uint8)  
 
     for j in range(0,(np.shape(goal_values)[1])): 
         
         #add goal positions to paramGoalPositions 
         for i in range(0, NUM_MOTORS): 
-                    dxl_addparam_result = groupSyncWrite.addParam(i+1, [DXL_LOBYTE(goal_values[i, j]), DXL_HIBYTE(goal_values[i, j])])
-                    #check for success
-                    if dxl_addparam_result != True:
-                        print("[ID:%03d] groupSyncWrite addparam failed" % i)
-                        quit() 
+            dxl_addparam_result = groupSyncWrite.addParam(i+1, [DXL_LOBYTE(goal_values[i, j]), DXL_HIBYTE(goal_values[i, j])])
+                #check for success
+            if dxl_addparam_result != True:
+                print("[ID:%03d] groupSyncWrite addparam failed" % i)
+                quit() 
+             
 
         #transmit goal position to motors
         dxl_comm_result = groupSyncWrite.txPacket()
         if dxl_comm_result == COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-            
+
+        #prints current position of all motors in degrees (from -150 to 150)
+        currentPositionToAngle()     
+
         #delay (in seconds)
         time.sleep(1)
         groupSyncWrite.clearParam()
