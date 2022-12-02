@@ -28,7 +28,7 @@ def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, 
 def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, portHandler):
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
-        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
+        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
         # verify write read successful
         if dxl_comm_result != COMM_SUCCESS:
@@ -44,15 +44,13 @@ def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, p
 def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler, portHandler):
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
-        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
-            portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
-        # verify write read successful
+        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
         else:
-            print("Dynamixel#%d has been successfully torque disabled" % i)
+            print("Dynamixel#%d has been successfully disable torque" % i)
 
 # limit the speed of the servos
 
@@ -82,7 +80,7 @@ def currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead):
     for i in range(1, NUM_MOTORS+1):
 
         dxl_addparam_result = groupSyncRead.addParam(i)
-        # read data, covert and
+        # read data, convert and store in list
         currentPos[i-1] = groupSyncRead.getData(i, ADDR_PRESENT_POSITION, 2)
         currentPos[i-1] = np.round(((0.2929*currentPos[i-1])-150), 1)
     return print(currentPos)
