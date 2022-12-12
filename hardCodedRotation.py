@@ -4,10 +4,7 @@ The intent of this programme is define a sequence of actions that will rotate a 
 using the three fingered grippered being developed and then return the finger to its original position.
 This will be used to test the gripper
 
---> #TODO fix main
 --> #TODO make gripper class (later, basically make a copy but join everything together)
-
-
 
 Beth Cutler 
  '''
@@ -48,80 +45,70 @@ packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
 
 # endregion
 
+def main():
 # region *** Setting up the Port ***
 # open port
-if portHandler.openPort():
-    print("Succeeded to open the port")
-else:
-    print("Failed to open the port")
-    quit()
+    gF.setup(BAUDRATE, PROTOCOL_VERSION)
+    # endregion
 
-# set port baudrate
-if portHandler.setBaudRate(BAUDRATE):
-    print("Succeeded to change the baudrate")
-else:
-    print("Failed to change the baudrate")
-    quit()
+    # region *** Making sure torque is enabled, and moving speed and torque are limited **# *
 
-# endregion
+    gF.limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT,
+                LIM_TORQUE_VALUE, PROTOCOL_VERSION, DEVICENAME)
+    gF.enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE,
+                TORQUE_ENABLE, PROTOCOL_VERSION, DEVICENAME)
+    gF.limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED,
+            MAX_VELOCITY_VALUE, PROTOCOL_VERSION, DEVICENAME)
+    # endregion
 
-# region *** Making sure torque is enabled, and moving speed and torque are limited **# *
+    #turn on the leds 
+    gF.turnOnLEDS(NUM_MOTORS, ADDR_LED, PROTOCOL_VERSION, DEVICENAME)
 
-gF.limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT,
-            LIM_TORQUE_VALUE, packetHandler, portHandler)
-gF.enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE,
-             TORQUE_ENABLE, packetHandler, portHandler)
-gF.limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED,
-           MAX_VELOCITY_VALUE, packetHandler, portHandler)
-
-
-# endregion
-
-#turn on the leds 
-gF.turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler)
-
-# region *** Figuring out how to hardcode position, especially if i want to change position value ***
-dataLength = 2
-groupSyncWrite = dxl.GroupSyncWrite(
-    portHandler, packetHandler, ADDR_GOAL_POSITION, dataLength)
-groupSyncRead = dxl.GroupSyncRead(
-    portHandler, packetHandler, ADDR_PRESENT_POSITION, dataLength)
+    # region *** Figuring out how to hardcode position, especially if i want to change position value ***
+    dataLength = 2
+    groupSyncWrite = dxl.GroupSyncWrite(
+        portHandler, packetHandler, ADDR_GOAL_POSITION, dataLength)
+    groupSyncRead = dxl.GroupSyncRead(
+        portHandler, packetHandler, ADDR_PRESENT_POSITION, dataLength)
 
 
-# set goal values to move to
-# these are extremely hard coded and specific to the system, formed from trial and error
-# one finger moves,
+    # set goal values to move to
+    # these are extremely hard coded and specific to the system, formed from trial and error
+    # one finger moves,
 
-jointPos = np.array([[512, 300, 300, 400, 400, 512, 512, 512],  # 1 base plate
-                     [512, 400, 400, 570, 570, 300, 512, 512],  # 2 middle
-                     [512, 400, 400, 370, 230, 200, 512, 512],  # 3 finger tip
+    jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
+                        [512, 400, 400, 570, 570, 300, 512],  # 2 middle
+                        [512, 400, 400, 370, 230, 200, 512],  # 3 finger tip
 
-                     [512, 350, 420, 420, 420, 512, 512, 512],  # 4 baseplate
-                     [460, 500, 650, 550, 400, 250, 400, 460],  # 5 middle
-                     [512, 400, 400, 300, 230, 200, 512, 512],  # 6 finger tip
+                        [512, 350, 420, 420, 420, 512, 512],  # 4 baseplate
+                        [460, 500, 650, 550, 400, 250, 400],  # 5 middle
+                        [512, 400, 400, 300, 230, 200, 512],  # 6 finger tip
 
-                     [512, 350, 350, 350, 350, 512, 512, 512],  # 7 baseplate
-                     [512, 400, 400, 400, 512, 512, 512, 512],  # 8 middle
-                     [512, 400, 400, 400, 512, 512, 512, 512]])  # 9 fingertip
+                        [512, 350, 350, 350, 350, 512, 512],  # 7 baseplate
+                        [512, 400, 400, 400, 512, 512, 512],  # 8 middle
+                        [512, 400, 400, 400, 512, 512, 512]])  # 9 fingertip
 
-# move to goal position
-for j in range(0, np.shape(jointPos)[1]):  # number of actions
+    # move to goal position
 
-    for i in range(0, NUM_MOTORS):  # number of motors
-        dxl_addparam_result = groupSyncWrite.addParam(
-            i+1, [dxl.DXL_LOBYTE(jointPos[i, j]), dxl.DXL_HIBYTE(jointPos[i, j])])
+    while True: #continuous testing
+        for j in range(0, np.shape(jointPos)[1]):  # number of actions
 
-    dxl_comm_result = groupSyncWrite.txPacket()
-    if dxl_comm_result == dxl.COMM_SUCCESS:
-        print("GroupSyncWrite Succeeded")
+            for i in range(0, NUM_MOTORS):  # number of motors
+                dxl_addparam_result = groupSyncWrite.addParam(
+                    i+1, [dxl.DXL_LOBYTE(jointPos[i, j]), dxl.DXL_HIBYTE(jointPos[i, j])])
 
-    time.sleep(1.5)
-    gF.currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead)
-    groupSyncWrite.clearParam()
+            dxl_comm_result = groupSyncWrite.txPacket()
+            if dxl_comm_result == dxl.COMM_SUCCESS:
+                print("GroupSyncWrite Succeeded")
 
-# endregion
+            time.sleep(1.5)
+            gF.currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead)
+            groupSyncWrite.clearParam()
 
-# clear port, disable torque
-portHandler.closePort()
+    # endregion
 
+    # clear port, disable torque
+    portHandler.closePort()
 
+if __name__ == "__main__":
+    main()

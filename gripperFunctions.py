@@ -5,10 +5,34 @@ import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 The following are commonly used and repeattive functions that are used in the gripper test code.
 These have been collated to make the code more readable and easier to maintain.
 Beth Cutler
+
+--> #TODO write setup function to open port and set baudrate and set global variables
 """
 
-def turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler):
+def setup(baudrate, devicename):
+
+    portHandler = dxl.PortHandler(devicename)
+
+    if portHandler.openPort():
+        print("Succeeded to open the port")
+    else:
+        print("Failed to open the port")
+        quit()
+
+    # set port baudrate
+    if portHandler.setBaudRate(baudrate):
+        print("Succeeded to change the baudrate")
+    else:
+        print("Failed to change the baudrate")
+        quit()
+
+    
+
+def turnOnLEDS(NUM_MOTORS, ADDR_LED, PROTOCOL_VERSION, DEVICENAME):
     ledColours = [0,3,2,0,7,5,0,4,6]
+    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    portHandler = dxl.PortHander(DEVICENAME)
+
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
@@ -23,7 +47,11 @@ def turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler):
 
 
 # limit the torque of the motors
-def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, portHandler):
+def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, PROTOCOL_VERSION, DEVICENAME):
+
+    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    portHandler = dxl.PortHander(DEVICENAME)
+
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
@@ -39,7 +67,11 @@ def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, 
 # enable the torque of the motors
 
 
-def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, portHandler):
+def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, PROTOCOL_VERSION, DEVICENAME):
+
+    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    portHandler = dxl.PortHander(DEVICENAME)
+
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
@@ -55,7 +87,11 @@ def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, p
 # disable the torque of the motors
 
 
-def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler, portHandler):
+def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, PROTOCOL_VERSION, DEVICENAME):
+
+    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    portHandler = dxl.PortHander(DEVICENAME)
+
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
@@ -69,7 +105,11 @@ def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler,
 # limit the speed of the servos
 
 
-def limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE, packetHandler, portHandler):
+def limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE, PROTOCOL_VERSION, DEVICENAME):
+
+    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    portHandler = dxl.PortHander(DEVICENAME)
+
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
