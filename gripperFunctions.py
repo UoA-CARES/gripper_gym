@@ -1,5 +1,5 @@
 import numpy as np
-from dynamixel_sdk import *
+import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 
 """
 The following are commonly used and repeattive functions that are used in the gripper test code.
@@ -14,7 +14,7 @@ def turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler):
         dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
             portHandler, i, ADDR_LED, ledColours[i-1])
         # verify write read successful
-        if dxl_comm_result != COMM_SUCCESS:
+        if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
@@ -29,7 +29,7 @@ def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, 
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE)
         # verify write read successful
-        if dxl_comm_result != COMM_SUCCESS:
+        if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
@@ -45,7 +45,7 @@ def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, p
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
         # verify write read successful
-        if dxl_comm_result != COMM_SUCCESS:
+        if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
@@ -59,7 +59,7 @@ def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler,
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
-        if dxl_comm_result != COMM_SUCCESS:
+        if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
@@ -75,7 +75,7 @@ def limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE, packetHandler,
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE)
         # verify write read successful
-        if dxl_comm_result != COMM_SUCCESS:
+        if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))

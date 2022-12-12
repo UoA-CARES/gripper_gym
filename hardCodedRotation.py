@@ -6,8 +6,8 @@ This will be used to test the gripper
 
 --> #TODO fix main
 --> #TODO make gripper class (later, basically make a copy but join everything together)
---> #TODO fix imports 
---> #TODO get rid of getch
+
+
 
 Beth Cutler 
  '''
