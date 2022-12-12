@@ -7,6 +7,20 @@ These have been collated to make the code more readable and easier to maintain.
 Beth Cutler
 """
 
+def turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler):
+    ledColours = [0,3,2,0,7,5,0,4,6]
+    for i in range(1, NUM_MOTORS+1):
+        # write and read to servos
+        dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
+            portHandler, i, ADDR_LED, ledColours[i-1])
+        # verify write read successful
+        if dxl_comm_result != COMM_SUCCESS:
+            print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+        elif dxl_error != 0:
+            print("%s" % packetHandler.getRxPacketError(dxl_error))
+        else:
+            print("Dynamixel#%d has been successfully LED turned on" % i)
+
 
 # limit the torque of the motors
 def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, portHandler):
