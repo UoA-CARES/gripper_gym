@@ -33,6 +33,8 @@ class gripper9():
         self.packetHandler = dxl.PacketHandler(self.protocol)
 
     def move(self, actions):
+
+        #TODO potientially add a check in here that clips the actions given from the network just to set some kind of limit
         
         #setup the servos
         gf.setup(self.baudrate, self.protocol, self.devicename)
@@ -60,5 +62,9 @@ class gripper9():
 
     def current_positions(self):
 
-        return #all the joint positions (in degrees or steps?)
+        groupSyncRead = dxl.GroupSyncRead(
+        self.portHandler, self.packetHandler, self.addresses["present_position"], 2)   
+        self.motor_positions = gf.currentPositionToAngle(self.num_motors, self.addresses["present_position"], groupSyncRead)
+        
+        return self.motor_positions
     
