@@ -9,9 +9,8 @@ Beth Cutler
 --> #TODO write setup function to open port and set baudrate and set global variables
 """
 
-def setup(baudrate, devicename):
+def setup(baudrate, portHandler):
 
-    portHandler = dxl.PortHandler(devicename)
 
     if portHandler.openPort():
         print("Succeeded to open the port")
@@ -28,10 +27,9 @@ def setup(baudrate, devicename):
 
     
 
-def turnOnLEDS(NUM_MOTORS, ADDR_LED, PROTOCOL_VERSION, DEVICENAME):
+def turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler):
     ledColours = [0,3,2,0,7,5,0,4,6]
-    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    portHandler = dxl.PortHander(DEVICENAME)
+   
 
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
@@ -47,10 +45,10 @@ def turnOnLEDS(NUM_MOTORS, ADDR_LED, PROTOCOL_VERSION, DEVICENAME):
 
 
 # limit the torque of the motors
-def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, PROTOCOL_VERSION, DEVICENAME):
+def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, portHandler):
 
-    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    portHandler = dxl.PortHander(DEVICENAME)
+    #packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    #portHandler = dxl.PortHandler(DEVICENAME)
 
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
@@ -67,10 +65,8 @@ def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, PROTOCOL_VERSIO
 # enable the torque of the motors
 
 
-def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, PROTOCOL_VERSION, DEVICENAME):
+def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, portHandler):
 
-    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    portHandler = dxl.PortHander(DEVICENAME)
 
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
@@ -87,10 +83,10 @@ def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, PROTOCOL_VERSION
 # disable the torque of the motors
 
 
-def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, PROTOCOL_VERSION, DEVICENAME):
+def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler, portHandler):
 
-    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    portHandler = dxl.PortHander(DEVICENAME)
+    #packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    #portHandler = dxl.PortHander(DEVICENAME)
 
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos
@@ -105,10 +101,10 @@ def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, PROTOCOL_VERSI
 # limit the speed of the servos
 
 
-def limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE, PROTOCOL_VERSION, DEVICENAME):
+def limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE, packetHandler, portHandler):
 
-    packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    portHandler = dxl.PortHander(DEVICENAME)
+    #packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+    #portHandler = dxl.PortHander(DEVICENAME)
 
     for i in range(1, NUM_MOTORS+1):
         # write and read to servos

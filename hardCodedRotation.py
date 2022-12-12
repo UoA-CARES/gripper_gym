@@ -9,11 +9,10 @@ This will be used to test the gripper
 Beth Cutler 
  '''
 
-import os
 import time
 import numpy as np
 import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
-import gripperFunctions as gF
+import gripperFunctions as gf
 
 
 # region *** Globals ***
@@ -48,21 +47,21 @@ packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
 def main():
 # region *** Setting up the Port ***
 # open port
-    gF.setup(BAUDRATE, PROTOCOL_VERSION)
+    gf.setup(BAUDRATE, portHandler)
     # endregion
 
     # region *** Making sure torque is enabled, and moving speed and torque are limited **# *
-
-    gF.limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT,
-                LIM_TORQUE_VALUE, PROTOCOL_VERSION, DEVICENAME)
-    gF.enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE,
-                TORQUE_ENABLE, PROTOCOL_VERSION, DEVICENAME)
-    gF.limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED,
-            MAX_VELOCITY_VALUE, PROTOCOL_VERSION, DEVICENAME)
+    gf.enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE,
+             TORQUE_ENABLE, packetHandler, portHandler)
+    gf.limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT,
+            LIM_TORQUE_VALUE, packetHandler, portHandler)
+    
+    gf.limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED,
+           MAX_VELOCITY_VALUE, packetHandler, portHandler)
     # endregion
 
     #turn on the leds 
-    gF.turnOnLEDS(NUM_MOTORS, ADDR_LED, PROTOCOL_VERSION, DEVICENAME)
+    gf.turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler)
 
     # region *** Figuring out how to hardcode position, especially if i want to change position value ***
     dataLength = 2
@@ -102,7 +101,7 @@ def main():
                 print("GroupSyncWrite Succeeded")
 
             time.sleep(1.5)
-            gF.currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead)
+            gf.currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead)
             groupSyncWrite.clearParam()
 
     # endregion
