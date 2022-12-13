@@ -9,32 +9,15 @@ Beth Cutler
 --> #TODO write setup function to open port and set baudrate and set global variables
 """
 
-def setup(baudrate, portHandler):
-
-
-    if portHandler.openPort():
-        print("Succeeded to open the port")
-    else:
-        print("Failed to open the port")
-        quit()
-
-    # set port baudrate
-    if portHandler.setBaudRate(baudrate):
-        print("Succeeded to change the baudrate")
-    else:
-        print("Failed to change the baudrate")
-        quit()
-
-    
 
 def turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler):
-    ledColours = [0,3,2,0,7,5,0,4,6]
+    
+    ledColours = [0, 3, 2, 0, 7, 5, 0, 4, 6]
    
-
-    for i in range(1, NUM_MOTORS+1):
+    for i in range(1, NUM_MOTORS + 1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
-            portHandler, i, ADDR_LED, ledColours[i-1])
+            portHandler, i, ADDR_LED, ledColours[i - 1])
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
@@ -50,7 +33,7 @@ def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, 
     #packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
     #portHandler = dxl.PortHandler(DEVICENAME)
 
-    for i in range(1, NUM_MOTORS+1):
+    for i in range(1, NUM_MOTORS + 1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE)
@@ -68,7 +51,7 @@ def limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT, LIM_TORQUE_VALUE, packetHandler, 
 def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, portHandler):
 
 
-    for i in range(1, NUM_MOTORS+1):
+    for i in range(1, NUM_MOTORS + 1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_ENABLE)
@@ -80,15 +63,11 @@ def enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_ENABLE, packetHandler, p
         else:
             print("Dynamixel#%d has been successfully torque enabled" % i)
 
+
 # disable the torque of the motors
-
-
 def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler, portHandler):
 
-    #packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    #portHandler = dxl.PortHander(DEVICENAME)
-
-    for i in range(1, NUM_MOTORS+1):
+    for i in range(1, NUM_MOTORS + 1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, i, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
         if dxl_comm_result != dxl.COMM_SUCCESS:
@@ -96,17 +75,13 @@ def disableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE, TORQUE_DISABLE, packetHandler,
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
         else:
-            print("Dynamixel#%d has been successfully disable torque" % i)
+            print("Dynamixel#%d has been successfully disabled torque" % i)
+
 
 # limit the speed of the servos
-
-
 def limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE, packetHandler, portHandler):
 
-    #packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-    #portHandler = dxl.PortHander(DEVICENAME)
-
-    for i in range(1, NUM_MOTORS+1):
+    for i in range(1, NUM_MOTORS + 1):
         # write and read to servos
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, i, ADDR_MOVING_SPEED, MAX_VELOCITY_VALUE)
@@ -127,10 +102,11 @@ def currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead):
     # get current position of all currently operating motors
     groupSyncRead.txRxPacket()
 
-    for i in range(1, NUM_MOTORS+1):
+    for i in range(1, NUM_MOTORS + 1):
 
         dxl_addparam_result = groupSyncRead.addParam(i)
         # read data, convert and store in list
         currentPos[i-1] = groupSyncRead.getData(i, ADDR_PRESENT_POSITION, 2)
-        currentPos[i-1] = np.round(((0.2929*currentPos[i-1])-150), 1)
-    return print(currentPos)
+        currentPos[i-1] = np.round(((0.2929 * currentPos[i - 1]) - 150), 1)
+    print(currentPos)
+    return currentPos

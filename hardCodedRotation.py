@@ -13,6 +13,7 @@ import time
 import numpy as np
 import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 import gripperFunctions as gf
+from GripperClass import Gripper9
 
 
 # region *** Globals ***
@@ -39,75 +40,34 @@ TORQUE_DISABLE = 0  # Value for disabling the torque
 MAX_VELOCITY_VALUE = 80   # Max possible value=2047
 LIM_TORQUE_VALUE = 180    # Max possible value=1023
 
+
 portHandler = dxl.PortHandler(DEVICENAME)
 packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
 
-# endregion
-
-def main():
-# region *** Setting up the Port ***
-# open port
-    gf.setup(BAUDRATE, portHandler)
-    # endregion
-
-    # region *** Making sure torque is enabled, and moving speed and torque are limited **# *
-    gf.enableTorque(NUM_MOTORS, ADDR_TORQUE_ENABLE,
-             TORQUE_ENABLE, packetHandler, portHandler)
-    gf.limitTorque(NUM_MOTORS, ADDR_TORQUE_LIMIT,
-            LIM_TORQUE_VALUE, packetHandler, portHandler)
-    
-    gf.limitSpeed(NUM_MOTORS, ADDR_MOVING_SPEED,
-           MAX_VELOCITY_VALUE, packetHandler, portHandler)
-    # endregion
-
-    #turn on the leds 
-    gf.turnOnLEDS(NUM_MOTORS, ADDR_LED, packetHandler, portHandler)
-
-    # region *** Figuring out how to hardcode position, especially if i want to change position value ***
-    dataLength = 2
-    groupSyncWrite = dxl.GroupSyncWrite(
-        portHandler, packetHandler, ADDR_GOAL_POSITION, dataLength)
-    groupSyncRead = dxl.GroupSyncRead(
-        portHandler, packetHandler, ADDR_PRESENT_POSITION, dataLength)
-
-
-    # set goal values to move to
-    # these are extremely hard coded and specific to the system, formed from trial and error
-    # one finger moves,
-
-    jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
+jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
                         [512, 400, 400, 570, 570, 300, 512],  # 2 middle
                         [512, 400, 400, 370, 230, 200, 512],  # 3 finger tip
 
                         [512, 350, 420, 420, 420, 512, 512],  # 4 baseplate
-                        [460, 500, 650, 550, 400, 250, 400],  # 5 middle
+                        [460, 500, 650, 550, 400, 250, 460],  # 5 middle
                         [512, 400, 400, 300, 230, 200, 512],  # 6 finger tip
 
                         [512, 350, 350, 350, 350, 512, 512],  # 7 baseplate
                         [512, 400, 400, 400, 512, 512, 512],  # 8 middle
                         [512, 400, 400, 400, 512, 512, 512]])  # 9 fingertip
 
-    # move to goal position
+# endregion
 
-    while True: #continuous testing
-        for j in range(0, np.shape(jointPos)[1]):  # number of actions
+def main():
 
-            for i in range(0, NUM_MOTORS):  # number of motors
-                dxl_addparam_result = groupSyncWrite.addParam(
-                    i+1, [dxl.DXL_LOBYTE(jointPos[i, j]), dxl.DXL_HIBYTE(jointPos[i, j])])
 
-            dxl_comm_result = groupSyncWrite.txPacket()
-            if dxl_comm_result == dxl.COMM_SUCCESS:
-                print("GroupSyncWrite Succeeded")
+    gripper = Gripper9()
+    gripper.setup()
+    #while True:
+    gripper.move(jointPos) 
 
-            time.sleep(1.5)
-            gf.currentPositionToAngle(NUM_MOTORS, ADDR_PRESENT_POSITION, groupSyncRead)
-            groupSyncWrite.clearParam()
-
-    # endregion
-
-    # clear port, disable torque
-    portHandler.closePort()
+#clear port, disable torque
+    gripper.portHandler.closePort()
 
 if __name__ == "__main__":
     main()
