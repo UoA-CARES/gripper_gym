@@ -1,16 +1,10 @@
-import numpy as np
 import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 
-
 """
-The following are commonly used and repeattive functions that are used in the gripper test code.
-These have been collated to make the code more readable and easier to maintain.
+The servo class contains methods used to change attributes of the servo motors
+most useful for setting up the servos to move when they are chained togerther
 Beth Cutler
-
---> #TODO make this into a servo class
-
 """
-
 
 class Servo(object):
 

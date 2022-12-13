@@ -2,10 +2,9 @@
 Gripper Class intended to work with the summer reinforcement learning package being developed
 by the University of Auckland Robotics Lab
 
-Author: Beth Cutler
+Beth Cutler
 '''
 import numpy as np
-import gripperFunctions as gf
 import dynamixel_sdk as dxl
 import time
 from gripperFunctions import Servo
@@ -18,8 +17,8 @@ class Gripper9(object):
         self.motor_ids = [1,2,3,4,5,6,7,8,9]
         self.motor_positions = [0,0,0,0,0,0,0,0,0]
         self.baudrate = 57600
-        self.devicename = "COM5"   #need to change if ur in linux
-        self.protocol = 2.0
+        self.devicename = "COM5"    #need to change if in linux, will be dependent on the system
+        self.protocol = 2.0         #XL-320 uses protocol 2
         self.addresses = {
             "torque_enable": 24,
             "torque_limit": 35,
@@ -38,7 +37,6 @@ class Gripper9(object):
             self.portHandler, self.packetHandler, self.addresses["goal_position"], 2)
         self.groupSyncRead = dxl.GroupSyncRead(
             self.portHandler, self.packetHandler, self.addresses["present_position"], 2) 
-        #figure out how I want to do groupSyncRead and groupSyncWrite, because they may fuck up
 
         #create nine servo instances 
         self.servo1 = Servo(self.portHandler, self.packetHandler, 0, self.addresses, 1)
@@ -51,10 +49,12 @@ class Gripper9(object):
         self.servo8 = Servo(self.portHandler, self.packetHandler, 4, self.addresses, 8)
         self.servo9 = Servo(self.portHandler, self.packetHandler, 6, self.addresses, 9)
 
+        #combine all servo instances
         self.servos = [self.servo1, self.servo2, self.servo3, self.servo4, self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
 
     def setup(self):
 
+        #open port, set baudrate
         if self.portHandler.openPort():
             print("Succeeded to open the port")
         else:
@@ -67,41 +67,46 @@ class Gripper9(object):
             print("Failed to change the baudrate")
             quit()
 
+        #setup certain specs of the servos
         for servo in self.servos:
             servo.limit_torque()
             servo.limit_speed()
             servo.enable_torque()
             servo.turn_on_LED()
 
+
+    """ actions is an array of joint positions that specifiy the desired position of each servo"""
     def move(self, actions):
 
         #TODO potientially add a check in here that clips the actions given from the network just to set some kind of limit
-    
-        #set up read write groups
+        #TODO make sure there are enough joint positions in the actions array
         
-        #move the servos to the desired positions
-        for j in range(0, np.shape(actions)[1]):  # number of actions
-            for i in range(0, self.num_motors):  # number of motors
-                self.groupSyncWrite.addParam(i+1, [dxl.DXL_LOBYTE(actions[i, j]), dxl.DXL_HIBYTE(actions[i, j])])
-
+        #loop through the actions array and send the commands to the motors
+        for j in range (0, np.shape(actions)[1]): #number of actions
+            for i in range(len(self.servos)): 
+                #add parameters to the groupSyncWrite
+                self.groupSyncWrite.addParam(self.servos[i].motor_id, [dxl.DXL_LOBYTE(actions[i, j]), dxl.DXL_HIBYTE(actions[i, j])])
+            #transmit the packet
             dxl_comm_result = self.groupSyncWrite.txPacket()
             if dxl_comm_result == dxl.COMM_SUCCESS:
                 print("GroupSyncWrite Succeeded")
-
+            
+            self.all_current_positions()
             time.sleep(1.5)
-    
             self.groupSyncWrite.clearParam()
+    
 
-    def current_positions(self):
+    def all_current_positions(self):
   
+        #TODO see if there is a just a rx packet function that can be used here
         self.groupSyncRead.txRxPacket()
-        #better way to do this?
+        
         for servo in self.servos:
             self.groupSyncRead.addParam(servo.motor_id)
         for servo in self.servos:
             currentPos = self.groupSyncRead.getData(servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id - 1] = np.round(((0.2929 * currentPos) - 150), 1)
-        print(self.motor_positons)
-        
+        print(self.motor_positions)
+
         return self.motor_positions
     
