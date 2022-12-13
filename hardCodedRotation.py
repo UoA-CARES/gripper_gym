@@ -9,10 +9,8 @@ This will be used to test the gripper
 Beth Cutler 
  '''
 
-import time
 import numpy as np
 import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
-import gripperFunctions as gf
 from GripperClass import Gripper9
 
 
@@ -63,8 +61,8 @@ def main():
 
     gripper = Gripper9()
     gripper.setup()
-    #while True:
-    gripper.move(jointPos) 
+    while True:
+        gripper.move(jointPos) 
 
 #clear port, disable torque
     gripper.portHandler.closePort()

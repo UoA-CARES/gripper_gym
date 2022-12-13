@@ -8,8 +8,9 @@ import numpy as np
 import gripperFunctions as gf
 import dynamixel_sdk as dxl
 import time
+from gripperFunctions import Servo
 
-class Gripper9():
+class Gripper9(object):
     def __init__(self):
 
         #is it best practice to do these as class variables? or do I just make them variables that get intialised in the __init__ function?
@@ -17,7 +18,7 @@ class Gripper9():
         self.motor_ids = [1,2,3,4,5,6,7,8,9]
         self.motor_positions = [0,0,0,0,0,0,0,0,0]
         self.baudrate = 57600
-        self.devicename = "COM5"
+        self.devicename = "COM5"   #need to change if ur in linux
         self.protocol = 2.0
         self.addresses = {
             "torque_enable": 24,
@@ -33,8 +34,24 @@ class Gripper9():
         self.portHandler = dxl.PortHandler(self.devicename)
         self.packetHandler = dxl.PacketHandler(self.protocol)
 
-        #figure out how I want to do groupSyncRead and groupSyncWrite, because they'll 
+        self.groupSyncWrite = dxl.GroupSyncWrite(
+            self.portHandler, self.packetHandler, self.addresses["goal_position"], 2)
+        self.groupSyncRead = dxl.GroupSyncRead(
+            self.portHandler, self.packetHandler, self.addresses["present_position"], 2) 
+        #figure out how I want to do groupSyncRead and groupSyncWrite, because they may fuck up
 
+        #create nine servo instances 
+        self.servo1 = Servo(self.portHandler, self.packetHandler, 0, self.addresses, 1)
+        self.servo2 = Servo(self.portHandler, self.packetHandler, 3, self.addresses, 2)
+        self.servo3 = Servo(self.portHandler, self.packetHandler, 2, self.addresses, 3)
+        self.servo4 = Servo(self.portHandler, self.packetHandler, 0, self.addresses, 4)
+        self.servo5 = Servo(self.portHandler, self.packetHandler, 7, self.addresses, 5)
+        self.servo6 = Servo(self.portHandler, self.packetHandler, 5, self.addresses, 6)
+        self.servo7 = Servo(self.portHandler, self.packetHandler, 0, self.addresses, 7)
+        self.servo8 = Servo(self.portHandler, self.packetHandler, 4, self.addresses, 8)
+        self.servo9 = Servo(self.portHandler, self.packetHandler, 6, self.addresses, 9)
+
+        self.servos = [self.servo1, self.servo2, self.servo3, self.servo4, self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
 
     def setup(self):
 
@@ -50,40 +67,41 @@ class Gripper9():
             print("Failed to change the baudrate")
             quit()
 
-        gf.limitTorque(self.num_motors, self.addresses["torque_limit"], self.torque_limit, self.packetHandler, self.portHandler)
-        gf.limitSpeed(self.num_motors, self.addresses["moving_speed"], 80, self.packetHandler, self.portHandler)
-        gf.enableTorque(self.num_motors, self.addresses["torque_enable"], 1, self.packetHandler, self.portHandler)
-        gf.turnOnLEDS(self.num_motors, self.addresses["led"], self.packetHandler, self.portHandler)  #current only works for 9 motors and how ive specifically got it setup
-
+        for servo in self.servos:
+            servo.limit_torque()
+            servo.limit_speed()
+            servo.enable_torque()
+            servo.turn_on_LED()
 
     def move(self, actions):
 
         #TODO potientially add a check in here that clips the actions given from the network just to set some kind of limit
     
         #set up read write groups
-        groupSyncWrite = dxl.GroupSyncWrite(
-        self.portHandler, self.packetHandler, self.addresses["goal_position"], 2)
-        groupSyncRead = dxl.GroupSyncRead(
-        self.portHandler, self.packetHandler, self.addresses["present_position"], 2) 
+        
         #move the servos to the desired positions
         for j in range(0, np.shape(actions)[1]):  # number of actions
             for i in range(0, self.num_motors):  # number of motors
-                dxl_addparam_result = groupSyncWrite.addParam(
-                    i+1, [dxl.DXL_LOBYTE(actions[i, j]), dxl.DXL_HIBYTE(actions[i, j])])
+                self.groupSyncWrite.addParam(i+1, [dxl.DXL_LOBYTE(actions[i, j]), dxl.DXL_HIBYTE(actions[i, j])])
 
-            dxl_comm_result = groupSyncWrite.txPacket()
+            dxl_comm_result = self.groupSyncWrite.txPacket()
             if dxl_comm_result == dxl.COMM_SUCCESS:
                 print("GroupSyncWrite Succeeded")
 
             time.sleep(1.5)
-            gf.currentPositionToAngle(self.num_motors, self.addresses["present_position"], groupSyncRead)
-            groupSyncWrite.clearParam()
+    
+            self.groupSyncWrite.clearParam()
 
     def current_positions(self):
-
-        groupSyncRead = dxl.GroupSyncRead(
-        self.portHandler, self.packetHandler, self.addresses["present_position"], 2)   
-        self.motor_positions = gf.currentPositionToAngle(self.num_motors, self.addresses["present_position"], groupSyncRead)
-
+  
+        self.groupSyncRead.txRxPacket()
+        #better way to do this?
+        for servo in self.servos:
+            self.groupSyncRead.addParam(servo.motor_id)
+        for servo in self.servos:
+            currentPos = self.groupSyncRead.getData(servo.motor_id, self.addresses["present_position"], 2)
+            self.motor_positions[servo.motor_id - 1] = np.round(((0.2929 * currentPos) - 150), 1)
+        print(self.motor_positons)
+        
         return self.motor_positions
     
