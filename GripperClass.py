@@ -34,33 +34,33 @@ class Gripper9(object):
         }
         self.torque_limit = 180
 
-        self.portHandler = dxl.PortHandler(self.devicename)
-        self.packetHandler = dxl.PacketHandler(self.protocol)
+        self.port_handler = dxl.PortHandler(self.devicename)
+        self.packet_handler = dxl.PacketHandler(self.protocol)
 
-        self.groupSyncWrite = dxl.GroupSyncWrite(
-            self.portHandler, self.packetHandler, self.addresses["goal_position"], 2)
-        self.groupSyncRead = dxl.GroupSyncRead(
-            self.portHandler, self.packetHandler, self.addresses["present_position"], 2)
+        self.group_sync_write = dxl.GroupSyncWrite(
+            self.port_handler, self.packet_handler, self.addresses["goal_position"], 2)
+        self.group_sync_read = dxl.GroupSyncRead(
+            self.port_handler, self.packet_handler, self.addresses["present_position"], 2)
 
         # create nine servo instances
         self.servo1 = Servo(
-            self.portHandler, self.packetHandler, 0, self.addresses, 1)
+            self.port_handler, self.packet_handler, 0, self.addresses, 1)
         self.servo2 = Servo(
-            self.portHandler, self.packetHandler, 3, self.addresses, 2)
+            self.port_handler, self.packet_handler, 3, self.addresses, 2)
         self.servo3 = Servo(
-            self.portHandler, self.packetHandler, 2, self.addresses, 3)
+            self.port_handler, self.packet_handler, 2, self.addresses, 3)
         self.servo4 = Servo(
-            self.portHandler, self.packetHandler, 0, self.addresses, 4)
+            self.port_handler, self.packet_handler, 0, self.addresses, 4)
         self.servo5 = Servo(
-            self.portHandler, self.packetHandler, 7, self.addresses, 5)
+            self.port_handler, self.packet_handler, 7, self.addresses, 5)
         self.servo6 = Servo(
-            self.portHandler, self.packetHandler, 5, self.addresses, 6)
+            self.port_handler, self.packet_handler, 5, self.addresses, 6)
         self.servo7 = Servo(
-            self.portHandler, self.packetHandler, 0, self.addresses, 7)
+            self.port_handler, self.packet_handler, 0, self.addresses, 7)
         self.servo8 = Servo(
-            self.portHandler, self.packetHandler, 4, self.addresses, 8)
+            self.port_handler, self.packet_handler, 4, self.addresses, 8)
         self.servo9 = Servo(
-            self.portHandler, self.packetHandler, 6, self.addresses, 9)
+            self.port_handler, self.packet_handler, 6, self.addresses, 9)
 
         # combine all servo instances
         self.servos = [self.servo1, self.servo2, self.servo3, self.servo4,
@@ -69,13 +69,13 @@ class Gripper9(object):
     def setup(self):
 
         # open port, set baudrate
-        if self.portHandler.openPort():
+        if self.port_handler.openPort():
             print("Succeeded to open the port")
         else:
             print("Failed to open the port")
             quit()
         # set port baudrate
-        if self.portHandler.setBaudRate(self.baudrate):
+        if self.port_handler.setBaudRate(self.baudrate):
             print("Succeeded to change the baudrate")
         else:
             print("Failed to change the baudrate")
@@ -97,18 +97,18 @@ class Gripper9(object):
 
         # loop through the actions array and send the commands to the motors
 
-        for j in range(0, np.shape(action)[1]):  # number of actions
-            for i in range(len(self.servos)):
+        
+            for servo in self.servos:
                 # add parameters to the groupSyncWrite
-                self.groupSyncWrite.addParam(self.servos[i].motor_id, [
-                                             dxl.DXL_LOBYTE(action[i, j]), dxl.DXL_HIBYTE(action[i, j])])
+                self.group_sync_write.addParam(servo.motor_id, [
+                    dxl.DXL_LOBYTE(action[servo.motor_id-1]), dxl.DXL_HIBYTE(action[servo.motor_id-1])])
 
             # transmit the packet
-            dxl_comm_result = self.groupSyncWrite.txPacket()
+            dxl_comm_result = self.group_sync_write.txPacket()
             if dxl_comm_result == dxl.COMM_SUCCESS:
-                print("GroupSyncWrite Succeeded")
+                print("group_sync_write Succeeded")
 
-            self.groupSyncWrite.clearParam()
+            self.group_sync_write.clearParam()
 
             # using moving flag to check if the motors have reached their goal position
             while self.gripper_moving_check():
@@ -118,12 +118,12 @@ class Gripper9(object):
     def all_current_positions(self):
 
         # TODO see if there is a just a rx packet function that can be used here
-        self.groupSyncRead.txRxPacket()
+        self.group_sync_read.txRxPacket()
 
         for servo in self.servos:
-            self.groupSyncRead.addParam(servo.motor_id)
+            self.group_sync_read.addParam(servo.motor_id)
         for servo in self.servos:
-            currentPos = self.groupSyncRead.getData(
+            currentPos = self.group_sync_read.getData(
                 servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id -
                                  1] = np.round(((0.2929 * currentPos) - 150), 1)
@@ -142,4 +142,4 @@ class Gripper9(object):
         for servo in self.servos:
             servo.disable_torque()
         # close port
-        self.portHandler.closePort()
+        self.port_handler.closePort()

@@ -66,8 +66,9 @@ def main():
     #while True:
         #move the servo
     for i in range(0, 100):
-        gripper.move(jointPos) 
-        i+=1
+        for j in range(0, len(jointPos[0])):
+            gripper.move(jointPos[:,j]) 
+        #i+=1
     #gripper.all_current_positions()
     time.sleep(10)
 

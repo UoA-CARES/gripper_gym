@@ -10,8 +10,8 @@ Beth Cutler
 class Servo(object):
 
     def __init__(self, portHandler, packetHandler, LED_colour, addresses, motor_id):
-        self.portHandler = portHandler
-        self.packetHandler = packetHandler
+        self.port_handler = portHandler
+        self.packet_handler = packetHandler
 
         self.LED_colour = LED_colour
         self.addresses = addresses
@@ -24,13 +24,13 @@ class Servo(object):
         #ledColours = [0, 3, 2, 0, 7, 5, 0, 4, 6]
 
         # write and read to servos
-        dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(
-            self.portHandler, self.motor_id, self.addresses["led"], self.LED_colour)
+        dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(
+            self.port_handler, self.motor_id, self.addresses["led"], self.LED_colour)
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
-            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
-            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            print("%s" % self.packet_handler.getRxPacketError(dxl_error))
         else:
             print("Dynamixel#%d has been successfully LED turned on" %
                   self.motor_id)
@@ -40,13 +40,13 @@ class Servo(object):
     def limit_torque(self):
 
         # write and read to servos
-        dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(
-            self.portHandler, self.motor_id, self.addresses["torque_limit"], 180)
+        dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(
+            self.port_handler, self.motor_id, self.addresses["torque_limit"], 180)
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
-            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
-            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            print("%s" % self.packet_handler.getRxPacketError(dxl_error))
         else:
             print("Dynamixel#%d has been successfully torque limited" %
                   self.motor_id)
@@ -55,13 +55,13 @@ class Servo(object):
     def enable_torque(self):
 
         # write and read to servos
-        dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(
-            self.portHandler, self.motor_id, self.addresses["torque_enable"], 1)
+        dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(
+            self.port_handler, self.motor_id, self.addresses["torque_enable"], 1)
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
-            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
-            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            print("%s" % self.packet_handler.getRxPacketError(dxl_error))
         else:
             print("Dynamixel#%d has been successfully torque enabled" %
                   self.motor_id)
@@ -71,12 +71,12 @@ class Servo(object):
     def disable_torque(self):
 
         # write and read to servos
-        dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(
-            self.portHandler, self.motor_id, self.addresses["torque_enable"], 0)
+        dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(
+            self.port_handler, self.motor_id, self.addresses["torque_enable"], 0)
         if dxl_comm_result != dxl.COMM_SUCCESS:
-            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
-            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            print("%s" % self.packet_handler.getRxPacketError(dxl_error))
         else:
             print("Dynamixel#%d has been successfully disabled torque" %
                   self.motor_id)
@@ -85,21 +85,20 @@ class Servo(object):
     def limit_speed(self):
 
         # write and read to servos
-        dxl_comm_result, dxl_error = self.packetHandler.write2ByteTxRx(
-            self.portHandler, self.motor_id, self.addresses["moving_speed"], 90)
+        dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(
+            self.port_handler, self.motor_id, self.addresses["moving_speed"], 90)
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
-            print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
+            print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
-            print("%s" % self.packetHandler.getRxPacketError(dxl_error))
+            print("%s" % self.packet_handler.getRxPacketError(dxl_error))
         else:
             print("Dynamixel#%d has been successfully speed limited" %
                   self.motor_id)
 
     def moving_check(self):
         # write and read to servos
-        dxl_moving_result, dxl_comm_result, dxl_error = self.packetHandler.read1ByteTxRx(
-            self.portHandler, self.motor_id, self.addresses["moving"])
+        dxl_moving_result, dxl_comm_result, dxl_error = self.packet_handler.read1ByteTxRx(
+            self.port_handler, self.motor_id, self.addresses["moving"])
 
-        print(dxl_moving_result)
-        return int(dxl_moving_result) == 1
+        return int(dxl_moving_result)#== 1
