@@ -6,13 +6,14 @@ Beth Cutler
 '''
 import numpy as np
 import dynamixel_sdk as dxl
-import time
 from gripperFunctions import Servo
 
 # TODO figure out how the fiducal marker is gonna work
+# TODO add a finger sub class, which is consists of 3 servo instances 
+# TODO put all the servo instances into a dictionary
 
 
-class Gripper9(object):
+class Gripper(object):
     def __init__(self):
 
         # is it best practice to do these as class variables? or do I just make them variables that get intialised in the __init__ function?
@@ -62,9 +63,9 @@ class Gripper9(object):
         self.servo9 = Servo(
             self.port_handler, self.packet_handler, 6, self.addresses, 9)
 
-        # combine all servo instances
-        self.servos = [self.servo1, self.servo2, self.servo3, self.servo4,
-                       self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
+        # combine all servo instances in a dictionary so I can iterate by motor id
+        self.servos = [self.servo1, self.servo2, self.servo3, self.servo4, self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
+        
 
     def setup(self):
 
@@ -118,7 +119,7 @@ class Gripper9(object):
     def all_current_positions(self):
 
         # TODO see if there is a just a rx packet function that can be used here
-        self.group_sync_read.txRxPacket()
+        self.group_sync_read.rxPacket()
 
         for servo in self.servos:
             self.group_sync_read.addParam(servo.motor_id)
@@ -127,9 +128,26 @@ class Gripper9(object):
                 servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id -
                                  1] = np.round(((0.2929 * currentPos) - 150), 1)
-        print(self.motor_positions)
+        # print(self.motor_positions)
 
         return self.motor_positions
+
+    def reset(self):
+        # TODO reset the gripper to a default position
+        reset_seq = np.array([[512, 512],  # 1 base plate
+                            [185, 512],  # 2 middle
+                            [126, 512],  # 3 finger tip
+
+                            [512, 512],  # 4 baseplate
+                            [143, 460],  # 5 middle
+                            [150, 512],  # 6 finger tip
+
+                            [512, 512],  # 7 baseplate
+                            [188, 512],  # 8 middle
+                            [138, 512]])
+        self.move(reset_seq[:,0])
+        self.move(reset_seq[:,1])
+        
 
     def gripper_moving_check(self):
         moving = False

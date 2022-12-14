@@ -101,4 +101,4 @@ class Servo(object):
         dxl_moving_result, dxl_comm_result, dxl_error = self.packet_handler.read1ByteTxRx(
             self.port_handler, self.motor_id, self.addresses["moving"])
 
-        return int(dxl_moving_result)#== 1
+        return int(dxl_moving_result)

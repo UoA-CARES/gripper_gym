@@ -8,8 +8,7 @@ Beth Cutler
  '''
 
 import numpy as np
-import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
-from GripperClass import Gripper9
+from GripperClass import Gripper
 import time
 
 
@@ -38,9 +37,6 @@ MAX_VELOCITY_VALUE = 80   # Max possible value=2047
 LIM_TORQUE_VALUE = 180    # Max possible value=1023
 
 
-#portHandler = dxl.PortHandler(DEVICENAME)
-#packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
-
 jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
                         [512, 400, 400, 570, 570, 300, 512],  # 2 middle
                         [512, 400, 400, 370, 230, 200, 512],  # 3 finger tip
@@ -59,17 +55,22 @@ def main():
 
     #create gripper instance
     #setup the servos
-    gripper = Gripper9()
+    gripper = Gripper()
 
     gripper.setup()
+    gripper.reset()
     #run contiuously
     #while True:
         #move the servo
     for i in range(0, 100):
         for j in range(0, len(jointPos[0])):
             gripper.move(jointPos[:,j]) 
-        #i+=1
-    #gripper.all_current_positions()
+            print(i+j)
+            #reset in the middle of random positions
+            if (i+j) % 5 == 0:
+                gripper.reset()
+        
+      
     time.sleep(10)
 
 #clear port, disable torque
