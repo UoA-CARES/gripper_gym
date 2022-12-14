@@ -4,14 +4,13 @@ The intent of this programme is define a sequence of actions that will rotate a 
 using the three fingered grippered being developed and then return the finger to its original position.
 This will be used to test the gripper
 
---> #TODO make gripper class (later, basically make a copy but join everything together)
-
 Beth Cutler 
  '''
 
 import numpy as np
 import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 from GripperClass import Gripper9
+import time
 
 
 # region *** Globals ***
@@ -39,8 +38,8 @@ MAX_VELOCITY_VALUE = 80   # Max possible value=2047
 LIM_TORQUE_VALUE = 180    # Max possible value=1023
 
 
-portHandler = dxl.PortHandler(DEVICENAME)
-packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
+#portHandler = dxl.PortHandler(DEVICENAME)
+#packetHandler = dxl.PacketHandler(PROTOCOL_VERSION)
 
 jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
                         [512, 400, 400, 570, 570, 300, 512],  # 2 middle
@@ -58,14 +57,22 @@ jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
 
 def main():
 
-
+    #create gripper instance
+    #setup the servos
     gripper = Gripper9()
+
     gripper.setup()
-    while True:
+    #run contiuously
+    #while True:
+        #move the servo
+    for i in range(0, 100):
         gripper.move(jointPos) 
+        i+=1
+    #gripper.all_current_positions()
+    time.sleep(10)
 
 #clear port, disable torque
-    gripper.portHandler.closePort()
+    gripper.close()
 
 if __name__ == "__main__":
     main()
