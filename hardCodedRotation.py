@@ -9,6 +9,7 @@ Beth Cutler
 
 import numpy as np
 from GripperClass import Gripper
+from Camera import Camera
 import time
 
 
@@ -53,28 +54,33 @@ jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
 
 def main():
 
+
+    camera = Camera()
+    camera.get_frame()  
+    camera.detect_aruco()
+
     #create gripper instance
     #setup the servos
-    gripper = Gripper()
+    #gripper = Gripper()
 
-    gripper.setup()
-    gripper.reset()
+    # gripper.setup()
+    # gripper.reset()
     #run contiuously
     #while True:
         #move the servo
-    for i in range(0, 100):
-        for j in range(0, len(jointPos[0])):
-            gripper.move(jointPos[:,j]) 
-            print(i+j)
-            #reset in the middle of random positions
-            if (i+j) % 5 == 0:
-                gripper.reset()
+    # for i in range(0, 100):
+    #     for j in range(0, len(jointPos[0])):
+    #         gripper.move(jointPos[:,j]) 
+    #         print(i+j)
+    #         #reset in the middle of random positions
+    #         if (i+j) % 5 == 0:
+    #             gripper.reset()
         
       
-    time.sleep(10)
+    # time.sleep(10)
 
 #clear port, disable torque
-    gripper.close()
+    # gripper.close()
 
 if __name__ == "__main__":
     main()

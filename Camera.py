@@ -35,7 +35,15 @@ class Camera(object):
     
         ret, frame = self.camera.read()
         if ret: 
-            cv2.imshow("frame", frame)
+            cv2.imshow("frame", frame)  #this is temporary but useful for debugging
             cv2.waitKey(0)
+            return frame
         else: print("Error: No frame returned")
         
+    def detect_aruco(self):
+        frame = self.get_frame()
+        (corners, ids, rejectedImgPoints) = cv2.aruco.detectMarkers(frame, self.arucoDict, parameters=self.arucoParams)
+        cv2.aruco.drawDetectedMarkers(frame, corners, ids, borderColor=(0, 0, 255))
+        cv2.imshow("frame", frame)
+        cv2.waitKey(0)
+
