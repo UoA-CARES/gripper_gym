@@ -57,7 +57,9 @@ def main():
 
     camera = Camera()
     camera.get_frame()  
-    camera.detect_aruco()
+    #camera.get_marker_pose(180)
+    camera.detect_display()
+    
 
     #create gripper instance
     #setup the servos

@@ -1,5 +1,5 @@
 '''
-Gripper Class intended to work with the summer reinforcement learning package being developed
+Gripper Class intended to work with the reinforcement learning package being developed
 by the University of Auckland Robotics Lab
 
 Beth Cutler
@@ -8,9 +8,10 @@ import numpy as np
 import dynamixel_sdk as dxl
 from gripperFunctions import Servo
 
-# TODO figure out how the fiducal marker is gonna work
+# TODO figure out how the fiducal/aruco marker is gonna work
 # TODO add a finger sub class, which is consists of 3 servo instances 
 # TODO put all the servo instances into a dictionary
+
 
 
 class Gripper(object):
