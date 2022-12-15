@@ -42,12 +42,8 @@ class Camera(object):
 
         #lower_blue = np.array([110,50,50], datatype = "unit8")  #this is bgr thanks copilot
         #upper_blue = np.array([255,255,130], datatype ="uint8")  #this is bgr
-        
-        while self.vision_flag_status:
             
             frame = self.get_frame()
-            #cv2.imshow("frame", frame)
-            #cv2.waitKey(10)
             #if arcuo marker is detected, draw it
             (corners, ids, rejectedImgPoints) = cv2.aruco.detectMarkers(frame, self.arucoDict, parameters=self.arucoParams)
             if len(corners) > 0:
@@ -55,14 +51,14 @@ class Camera(object):
                 #detecting the aruco marker
                 cv2.aruco.drawDetectedMarkers(frame, corners, ids, borderColor=(0, 0, 255))
                 cv2.imshow("frame", frame)
-                cv2.waitKey(10)
+                cv2.waitKey(5)
 
             #if the arcuo marker is not detected, keep the while loop running but display a message sying it is not detected
             elif len(corners) == 0:
                 cv2.putText(frame, "No Aruco Marker Detected", (60, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1, cv2.LINE_AA)
                 cv2.imshow("frame", frame)
-                cv2.waitKey(10)
-                continue
+                cv2.waitKey(5)
+                
 
 
 
@@ -71,10 +67,10 @@ class Camera(object):
         (corners, ids, rejected) = cv2.aruco.detectMarkers(frame, self.arucoDict, parameters=self.arucoParams)
         r_vec, t_vec, _ = cv2.aruco.estimatePoseSingleMarkers(corners, self.markerSize, self.matrix, self.distortion)
 
-        valve_location = t_vec[0][0][:-1]
+        valve_location = t_vec[0][0][0:2]
         
         valve_angle = np.array([self.get_angle(r_vec[0][0])])
-        #print(valve_angle,  valve_location)
+        print(valve_angle,  valve_location)
 
         goal_angle = np.array([goal_angle])
 
@@ -83,15 +79,15 @@ class Camera(object):
         self.vision_flag_status = True
         return valve_angle, state_space, frame, self.vision_flag_status
 
-    def isclose(self, x, y, rtol=1.e-5, atol=1.e-8):
+    def is_close(self, x, y, rtol=1.e-5, atol=1.e-8):
         return abs(x - y) <= atol + rtol * abs(y)   #this is a tolerance thingy i think
 
     def calculate_euler_angles(self, R):
         phi = 0.0
-        if self.isclose(R[2, 0], -1.0):
+        if self.is_close(R[2, 0], -1.0):
             theta = math.pi / 2.0
             psi = math.atan2(R[0, 1], R[0, 2])
-        elif self.isclose(R[2, 0], 1.0):
+        elif self.is_close(R[2, 0], 1.0):
             theta = -math.pi / 2.0
             psi = math.atan2(-R[0, 1], -R[0, 2])
         else:

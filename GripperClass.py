@@ -6,11 +6,12 @@ Beth Cutler
 '''
 import numpy as np
 import dynamixel_sdk as dxl
-from gripperFunctions import Servo
+from Servo import Servo
+from Camera import Camera
 
-# TODO figure out how the fiducal/aruco marker is gonna work
 # TODO add a finger sub class, which is consists of 3 servo instances 
 # TODO put all the servo instances into a dictionary
+# TODO dont forget that in the training loop you will have to convert the sevrvo angles from 0-1 to 0-1023
 
 
 
@@ -34,7 +35,7 @@ class Gripper(object):
             "moving_speed": 32,
             "moving": 49
         }
-        self.torque_limit = 180
+        self.TORQUE_LIMIT = 180  
 
         self.port_handler = dxl.PortHandler(self.devicename)
         self.packet_handler = dxl.PacketHandler(self.protocol)
@@ -44,6 +45,8 @@ class Gripper(object):
         self.group_sync_read = dxl.GroupSyncRead(
             self.port_handler, self.packet_handler, self.addresses["present_position"], 2)
 
+
+        #TODO put this in a for loop
         # create nine servo instances
         self.servo1 = Servo(
             self.port_handler, self.packet_handler, 0, self.addresses, 1)
@@ -66,7 +69,7 @@ class Gripper(object):
 
         # combine all servo instances in a dictionary so I can iterate by motor id
         self.servos = [self.servo1, self.servo2, self.servo3, self.servo4, self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
-        
+        self.camera = Camera()
 
     def setup(self):
 
@@ -90,7 +93,11 @@ class Gripper(object):
             servo.enable_torque()
             servo.turn_on_LED()
 
-    """ actions is an array of joint positions that specifiy the desired position of each servo"""
+    """ 
+    actions is an array of joint positions that specifiy the desired position of each servo
+    this will be a 9 element of array of integers between 0 and 1023
+    #TODO add a check to make sure the array is the correct length
+    """
 
     def move(self, action):
 
@@ -98,33 +105,34 @@ class Gripper(object):
         # TODO make sure there are enough joint positions in the actions array
 
         # loop through the actions array and send the commands to the motors
-
         
-            for servo in self.servos:
-                # add parameters to the groupSyncWrite
-                self.group_sync_write.addParam(servo.motor_id, [
-                    dxl.DXL_LOBYTE(action[servo.motor_id-1]), dxl.DXL_HIBYTE(action[servo.motor_id-1])])
+        for servo in self.servos:
+            # add parameters to the groupSyncWrite
+            self.group_sync_write.addParam(servo.motor_id, [
+                dxl.DXL_LOBYTE(action[servo.motor_id-1]), dxl.DXL_HIBYTE(action[servo.motor_id-1])])
 
-            # transmit the packet
-            dxl_comm_result = self.group_sync_write.txPacket()
-            if dxl_comm_result == dxl.COMM_SUCCESS:
-                print("group_sync_write Succeeded")
+        # transmit the packet
+        dxl_comm_result = self.group_sync_write.txPacket()
+        if dxl_comm_result == dxl.COMM_SUCCESS:
+            print("group_sync_write Succeeded")
 
-            self.group_sync_write.clearParam()
+        self.group_sync_write.clearParam()
 
-            # using moving flag to check if the motors have reached their goal position
-            while self.gripper_moving_check():
-                self.all_current_positions()
+        # using moving flag to check if the motors have reached their goal position
+        while self.gripper_moving_check():
+            self.camera.detect_display()
+            self.all_current_positions()
         # check for errors/got to position before moving on (IS THERE A FLAG???)
 
     def all_current_positions(self):
 
         # TODO see if there is a just a rx packet function that can be used here
         self.group_sync_read.rxPacket()
-
+        print("A")
         for servo in self.servos:
             self.group_sync_read.addParam(servo.motor_id)
         for servo in self.servos:
+            print("B")
             currentPos = self.group_sync_read.getData(
                 servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id -

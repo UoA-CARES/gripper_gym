@@ -10,13 +10,14 @@ Beth Cutler
 class Servo(object):
 
     def __init__(self, portHandler, packetHandler, LED_colour, addresses, motor_id):
+        
         self.port_handler = portHandler
         self.packet_handler = packetHandler
 
         self.LED_colour = LED_colour
         self.addresses = addresses
         self.motor_id = motor_id
-        # TODO fix
+        # TODO for other systems have a variable that gets passed in 
         self.device_name = "COM5"
 
     def turn_on_LED(self):
@@ -36,7 +37,7 @@ class Servo(object):
                   self.motor_id)
 
     # limit the torque of the motors
-
+    #TODO change 180 to a variable that gets passed in 
     def limit_torque(self):
 
         # write and read to servos
@@ -50,6 +51,7 @@ class Servo(object):
         else:
             print("Dynamixel#%d has been successfully torque limited" %
                   self.motor_id)
+        
 
     # enable the torque of the motors
     def enable_torque(self):
@@ -82,6 +84,7 @@ class Servo(object):
                   self.motor_id)
 
     # limit the speed of the servos
+    #TODO maybe sort out the limit speed as currently this just gets passed in as 90
     def limit_speed(self):
 
         # write and read to servos
@@ -102,3 +105,7 @@ class Servo(object):
             self.port_handler, self.motor_id, self.addresses["moving"])
 
         return int(dxl_moving_result)
+
+    def verify_angle(self): 
+        #im not sure what i want this to return yet
+        pass

@@ -56,27 +56,38 @@ def main():
 
 
     camera = Camera()
-    camera.get_frame()  
+    #camera.get_frame()  
     #camera.get_marker_pose(180)
-    camera.detect_display()
+    #camera.detect_display()
     
 
     #create gripper instance
     #setup the servos
-    #gripper = Gripper()
+    gripper = Gripper()
 
-    # gripper.setup()
-    # gripper.reset()
+    gripper.setup()
+    gripper.reset()
     #run contiuously
-    #while True:
+    while True:
         #move the servo
-    # for i in range(0, 100):
-    #     for j in range(0, len(jointPos[0])):
-    #         gripper.move(jointPos[:,j]) 
-    #         print(i+j)
-    #         #reset in the middle of random positions
-    #         if (i+j) % 5 == 0:
-    #             gripper.reset()
+        #camera.get_frame()  
+    #camera.get_marker_pose(180)
+        #camera.detect_display() 
+
+        for i in range(0, 100):
+            #camera.detect_display()
+            print("G")
+            for j in range(0, len(jointPos[0])):
+                #camera.detect_display()
+                print("E")
+                gripper.move(jointPos[:,j]) 
+                #camera.detect_display()
+                print(i+j)
+             #reset in the middle of random positions
+                if (i+j) % 5 == 0:
+                    print("F")
+                    #camera.detect_display()
+                    gripper.reset()
         
       
     # time.sleep(10)
