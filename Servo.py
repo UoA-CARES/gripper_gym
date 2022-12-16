@@ -4,6 +4,7 @@ import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 The servo class contains methods used to change attributes of the servo motors
 most useful for setting up the servos to move when they are chained togerther
 Beth Cutler
+#TODO write min max function 
 """
 
 
@@ -22,7 +23,7 @@ class Servo(object):
 
     def turn_on_LED(self):
 
-        #ledColours = [0, 3, 2, 0, 7, 5, 0, 4, 6]
+        #ledColours = [0, 3, 2, 0, 7, 5, 0, 4, 6] may be useful if i refactor
 
         # write and read to servos
         dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(

@@ -128,16 +128,16 @@ class Gripper(object):
 
         # TODO see if there is a just a rx packet function that can be used here
         self.group_sync_read.rxPacket()
-        print("A")
+        
         for servo in self.servos:
             self.group_sync_read.addParam(servo.motor_id)
         for servo in self.servos:
-            print("B")
+            
             currentPos = self.group_sync_read.getData(
                 servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id -
                                  1] = np.round(((0.2929 * currentPos) - 150), 1)
-        # print(self.motor_positions)
+        print(self.motor_positions)
 
         return self.motor_positions
 
@@ -156,6 +156,9 @@ class Gripper(object):
                             [138, 512]])
         self.move(reset_seq[:,0])
         self.move(reset_seq[:,1])
+
+        #TODO: append valve position to all current positions then return as state
+        return self.all_current_postions()
         
 
     def gripper_moving_check(self):

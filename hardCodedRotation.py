@@ -54,46 +54,25 @@ jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
 
 def main():
 
-
-    camera = Camera()
-    #camera.get_frame()  
-    #camera.get_marker_pose(180)
-    #camera.detect_display()
-    
-
     #create gripper instance
-    #setup the servos
     gripper = Gripper()
 
+    #setup the gripper
     gripper.setup()
     gripper.reset()
-    #run contiuously
-    while True:
-        #move the servo
-        #camera.get_frame()  
-    #camera.get_marker_pose(180)
-        #camera.detect_display() 
+    
+    #run 100 times rotations
+    for i in range(0, 100):
+        for j in range(0, len(jointPos[0])):
 
-        for i in range(0, 100):
-            #camera.detect_display()
-            print("G")
-            for j in range(0, len(jointPos[0])):
-                #camera.detect_display()
-                print("E")
-                gripper.move(jointPos[:,j]) 
-                #camera.detect_display()
-                print(i+j)
-             #reset in the middle of random positions
-                if (i+j) % 5 == 0:
-                    print("F")
-                    #camera.detect_display()
-                    gripper.reset()
+            gripper.move(jointPos[:,j]) 
+
+            #reset in the middle of random positions to make sure it doesn't jam
+            if (i+j) % 9 == 0:
+                gripper.reset()
         
       
-    # time.sleep(10)
-
-#clear port, disable torque
-    # gripper.close()
+    gripper.close()
 
 if __name__ == "__main__":
     main()
