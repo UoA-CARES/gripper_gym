@@ -9,9 +9,6 @@ Beth Cutler
 
 import numpy as np
 from GripperClass import Gripper
-from Camera import Camera
-import time
-
 
 # region *** Globals ***
 

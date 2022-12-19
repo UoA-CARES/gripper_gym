@@ -4,13 +4,13 @@ import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 The servo class contains methods used to change attributes of the servo motors
 most useful for setting up the servos to move when they are chained togerther
 Beth Cutler
-#TODO write min max function 
+#TODO write min max function/have it as a value that you pass in when you create the servo instance
 """
 
 
 class Servo(object):
 
-    def __init__(self, portHandler, packetHandler, LED_colour, addresses, motor_id):
+    def __init__(self, portHandler, packetHandler, LED_colour, addresses, motor_id, device_name, torque_limit, speed_limit):
         
         self.port_handler = portHandler
         self.packet_handler = packetHandler
@@ -18,8 +18,7 @@ class Servo(object):
         self.LED_colour = LED_colour
         self.addresses = addresses
         self.motor_id = motor_id
-        # TODO for other systems have a variable that gets passed in 
-        self.device_name = "COM5"
+        
 
     def turn_on_LED(self):
 
