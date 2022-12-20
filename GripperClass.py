@@ -104,13 +104,14 @@ class Gripper(object):
         #TODO add the reward in here somewhere? 
         
         # loop through the actions array and send the commands to the motors
-        if  len(action) != self.num_motors:
+        if  action.shape[0] != self.num_motors:
            print("Error: action array is not the correct length")
-           quit()
+           #quit()
 
-        print(action)
+        #print(action)
         for servo in self.servos:
             # add parameters to the groupSyncWrite
+            print(action)
             self.group_sync_write.addParam(servo.motor_id, [
                 dxl.DXL_LOBYTE(action[servo.motor_id-1]), dxl.DXL_HIBYTE(action[servo.motor_id-1])])
 
@@ -172,9 +173,11 @@ class Gripper(object):
                 servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id -
                                  1] = np.round(((0.2929 * currentPos) - 150), 1)
-        print(self.motor_positions)
+        #print(self.motor_positions)
 
-        return self.motor_positions
+        all_current_positions = np.append(self.motor_positions, self.camera.get_marker_pose(0)[0])
+
+        return all_current_positions
 
 
     def reset(self):
@@ -195,7 +198,14 @@ class Gripper(object):
         self.move(reset_seq[:,1],0)
 
         #TODO: append valve position to all current positions then return as state
-        return self.all_current_positions()
+        state = self.all_current_positions()
+
+        #can't append angle because then each time the thing resets it will add it on. 
+        #theres gotta be a better way to do the observation space stuff
+        #maybe i will include it in the get_all_current_positions method. ye   
+        
+        return state
+
         
 
     def gripper_moving_check(self):

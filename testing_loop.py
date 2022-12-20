@@ -13,7 +13,7 @@ directory
 #TODO: training loop, selecting an action, exploration phase, create environment 
 #TODO: make sure data is normalised 
 #TODO: figure out a better way to do the max and min (current idea is to have limits initialised with the servo when its initialised)
-
+#TODO: add argument parsers bc the way david explained it made it seem very uself
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
@@ -22,6 +22,8 @@ from cares_reinforcement_learning.examples.Critic import Critic
 
 from  GripperClass import Gripper
 import numpy as np
+from argparse import ArgumentParser
+import random
 #from Servo import Servo
 #from Camera import Camera
 
@@ -50,6 +52,9 @@ env = Gripper() #--> env.reset, env.move(actions),
 MAX_ACTIONS = np.array([1023, (1023-150), 769, 1023, (1023-168), 802, 1023, (1023-190), 794])
 MIN_ACTIONS = np.array([0,(1023-784), 130, 0, (1023-729), 152, 0, (1023-795), 140])
 
+UPPER_LIMIT = np.array([1023, 150, 769, 1023, 168, 802, 1023, 190, 794])
+LOWER_LIMIT = np.array([0, 784, 130, 0, 729, 152, 0, 795, 140])
+
 
 def main():
 
@@ -70,6 +75,13 @@ def main():
     critic_one = Critic(observation_size, action_num, CRITIC_LR)
     critic_two = Critic(observation_size, action_num, CRITIC_LR)
 
+    #TODO: implement the argument parser
+
+    #args   = define_parse_args()
+
+    torch.manual_seed(100)
+    np.random.seed(100)
+    random.seed(100)
 
     td3 = TD3(
         actor_network=actor,
@@ -96,27 +108,39 @@ def train(td3, memory: MemoryBuffer):
 
         state = env.reset()
         episode_reward = 0
+        print(state)
 
-        while True:
+        while episode < EPISODE_NUM:  #need to check whether this is right
 
             # Select an Action
-            #td3.actor_net.eval()
+            #td3.actor_net.eval() --> dont need bc we are not using batch norm
             with torch.no_grad():
-                state_tensor = torch.FloatTensor(state)
-                state_tensor = state_tensor.unsqueeze(0)
+                #print(state)
+                state_tensor = torch.FloatTensor(state) 
+                print("Size of the int_list_to_float_tensor: ", state_tensor.size())
+                print("Dimensions of the int_list_to_float_tensor: ",state_tensor.ndimension())
+                #state_tensor = state_tensor
                 state_tensor = state_tensor.to(DEVICE)
                 action = td3.forward(state_tensor) #potientially a naming conflict
-                action = action.cpu().data.numpy()
+                action = action.numpy()
             td3.actor_net.train(True)
 
-            #action = action[0]
+            #convert actor output to valid integer steps within the max and min
+            for i in range(0, len(action)):
+                #TODO make sure this is actually doing what I want it to do 
+                action[i] = action[i] * (UPPER_LIMIT[i] - LOWER_LIMIT[i]) + LOWER_LIMIT[i]
+        
+            action = action.astype(int)
+            print(action.dtype)
+            print(action)
             target_angle = np.random.randint(0, 360)
 
             next_state, reward, = env.move(action, target_angle)
-            memory.add(state, action, reward, next_state)
-
+            memory.add(state, action, reward, False, next_state)
+            print(reward)
             experiences = memory.sample(BATCH_SIZE)
-
+            states, actions, rewards, next_states, dones = zip(experiences)
+            print(states)
             for _ in range(0, 10):
                 print("learning")
                 td3.learn(experiences)
@@ -152,7 +176,7 @@ def fill_buffer(memory):
         #TODO: figure out how to incorporate the target angle
         next_state, reward = env.move(action, target_angle)
         
-        memory.add(state, action, reward, next_state)
+        memory.add(state, action, reward, False, next_state)
 
         #how full is the buffer?
         print(f"Buffer: {len(memory.buffer)} / {memory.buffer.maxlen}", end='\r')

@@ -80,8 +80,8 @@ class Camera(object):
 
             valve_location = t_vec[0][0][0:2]
 
-            valve_angle = np.array([self.get_angle(r_vec[0][0])])
-            print(valve_angle,  valve_location)
+            valve_angle = self.get_angle(r_vec[0][0])
+            #print(valve_angle,  valve_location)
 
             goal_angle = np.array([goal_angle])
 
