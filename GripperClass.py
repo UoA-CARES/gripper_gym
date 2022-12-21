@@ -99,14 +99,16 @@ class Gripper(object):
            #quit()
 
         #print(action)
+        action = self.verify_actions(action)
+
         for servo in self.servos:
 
             servo = self.servos[servo]
             # add parameters to the groupSyncWrite
             print(action)
-            angle = servo.verify_angle(action[servo.motor_id-1])
+            #TODO add an angle pairs check??
             self.group_sync_write.addParam(servo.motor_id, [
-                dxl.DXL_LOBYTE(angle), dxl.DXL_HIBYTE(angle)])
+                dxl.DXL_LOBYTE(action[servo.motor_id-1]), dxl.DXL_HIBYTE(action[servo.motor_id-1])])
 
         pre_valve_angle = self.camera.get_marker_pose(0)[0]
         # transmit the packet
@@ -176,6 +178,21 @@ class Gripper(object):
         all_current_positions = np.append(self.motor_positions, self.camera.get_marker_pose(0)[0])
 
         return all_current_positions
+
+    def verify_actions(self, action):
+        #verify the angles themselves are within the range of the servos
+        for servo in self.servos:
+            servo = self.servos[servo]
+            servo.verify_angle(action[servo.motor_id-1])
+        #make sure the angles of 2,3 and 5,6 and 8,9 add up to less than 1500
+        if action[1] + action[2] > 1500:
+            action[1] = 1500 - action[2]
+        if action[4] + action[5] > 1500:
+            action[4] = 1500 - action[5]
+        if action[7] + action[8] > 1500:
+            action[7] = 1500 - action[8]    
+
+        return action
 
 
     def reset(self):

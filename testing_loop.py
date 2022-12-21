@@ -36,7 +36,8 @@ else:
     DEVICE = torch.device('cpu')
     print("Working with CPU")
 
-BUFFER_CAPACITY = 10
+
+#BUFFER_CAPACITY = 10
 
 GAMMA = 0.995
 TAU = 0.005
@@ -44,8 +45,8 @@ TAU = 0.005
 ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 
-EPISODE_NUM = 10
-BATCH_SIZE = 8  #32 good
+#EPISODE_NUM = 10
+#BATCH_SIZE = 8  #32 good
 
 env = Gripper() #--> env.reset, env.move(actions), 
 
@@ -60,14 +61,14 @@ def main():
     action_num = 9
 
     #setup the grippers
+    args = parse_args()
     
-
     # TODO: add angle pair limits (maybe check after they have gone through the network)
     # TODO: change this once i change the max min thing in the servo class
     max_actions = MAX_ACTIONS
     min_actions = MIN_ACTIONS
 
-    memory = MemoryBuffer(BUFFER_CAPACITY)
+    memory = MemoryBuffer(args.buffer_capacity)
 
     actor = Actor(observation_size, action_num, ACTOR_LR, max_actions)
     critic_one = Critic(observation_size, action_num, CRITIC_LR)
@@ -75,11 +76,9 @@ def main():
 
     #TODO: implement the argument parser
 
-    #args   = define_parse_args()
-
-    torch.manual_seed(100)
-    np.random.seed(100)
-    random.seed(100)
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+    random.seed(args.seed)
 
     td3 = TD3(
         actor_network=actor,
@@ -100,12 +99,15 @@ def main():
 
 
 def train(td3, memory: MemoryBuffer):
+
+    args = parse_args()
+
     historical_reward = []
 
     Done = False
     action_taken = 0
 
-    for episode in range(0, EPISODE_NUM):
+    for episode in range(0, args.episode_num):
 
         #i maybe need to move this
 
@@ -149,7 +151,7 @@ def train(td3, memory: MemoryBuffer):
             
             memory.add(state, action, reward, next_state, Done)
 
-            experiences = memory.sample(BATCH_SIZE)
+            experiences = memory.sample(args.batch_size)
 
             for _ in range(0, 10): #can be bigger
                 print("learning")
@@ -198,6 +200,16 @@ def fill_buffer(memory):
         
 
         state = next_state
+
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument("--seed", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=3)
+    parser.add_argument("--buffer_capacity", type=int, default=10)
+    parser.add_argument("--episode_num", type=int, default=10)
+
+    args = parser.parse_args()
+    return args
 
 
 
