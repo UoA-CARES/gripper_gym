@@ -37,15 +37,15 @@ LIM_TORQUE_VALUE = 180    # Max possible value=1023
 
 jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
                         [512, 400, 400, 570, 570, 300, 512],  # 2 middle
-                        [512, 400, 400, 370, 230, 200, 512],  # 3 finger tip
+                        [512, 623, 623, 653, 793, 823, 512],  # 3 finger tip
 
                         [512, 350, 420, 420, 420, 512, 512],  # 4 baseplate
                         [460, 500, 650, 550, 400, 250, 460],  # 5 middle
-                        [512, 400, 400, 300, 230, 200, 512],  # 6 finger tip
+                        [512, 623, 623, 723, 793, 823, 512],  # 6 finger tip
 
                         [512, 350, 350, 350, 350, 512, 512],  # 7 baseplate
                         [512, 400, 400, 400, 512, 512, 512],  # 8 middle
-                        [512, 400, 400, 400, 512, 512, 512]])  # 9 fingertip
+                        [512, 623, 623, 623, 512, 512, 512]])  # 9 fingertip
 
 # endregion
 
@@ -59,10 +59,10 @@ def main():
     gripper.reset()
     
     #run 100 times rotations
-    for i in range(0, 100):
+    for i in range(0, 10):
         for j in range(0, len(jointPos[0])):
 
-            gripper.move(jointPos[:,j]) 
+            gripper.move(jointPos[:,j], 0) 
 
             #reset in the middle of random positions to make sure it doesn't jam
             if (i+j) % 9 == 0:

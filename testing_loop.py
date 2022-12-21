@@ -45,15 +45,13 @@ ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 
 EPISODE_NUM = 10
-BATCH_SIZE = 8
+BATCH_SIZE = 8  #32 good
 
 env = Gripper() #--> env.reset, env.move(actions), 
 
-MAX_ACTIONS = np.array([1023, (1023-150), 769, 1023, (1023-168), 802, 1023, (1023-190), 794])
-MIN_ACTIONS = np.array([0,(1023-784), 130, 0, (1023-729), 152, 0, (1023-795), 140])
+MAX_ACTIONS = np.array([1023, 750, 750, 1023, 750, 750, 1023, 750, 750])  #have generalised this to 750 for lower joints for consistency
+MIN_ACTIONS = np.array([0, 250, 250, 0, 250, 250, 0, 250, 250]) #have generalised this to 250 for lower joints for consistency
 
-UPPER_LIMIT = np.array([1023, 150, 769, 1023, 168, 802, 1023, 190, 794])
-LOWER_LIMIT = np.array([0, 784, 130, 0, 729, 152, 0, 795, 140])
 
 
 def main():
@@ -104,13 +102,25 @@ def main():
 def train(td3, memory: MemoryBuffer):
     historical_reward = []
 
+    Done = False
+    action_taken = 0
+
     for episode in range(0, EPISODE_NUM):
 
-        state = env.reset()
-        episode_reward = 0
-        print(state)
+        #i maybe need to move this
 
-        while episode < EPISODE_NUM:  #need to check whether this is right
+        state = env.reset()
+        print(state)
+        #map state values to 0 - 1 
+        for i in range(0, len(state) - 1):
+            state[i] = (state[i])/360
+        #scale angle from 0 - 360 inbewteen 0 - 1
+        state[9] = state[9] / 360
+            
+        episode_reward = 0
+        #print(state) 
+
+        while not Done: 
 
             # Select an Action
             #td3.actor_net.eval() --> dont need bc we are not using batch norm
@@ -127,29 +137,32 @@ def train(td3, memory: MemoryBuffer):
 
             #convert actor output to valid integer steps within the max and min
             for i in range(0, len(action)):
-                #TODO make sure this is actually doing what I want it to do 
-                action[i] = action[i] * (UPPER_LIMIT[i] - LOWER_LIMIT[i]) + LOWER_LIMIT[i]
-        
+                #map 0 - 1 to min - max
+                action[i] = (action[i]) * (MAX_ACTIONS[i] - MIN_ACTIONS[i]) + MIN_ACTIONS[i]
+    
             action = action.astype(int)
-            print(action.dtype)
-            print(action)
+            #print(action)
             target_angle = np.random.randint(0, 360)
 
-            next_state, reward, = env.move(action, target_angle)
-            memory.add(state, action, reward, False, next_state)
-            print(reward)
+            print("moving")
+            next_state, reward, Done = env.move(action, target_angle)
+            
+            memory.add(state, action, reward, next_state, Done)
+
             experiences = memory.sample(BATCH_SIZE)
-            states, actions, rewards, next_states, dones = zip(experiences)
-            print(states)
-            for _ in range(0, 10):
+
+            for _ in range(0, 10): #can be bigger
                 print("learning")
                 td3.learn(experiences)
 
             state = next_state
-            episode_reward += reward
+            episode_reward += reward 
 
-            if episode > EPISODE_NUM:
-                break
+            #this needs to be refactored because it isn't the best code
+            action_taken += 1
+
+            if action_taken > 15:
+                Done = True
 
         historical_reward.append(episode_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
@@ -173,10 +186,12 @@ def fill_buffer(memory):
         #pick a random target angle
         target_angle = np.random.randint(0, 360)
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
-        #TODO: figure out how to incorporate the target angle
-        next_state, reward = env.move(action, target_angle)
+
+        next_state, reward, done = env.move(action, target_angle)
         
-        memory.add(state, action, reward, False, next_state)
+        #update the policy here?????
+
+        memory.add(state, action, reward, next_state, done)
 
         #how full is the buffer?
         print(f"Buffer: {len(memory.buffer)} / {memory.buffer.maxlen}", end='\r')

@@ -4,8 +4,6 @@ by the University of Auckland Robotics Lab
 
 Beth Cutler
 
-TODO: add all of the action space methods --> to me it makes the most sense to pull them from the servo class 
-make it a child class? im very confused how im supposed to this ohhhhhh sample is a python thingy so i just need an action space variable
 '''
 
 import numpy as np
@@ -22,7 +20,7 @@ class Gripper(object):
 
         # is it best practice to do these as class variables? or do I just make them variables that get intialised in the __init__ function?
         self.num_motors = 9
-        self.motor_ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        self.servos = {}
         self.motor_positions = [0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.baudrate = 57600
         self.devicename = DEVICE_NAME  # need to change if in linux, will be dependent on the system
@@ -47,28 +45,17 @@ class Gripper(object):
         self.group_sync_read = dxl.GroupSyncRead(
             self.port_handler, self.packet_handler, self.addresses["present_position"], 2)
 
-        # create nine servo instances
-        self.servo1 = Servo(
-            self.port_handler, self.packet_handler, 0, self.addresses, 1, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo2 = Servo(
-            self.port_handler, self.packet_handler, 3, self.addresses, 2, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo3 = Servo(
-            self.port_handler, self.packet_handler, 2, self.addresses, 3, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo4 = Servo(
-            self.port_handler, self.packet_handler, 0, self.addresses, 4, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo5 = Servo(
-            self.port_handler, self.packet_handler, 7, self.addresses, 5, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo6 = Servo(
-            self.port_handler, self.packet_handler, 5, self.addresses, 6, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo7 = Servo(
-            self.port_handler, self.packet_handler, 0, self.addresses, 7, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo8 = Servo(
-            self.port_handler, self.packet_handler, 4, self.addresses, 8, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
-        self.servo9 = Servo(
-            self.port_handler, self.packet_handler, 6, self.addresses, 9, DEVICE_NAME, TORQUE_LIMIT, SPEED_LIMIT)
+        leds = [0, 3, 2, 0, 7, 5, 0, 4, 6]
+        max = [1023, 750, 769, 1023, 750, 802, 1023, 750, 794]
+        min = [0, 250, 130, 0, 250, 152, 0, 250, 140]
 
+        # create nine servo instances
+        for i in range(0, self.num_motors):
+            self.servos["servo"+str(i+1)] = Servo(self.port_handler, self.packet_handler, leds[i], self.addresses, i+1, self.devicename, TORQUE_LIMIT, SPEED_LIMIT, max[i], min[i] )
+
+        print(self.servos)
         # combine all servo instances in a dictionary so I can iterate by motor id
-        self.servos = [self.servo1, self.servo2, self.servo3, self.servo4, self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
+        #self.servos = [self.servo1, self.servo2, self.servo3, self.servo4, self.servo5, self.servo6, self.servo7, self.servo8, self.servo9]
         #set up camera instance
         self.camera = Camera()
 
@@ -89,6 +76,8 @@ class Gripper(object):
 
         # setup certain specs of the servos
         for servo in self.servos:
+            
+            servo = self.servos[servo]
             servo.limit_torque()
             servo.limit_speed()
             servo.enable_torque()
@@ -100,8 +89,9 @@ class Gripper(object):
     
     """
 
-    def move(self, action, target_angle):
-        #TODO add the reward in here somewhere? 
+    def move(self, action, target_angle): #the action input should be in steps
+
+        done = False
         
         # loop through the actions array and send the commands to the motors
         if  action.shape[0] != self.num_motors:
@@ -110,10 +100,13 @@ class Gripper(object):
 
         #print(action)
         for servo in self.servos:
+
+            servo = self.servos[servo]
             # add parameters to the groupSyncWrite
             print(action)
+            angle = servo.verify_angle(action[servo.motor_id-1])
             self.group_sync_write.addParam(servo.motor_id, [
-                dxl.DXL_LOBYTE(action[servo.motor_id-1]), dxl.DXL_HIBYTE(action[servo.motor_id-1])])
+                dxl.DXL_LOBYTE(angle), dxl.DXL_HIBYTE(angle)])
 
         pre_valve_angle = self.camera.get_marker_pose(0)[0]
         # transmit the packet
@@ -125,6 +118,9 @@ class Gripper(object):
         
         post_valve_angle = self.camera.get_marker_pose(0)[0]
         reward = self.reward_function(target_angle, pre_valve_angle, post_valve_angle)
+
+        if post_valve_angle == target_angle:
+            done = True
         
         #using moving flag to check if the motors have reached their goal position
         while self.gripper_moving_check():
@@ -132,7 +128,7 @@ class Gripper(object):
             self.all_current_positions()
         
         #once its done, append the valve position to the list and return? at least return current position
-        return self.all_current_positions(), reward
+        return self.all_current_positions(), reward[0], done
 
 
     
@@ -165,10 +161,12 @@ class Gripper(object):
         
         #add parameters to the groupSyncRead
         for servo in self.servos:
+            servo = self.servos[servo]
             self.group_sync_read.addParam(servo.motor_id)
 
         #get the data from the groupSyncRead
         for servo in self.servos:
+            servo = self.servos[servo]
             currentPos = self.group_sync_read.getData(
                 servo.motor_id, self.addresses["present_position"], 2)
             self.motor_positions[servo.motor_id -
@@ -185,25 +183,20 @@ class Gripper(object):
         print("got to reset")
         reset_seq = np.array([[512, 512],  # 1 base plate
                               [185, 512],  # 2 middle
-                              [126, 512],  # 3 finger tip
+                              [900, 512],  # 3 finger tip
 
                               [512, 512],  # 4 baseplate
                               [143, 460],  # 5 middle
-                              [150, 512],  # 6 finger tip
+                              [900, 512],  # 6 finger tip
 
                               [512, 512],  # 7 baseplate
                               [188, 512],  # 8 middle
-                              [138, 512]]) # 9 finger tip
+                              [900, 512]]) # 9 finger tip
         self.move(reset_seq[:,0],0)
         self.move(reset_seq[:,1],0)
 
-        #TODO: append valve position to all current positions then return as state
-        state = self.all_current_positions()
+        state = self.all_current_positions() #includes current valve position
 
-        #can't append angle because then each time the thing resets it will add it on. 
-        #theres gotta be a better way to do the observation space stuff
-        #maybe i will include it in the get_all_current_positions method. ye   
-        
         return state
 
         
@@ -211,6 +204,7 @@ class Gripper(object):
     def gripper_moving_check(self):
         moving = False
         for servo in self.servos:
+            servo = self.servos[servo]
             moving |= servo.moving_check()
         return moving
 

@@ -10,7 +10,7 @@ Beth Cutler
 
 class Servo(object):
 
-    def __init__(self, portHandler, packetHandler, LED_colour, addresses, motor_id, device_name, torque_limit, speed_limit):
+    def __init__(self, portHandler, packetHandler, LED_colour, addresses, motor_id, device_name, torque_limit, speed_limit, max, min):
         
         self.port_handler = portHandler
         self.packet_handler = packetHandler
@@ -18,7 +18,12 @@ class Servo(object):
         self.LED_colour = LED_colour
         self.addresses = addresses
         self.motor_id = motor_id
-        
+        self.max = max
+        self.min = min
+
+        self.device_name = device_name
+        self.torque_limit = torque_limit
+        self.speed_limit = speed_limit
 
     def turn_on_LED(self):
 
@@ -42,7 +47,7 @@ class Servo(object):
 
         # write and read to servos
         dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(
-            self.port_handler, self.motor_id, self.addresses["torque_limit"], 180)
+            self.port_handler, self.motor_id, self.addresses["torque_limit"], self.torque_limit)
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
@@ -89,7 +94,7 @@ class Servo(object):
 
         # write and read to servos
         dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(
-            self.port_handler, self.motor_id, self.addresses["moving_speed"], 90)
+            self.port_handler, self.motor_id, self.addresses["moving_speed"], self.speed_limit)
         # verify write read successful
         if dxl_comm_result != dxl.COMM_SUCCESS:
             print("%s" % self.packet_handler.getTxRxResult(dxl_comm_result))
@@ -106,6 +111,11 @@ class Servo(object):
 
         return int(dxl_moving_result)
 
-    def verify_angle(self): 
-        #im not sure what i want this to return yet
-        pass
+    def verify_angle(self, angle): 
+        #if a a servo is given an angle that is outside of its range clip is to the max or min
+        if angle > self.max:
+            angle = self.max
+        elif angle < self.min:
+            angle = self.min
+        return angle
+
