@@ -6,16 +6,13 @@ import numpy as np
 '''
 WORK IN PROGRESS
 Camera Class
---> init
---> get frame
---> find aruco marker
---> figure out the angle of the marker
 
 #TODO: refactor this code so the methods make a bit more sense to use with each other
 '''
 
 
 class Camera(object):
+
     def __init__(self, camera_id=0):  # 0 is usb camera, 1 is laptop camera
 
         # connecting to the camera takes the longest
@@ -33,6 +30,7 @@ class Camera(object):
             ("C:\\Users\\bethc\\Documents\\git\\rlstuff\\Gripper-Code\\utilities\\distortion.txt"))
         self.vision_flag_status = False
 
+
     def get_frame(self):
 
         ret, frame = self.camera.read()
@@ -43,6 +41,7 @@ class Camera(object):
             return frame
         else:
             print("Error: No frame returned")
+
 
     def detect_display(self):
 
@@ -68,6 +67,7 @@ class Camera(object):
             cv2.imshow("frame", frame)
             cv2.waitKey(5)
 
+
     def get_marker_pose(self, goal_angle):
 
         frame = self.get_frame()
@@ -92,9 +92,11 @@ class Camera(object):
 
         return valve_angle, frame, self.vision_flag_status
 
+
     def is_close(self, x, y, rtol=1.e-5, atol=1.e-8):
         # this is a tolerance thingy i think
         return abs(x - y) <= atol + rtol * abs(y)
+
 
     def calculate_euler_angles(self, R):
 
@@ -111,6 +113,7 @@ class Camera(object):
             psi = math.atan2(R[2, 1] / cos_theta, R[2, 2] / cos_theta)
             phi = math.atan2(R[1, 0] / cos_theta, R[0, 0] / cos_theta)
         return psi, theta, phi
+
 
     def get_angle(self, r_vec):
         r_matrix, _ = cv2.Rodrigues(r_vec)

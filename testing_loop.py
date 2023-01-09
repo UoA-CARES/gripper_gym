@@ -11,9 +11,8 @@ directory
 #memory replays 
 
 #TODO: training loop, selecting an action, exploration phase, create environment 
-#TODO: make sure data is normalised 
-#TODO: figure out a better way to do the max and min (current idea is to have limits initialised with the servo when its initialised)
-#TODO: add argument parsers bc the way david explained it made it seem very uself
+#TODO: track the error messages so i know when things are breaking
+#TODO: add a plot of episode reward
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
@@ -24,6 +23,7 @@ from  GripperClass import Gripper
 import numpy as np
 from argparse import ArgumentParser
 import random
+import matplotlib.pyplot as plt
 #from Servo import Servo
 #from Camera import Camera
 
@@ -48,7 +48,7 @@ CRITIC_LR = 1e-3
 #EPISODE_NUM = 10
 #BATCH_SIZE = 8  #32 good
 
-env = Gripper() #--> env.reset, env.move(actions), 
+env = Gripper() #--> env.reset, env.move(actions), these are the methods thats that match openai gym
 
 MAX_ACTIONS = np.array([1023, 750, 750, 1023, 750, 750, 1023, 750, 750])  #have generalised this to 750 for lower joints for consistency
 MIN_ACTIONS = np.array([0, 250, 250, 0, 250, 250, 0, 250, 250]) #have generalised this to 250 for lower joints for consistency
@@ -74,7 +74,7 @@ def main():
     critic_one = Critic(observation_size, action_num, CRITIC_LR)
     critic_two = Critic(observation_size, action_num, CRITIC_LR)
 
-    #TODO: implement the argument parser
+    #TODO: implement the argument parser (i think ive done this?)
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -104,23 +104,27 @@ def train(td3, memory: MemoryBuffer):
 
     historical_reward = []
 
-    Done = False
-    action_taken = 0
+    #Done = False
+    #action_taken = 0
+
+    #currently the only state that it has is the reset state 
+
+    state = env.reset()
+    print(state)
 
     for episode in range(0, args.episode_num):
 
-        #i maybe need to move this
-
-        state = env.reset()
-        print(state)
+        #WHERE DOES IT PICK THE ACTION 
         #map state values to 0 - 1 
-        for i in range(0, len(state) - 1):
+        for i in range(0, len(state)):
             state[i] = (state[i])/360
-        #scale angle from 0 - 360 inbewteen 0 - 1
-        state[9] = state[9] / 360
+        
             
         episode_reward = 0
+        print(f"episode {episode}")
         #print(state) 
+        Done = False
+        action_taken = 0
 
         while not Done: 
 
@@ -131,10 +135,11 @@ def train(td3, memory: MemoryBuffer):
                 state_tensor = torch.FloatTensor(state) 
                 print("Size of the int_list_to_float_tensor: ", state_tensor.size())
                 print("Dimensions of the int_list_to_float_tensor: ",state_tensor.ndimension())
-                #state_tensor = state_tensor
+                
                 state_tensor = state_tensor.to(DEVICE)
                 action = td3.forward(state_tensor) #potientially a naming conflict
                 action = action.numpy()
+
             td3.actor_net.train(True)
 
             #convert actor output to valid integer steps within the max and min
@@ -154,7 +159,7 @@ def train(td3, memory: MemoryBuffer):
             experiences = memory.sample(args.batch_size)
 
             for _ in range(0, 10): #can be bigger
-                print("learning")
+                #print("learning")
                 td3.learn(experiences)
 
             state = next_state
@@ -167,7 +172,9 @@ def train(td3, memory: MemoryBuffer):
                 Done = True
 
         historical_reward.append(episode_reward)
+        plt.plot(historical_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
+    plt.show()
 
 
 def fill_buffer(memory):
@@ -203,7 +210,7 @@ def fill_buffer(memory):
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--seed", type=int, default=100)
+    parser.add_argument("--seed", type=int, default=6969)
     parser.add_argument("--batch_size", type=int, default=3)
     parser.add_argument("--buffer_capacity", type=int, default=10)
     parser.add_argument("--episode_num", type=int, default=10)

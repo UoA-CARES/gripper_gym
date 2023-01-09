@@ -4,9 +4,7 @@ import dynamixel_sdk as dxl         # Uses Dynamixel SDK library
 The servo class contains methods used to change attributes of the servo motors
 most useful for setting up the servos to move when they are chained togerther
 Beth Cutler
-#TODO write min max function/have it as a value that you pass in when you create the servo instance
 """
-
 
 class Servo(object):
 
@@ -25,6 +23,7 @@ class Servo(object):
         self.torque_limit = torque_limit
         self.speed_limit = speed_limit
 
+
     def turn_on_LED(self):
 
         #ledColours = [0, 3, 2, 0, 7, 5, 0, 4, 6] may be useful if i refactor
@@ -42,7 +41,6 @@ class Servo(object):
                   self.motor_id)
 
     # limit the torque of the motors
-    #TODO change 180 to a variable that gets passed in 
     def limit_torque(self):
 
         # write and read to servos
@@ -57,7 +55,6 @@ class Servo(object):
             print("Dynamixel#%d has been successfully torque limited" %
                   self.motor_id)
         
-
     # enable the torque of the motors
     def enable_torque(self):
 
@@ -74,7 +71,6 @@ class Servo(object):
                   self.motor_id)
 
     # disable the torque of the motors
-
     def disable_torque(self):
 
         # write and read to servos
@@ -89,7 +85,6 @@ class Servo(object):
                   self.motor_id)
 
     # limit the speed of the servos
-    #TODO maybe sort out the limit speed as currently this just gets passed in as 90
     def limit_speed(self):
 
         # write and read to servos
@@ -104,15 +99,18 @@ class Servo(object):
             print("Dynamixel#%d has been successfully speed limited" %
                   self.motor_id)
 
+    #check whether the servo is moving using the inbuilt moving flag
     def moving_check(self):
         # write and read to servos
-        dxl_moving_result, dxl_comm_result, dxl_error = self.packet_handler.read1ByteTxRx(
+        dxl_moving_result = self.packet_handler.read1ByteTxRx(
             self.port_handler, self.motor_id, self.addresses["moving"])
 
-        return int(dxl_moving_result)
 
+        return int(dxl_moving_result[0])
+
+    #if a a servo is given an angle that is outside of its range clip it to the max or min
     def verify_angle(self, angle): 
-        #if a a servo is given an angle that is outside of its range clip is to the max or min
+        
         if angle > self.max:
             angle = self.max
         elif angle < self.min:

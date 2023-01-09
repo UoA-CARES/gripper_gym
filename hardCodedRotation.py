@@ -5,7 +5,7 @@ using the three fingered grippered being developed and then return the finger to
 This will be used to test the gripper
 
 Beth Cutler 
- '''
+'''
 
 import numpy as np
 from GripperClass import Gripper

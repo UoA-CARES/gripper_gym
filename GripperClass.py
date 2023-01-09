@@ -59,6 +59,7 @@ class Gripper(object):
         #set up camera instance
         self.camera = Camera()
 
+
     def setup(self):
 
         # open port, set baudrate
@@ -88,7 +89,6 @@ class Gripper(object):
     this will be a 9 element of array of integers between 0 and 1023
     
     """
-
     def move(self, action, target_angle): #the action input should be in steps
 
         done = False
@@ -133,7 +133,6 @@ class Gripper(object):
         return self.all_current_positions(), reward[0], done
 
 
-    
     def reward_function(self, target_angle, valve_angle_previous, valve_angle_after):
             delta_changes    = np.abs(target_angle - valve_angle_previous) - np.abs(target_angle - valve_angle_after)
             angle_difference = np.abs(target_angle - valve_angle_after)
@@ -153,7 +152,6 @@ class Gripper(object):
                 done = False
 
             return reward_ext, done, angle_difference
-
 
 
     def all_current_positions(self):
@@ -178,6 +176,7 @@ class Gripper(object):
         all_current_positions = np.append(self.motor_positions, self.camera.get_marker_pose(0)[0])
 
         return all_current_positions
+
 
     def verify_actions(self, action):
         #verify the angles themselves are within the range of the servos
@@ -217,7 +216,6 @@ class Gripper(object):
         return state
 
         
-
     def gripper_moving_check(self):
         moving = False
         for servo in self.servos:
@@ -225,10 +223,12 @@ class Gripper(object):
             moving |= servo.moving_check()
         return moving
 
+
     def close(self):
 
         # disable torque
         for servo in self.servos:
+            servo = self.servos[servo]
             servo.disable_torque()
         # close port
         self.port_handler.closePort()
