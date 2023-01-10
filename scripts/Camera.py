@@ -2,13 +2,13 @@ import cv2
 import math
 import numpy as np
 
-
 '''
 WORK IN PROGRESS
 Camera Class
 
 #TODO: refactor this code so the methods make a bit more sense to use with each other
 '''
+
 from pathlib import Path
 home = str(Path.home())
 
