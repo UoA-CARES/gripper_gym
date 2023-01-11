@@ -20,6 +20,7 @@ from cares_reinforcement_learning.examples.Actor import Actor
 from cares_reinforcement_learning.examples.Critic import Critic
 
 from  Gripper import Gripper
+import gripper_environment
 import numpy as np
 from argparse import ArgumentParser
 import random
@@ -63,7 +64,6 @@ def main():
     #setup the grippers
     args = parse_args()
     
-    # TODO: add angle pair limits (maybe check after they have gone through the network)
     # TODO: change this once i change the max min thing in the servo class
     max_actions = MAX_ACTIONS
     min_actions = MIN_ACTIONS
@@ -73,8 +73,6 @@ def main():
     actor = Actor(observation_size, action_num, ACTOR_LR, max_actions)
     critic_one = Critic(observation_size, action_num, CRITIC_LR)
     critic_two = Critic(observation_size, action_num, CRITIC_LR)
-
-    #TODO: implement the argument parser (i think ive done this?)
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -124,9 +122,9 @@ def train(td3, memory: MemoryBuffer):
         while not Done: 
 
             # Select an Action
-            #td3.actor_net.eval() --> dont need bc we are not using batch norm
+            #td3.actor_net.eval() --> dont need bc we are not using batch norm???
             with torch.no_grad():
-                #print(state)
+                
                 state_tensor = torch.FloatTensor(state) 
                 print("Size of the int_list_to_float_tensor: ", state_tensor.size())
                 print("Dimensions of the int_list_to_float_tensor: ",state_tensor.ndimension())
@@ -143,7 +141,7 @@ def train(td3, memory: MemoryBuffer):
                 action[i] = (action[i]) * (MAX_ACTIONS[i] - MIN_ACTIONS[i]) + MIN_ACTIONS[i]
     
             action = action.astype(int)
-            #print(action)
+            
             target_angle = np.random.randint(0, 360)
 
             next_state, reward, Done = env.move(action, target_angle)
