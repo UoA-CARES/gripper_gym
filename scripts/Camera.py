@@ -26,9 +26,9 @@ class Camera(object):
         self.marker_size = 18  # mm
         #TODO: make this relative
         self.camera_matrix = np.loadtxt(
-            (home+"Documents\\git\\rlstuff\\Gripper-Code\\scripts\\utilities\\camera_matrix.txt"))
+            (home+"\\Documents\\git\\rlstuff\\Gripper-Code\\scripts\\config\\camera_matrix.txt"))
         self.camera_distortion = np.loadtxt(
-            (home+"Documents\\git\\rlstuff\\Gripper-Code\\scripts\\utilities\\camera_distortion.txt"))
+            (home+"\\Documents\\git\\rlstuff\\Gripper-Code\\scripts\\config\\camera_distortion.txt"))
 
     def get_frame(self):  
         returned, frame = self.camera.read()

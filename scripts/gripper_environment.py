@@ -3,7 +3,7 @@ import dynamixel_sdk as dxl
 
 from Gripper import Gripper
 from Camera import Camera
-from cares_lib.vision import ArucoDetector
+from cares_lib.vision.ArucoDetector import ArucoDetector
 
 # TODO: sort this all out um yep make this work better with the testing loop
 
@@ -71,6 +71,13 @@ from cares_lib.vision import ArucoDetector
 
 
 def main():
+
+    # Set Camera Up
+
+    # Set Gripper Up
+
+    # Setup Arcuo Detector Up 
+
     camera = Camera()
     aruco_detector = ArucoDetector(marker_size=18)
 
@@ -80,6 +87,11 @@ def main():
             frame, camera.camera_matrix, camera.camera_distortion)
         print(marker_poses)
 
+    # while learning
+        # Take Action
+        # Measure State of aruco marker
+        # Calculate Reward
+        # Learn
 
 if __name__ == "__main__":
     main()

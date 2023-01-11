@@ -32,7 +32,7 @@ class Gripper(object):
         # Ideally these would all be the same but some are slightly physically offset
         # TODO paramatise this further for when we have multiple grippers
         max = [1023, 750, 769, 1023, 750, 802, 1023, 750, 794]
-        min = [0,    250 , 130, 0,    250, 152, 0,    250, 140]
+        min = [0,    250 , 130, 0,    198, 152, 0,    250, 140]
 
         # create the nine servo instances
         for i in range(0, self.num_motors):
@@ -134,7 +134,7 @@ class Gripper(object):
                               [750, 512],  # 3 finger tip
 
                               [512, 512],  # 4 baseplate
-                              [250, 460],  # 5 middle
+                              [198, 460],  # 5 middle
                               [750, 512],  # 6 finger tip
 
                               [512, 512],  # 7 baseplate
