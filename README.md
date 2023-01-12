@@ -22,34 +22,34 @@ The current setup uses 9 Dynamixel XL-320 servo motors (shown in image below), w
 testing_loop: contains code to complete the training and testing for TD3 (also currently contains the actor and critic as there were problems getting them from examples in cares_reinforcement_learning)
 
 gripper_environment: contains methods to do common reinforcement learning actions, tries to be consistent with openai gym naming
---> __init__
---> reset
---> reward_function
---> step
+- __init__
+- reset
+- reward_function
+- step
 
 Gripper: contains methods to do actions with all 9 (or specified no of) motors
---> __init__
---> setup 
---> angles_to_steps
---> verify_steps
---> move
---> current_positions
---> home
---> gripper_moving_check
---> close
+- __init__
+- setup 
+- angles_to_steps
+- verify_steps
+- move
+- current_positions
+- home
+- gripper_moving_check
+- close
 
 Servo: contains methods for individual servo motors
 addresses is global to servo
---> __init__
---> turn_on_LED
---> limit_torque
---> enable_torque
---> disable_torque
---> limit_speed
---> moving_check
---> present_position
---> verify_step
---> process_result (print out successes and errors in communication between servos and code)
+- __init__
+- turn_on_LED
+- limit_torque
+- enable_torque
+- disable_torque
+- limit_speed
+- moving_check
+- present_position
+- verify_step
+- process_result (print out successes and errors in communication between servos and code)
 
 
 
