@@ -121,7 +121,7 @@ class Gripper(object):
         # using moving flag to check if the motors have reached their goal position
         while self.gripper_moving_check():
             if self.gripper_load_check():
-                print("Gripper load too high, theoretically should stop or throw error")
+                print("Gripper load too high")
                 terminated = True
                 self.close()
                 self.setup()

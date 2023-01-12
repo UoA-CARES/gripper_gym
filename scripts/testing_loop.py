@@ -192,7 +192,7 @@ def train(td3, memory: MemoryBuffer):
 
             next_state, reward, terminated, Done = env.step(action, target_angle, action_taken)
             
-            memory.add(state, action, reward, next_state, terminated, Done)
+            memory.add(state, action, reward, next_state, Done)
 
             experiences = memory.sample(args.batch_size)
             
@@ -205,6 +205,11 @@ def train(td3, memory: MemoryBuffer):
 
             state = next_state
             episode_reward += reward
+
+            if terminated:
+                print("Episode Terminated")
+                historical_reward.append(episode_reward)
+                episode += 1
 
         historical_reward.append(episode_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
@@ -242,7 +247,7 @@ def fill_buffer(memory):
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
         next_state, reward, terminated, done = env.step(action, target_angle, action_taken)
        
-        memory.add(state, action, reward, next_state, done)
+        memory.add(state, action, reward, next_state, terminated, done)
         #keep track of how full the buffer is 
         print(f"Buffer: {len(memory.buffer)} / {memory.buffer.maxlen}", end='\r')
         state = next_state

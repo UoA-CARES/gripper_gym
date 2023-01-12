@@ -50,6 +50,7 @@ class Environment():
         #TODO: get check to do something when the aruco marker can't be found
 
         Done = False
+        terminated = False
 
         while not Done:
             frame = self.camera.get_frame()
@@ -63,7 +64,7 @@ class Environment():
             print(f"start_marker_pose: {start_marker_pose}")
             
             # Take Action (maybe this needs to be in its own while loop?)
-            state = self.gripper.move(action)  
+            state, terminated = self.gripper.move(action)
             print(f"state: {state}")
 
             Done = True #need this to tell that the action is complete
