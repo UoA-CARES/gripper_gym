@@ -17,7 +17,7 @@ The current setup uses 9 Dynamixel XL-320 servo motors (shown in image below), w
 
 ![Picture of a CAD assembly that shows a rig that is holding a three fingered gripper with the fingers hanging down](https://user-images.githubusercontent.com/105029122/205157459-ef70f9fb-dcea-464a-af8a-14d66047497a.png)
 
-###File Structure Information
+### File Structure Information
 
 testing_loop: contains code to complete the training and testing for TD3 (also currently contains the actor and critic as there were problems getting them from examples in cares_reinforcement_learning)
 
