@@ -65,9 +65,10 @@ class Servo(object):
     # get the present position of the servo
     def present_position(self):
         # write and read to servos in order to get the present position
-        dxl_moving_result = self.packet_handler.read2ByteTxRx(
+        dxl_comm_result = self.packet_handler.read2ByteTxRx(
             self.port_handler, self.motor_id, Servo.addresses["present_position"])
-        return dxl_moving_result
+      
+        return dxl_comm_result
 
     #return whether an action is valid or not (boolean)
     def verify_step(self, step):

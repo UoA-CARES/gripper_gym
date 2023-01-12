@@ -32,7 +32,7 @@ class Gripper(object):
         # Ideally these would all be the same but some are slightly physically offset
         # TODO paramatise this further for when we have multiple grippers
         max = [1023, 750, 769, 1023, 750, 802, 1023, 750, 794]
-        min = [0,    250 , 130, 0,    198, 152, 0,    250, 140]
+        min = [0,    250, 130, 0,    198, 152, 0,    250, 140]
 
         # create the nine servo instances
         for i in range(0, self.num_motors):
@@ -75,6 +75,8 @@ class Gripper(object):
 
     def angles_to_steps(self, angles):
         steps = angles
+        for i in range(0,len(angles)):
+            steps[i] = (3.41*angles[i])+511.5
         return steps
 
     def verify_steps(self, steps):
@@ -85,12 +87,9 @@ class Gripper(object):
                 return False
         return True
 
-    def move(self, steps=None, action=None, angles=None):
-        if action is not None:
-            # TODO: write actions_to_steps
-            steps = self.actions_to_steps(action)
-        elif angles is not None:
-            # TODO: write angles to steps
+    def move(self, steps=None, angles=None):
+
+        if angles is not None:
             steps = self.angles_to_steps(angles)
 
         if steps is None:
@@ -101,7 +100,7 @@ class Gripper(object):
             print(f"The action provided is out of bounds: {steps}")
             exit()
 
-        for id, servo in self.servos.items():
+        for id, servo  in self.servos.items():
             self.group_sync_write.addParam(
                 id+1, [dxl.DXL_LOBYTE(steps[id]), dxl.DXL_HIBYTE(steps[id])])
 
@@ -125,7 +124,7 @@ class Gripper(object):
     def current_positions(self):
         current_positions = []
         for id, servo in self.servos.items():
-            current_positions.append(servo.present_position())
+            current_positions.append(servo.present_position()[0])
         return current_positions
 
     def home(self):
@@ -143,7 +142,6 @@ class Gripper(object):
 
         self.move(steps=reset_seq[:, 0])
         self.move(steps=reset_seq[:, 1])
-
         return self.current_positions()  # includes current valve position
 
     def gripper_moving_check(self):
