@@ -10,9 +10,8 @@ directory
 #network
 #memory replays 
 
-#TODO: training loop, selecting an action, exploration phase, create environment 
 #TODO: track the error messages so i know when things are breaking
-#TODO: add a plot of episode reward
+
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
@@ -20,15 +19,13 @@ from cares_reinforcement_learning.util import MemoryBuffer
 #from cares_reinforcement_learning.examples.Actor import Actor
 #from cares_reinforcement_learning.examples.Critic import Critic
 
-#from  Gripper import Gripper
 from gripper_environment import Environment
 import numpy as np
 from argparse import ArgumentParser
 import random
 import matplotlib.pyplot as plt
-#from Servo import Servo
-#from Camera import Camera
 
+#these are just for the networks that should get moved
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -107,7 +104,6 @@ class Critic(nn.Module):
         return q1
 
 
-
 def main():
 
     observation_size = 10  
@@ -156,25 +152,22 @@ def train(td3, memory: MemoryBuffer):
     historical_reward = []
 
     state = env.gripper.home()
-    #make this better but i believe its just for this one
+    #to get the array the correct length for the first action I need to  
     state.append(-1)
 
     for episode in range(0, args.episode_num):
 
-        #WHERE DOES IT PICK THE ACTION 
         #map state values to 0 - 1 
         for i in range(0, len(state)):
-            #print(type(state))
-            #print(state)
             state[i] = (state[i])/360
-        
-            
-        episode_reward = 0
-        print(f"episode {episode}")
-        #print(state) 
+          
+        episode_reward = 0 
         Done = False
         action_taken = 0
         target_angle = np.random.randint(0, 360)
+        print(f"episode {episode}")
+        #print(state)
+
 
         while not Done and action_taken < 15: 
 
@@ -194,34 +187,37 @@ def train(td3, memory: MemoryBuffer):
             for i in range(0, len(action)):
                 #map 0 - 1 to min - max
                 action[i] = (action[i]) * (MAX_ACTIONS[i] - MIN_ACTIONS[i]) + MIN_ACTIONS[i]
-            #print(f"action after being converted from 0-1 {action}")
+            
             action = action.astype(int)
-            
-            
 
             next_state, reward, Done = env.step(action, target_angle)
             
             memory.add(state, action, reward, next_state, Done)
 
             experiences = memory.sample(args.batch_size)
-            #print(f"experiences {experiences}")
+            
             for _ in range(0, 10): #can be bigger
-                #print("learning")
+                
                 td3.learn(experiences)
 
             action_taken += 1
             print(f"actions taken = {action_taken}")
 
             state = next_state
-            episode_reward += reward 
-
-        
-            #this needs to be refactored because it isn't the best code
-            
+            episode_reward += reward
 
         historical_reward.append(episode_reward)
-        plt.plot(historical_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
+
+        plt.plot(historical_reward)
+    plt.xlabel("Episode")
+    plt.ylabel("Reward") 
+    plt.title("Reward per Episode")     
+    xint = []
+    locs, labels = plt.xticks()
+    for each in locs:
+        xint.append(int(each))
+    plt.xticks(xint)
     plt.show()
 
 
@@ -245,21 +241,16 @@ def fill_buffer(memory):
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
         next_state, reward, done = env.step(action, target_angle)
        
-        #update the policy here?????
-        print("here")
         memory.add(state, action, reward, next_state, done)
-
-        #how full is the buffer?
+        #keep track of how full the buffer is 
         print(f"Buffer: {len(memory.buffer)} / {memory.buffer.maxlen}", end='\r')
-        
-
         state = next_state
 
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=69)
-    parser.add_argument("--batch_size", type=int, default=3)
-    parser.add_argument("--buffer_capacity", type=int, default=10)
+    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--buffer_capacity", type=int, default=16)
     parser.add_argument("--episode_num", type=int, default=20)
 
     args = parser.parse_args()
