@@ -200,7 +200,6 @@ def train(td3, memory: MemoryBuffer):
             
 
             next_state, reward, Done = env.step(action, target_angle)
-            print(f"next_state {next_state}, reward {reward}, Done {Done}")
             
             memory.add(state, action, reward, next_state, Done)
 
@@ -244,7 +243,6 @@ def fill_buffer(memory):
         #pick a random target angle
         target_angle = np.random.randint(0, 360)
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
-        print("todaloo")
         next_state, reward, done = env.step(action, target_angle)
        
         #update the policy here?????

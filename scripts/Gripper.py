@@ -30,7 +30,7 @@ class Gripper(object):
 
         leds = [0, 3, 2, 0, 7, 5, 0, 4, 6]
         # Ideally these would all be the same but some are slightly physically offset
-        # TODO paramatise this further for when we have multiple grippers
+        # TODO: paramatise this further for when we have multiple grippers
         max = [1023, 750, 769, 1023, 750, 802, 1023, 750, 794]
         min = [0,    250, 130, 0,    198, 152, 0,    250, 140]
 
@@ -69,10 +69,6 @@ class Gripper(object):
     this will be a 9 element of array of integers between 0 and 1023
     """
 
-    def actions_to_steps(self, action):
-        steps = action
-        return steps
-
     def angles_to_steps(self, angles):
         steps = angles
         for i in range(0,len(angles)):
@@ -86,6 +82,13 @@ class Gripper(object):
                 print(f"Step for servo {id+1} is out of bounds")
                 return False
         return True
+
+    def gripper_load_check(self):
+        #enumerate through the servos and make sure the load isn't higher than maybe like 30%
+        for id, servo in self.servos.items():
+            if servo.current_load() > 20:
+                return True
+
 
     def move(self, steps=None, angles=None):
 
@@ -115,9 +118,9 @@ class Gripper(object):
 
         # using moving flag to check if the motors have reached their goal position
         while self.gripper_moving_check():
-            # self.camera.detect_display()
-            pass
-
+            if self.gripper_load_check():
+                print("Gripper load too high, theoretically should stop or throw error")
+                break
         # return the current state
         return self.current_positions()
 

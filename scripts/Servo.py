@@ -8,13 +8,15 @@ Beth Cutler
 
 class Servo(object):
     addresses = {
+        "shutdown" : 18,
         "torque_enable": 24,
-        "torque_limit": 35,
         "led": 25,
         "goal_position": 30,
+        "moving_speed": 32,
+        "torque_limit": 35,
         "present_position": 37,
         "present_velocity": 38,
-        "moving_speed": 32,
+        "present_load": 41,
         "moving": 49
     }
 
@@ -67,8 +69,16 @@ class Servo(object):
         # write and read to servos in order to get the present position
         dxl_comm_result = self.packet_handler.read2ByteTxRx(
             self.port_handler, self.motor_id, Servo.addresses["present_position"])
-      
         return dxl_comm_result
+
+    #read the current result
+    def current_load(self): 
+        dxl_comm_result = self.packet_handler.read2ByteTxRx(
+            self.port_handler, self.motor_id, Servo.addresses["present_load"])
+        #convert it to a value between 0-1023 regardless of direction and then maps this between 0-100
+        current_load_percent = ((dxl_comm_result[0] % 1023)/1023)*100
+        
+        return current_load_percent
 
     #return whether an action is valid or not (boolean)
     def verify_step(self, step):
