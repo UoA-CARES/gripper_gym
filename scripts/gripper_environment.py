@@ -28,20 +28,15 @@ class Environment():
 
             print(f"target_angle: {target_angle}, delta changes: {delta_changes}, angle difference: {angle_difference}")
 
-            #if -5 <= delta_changes <= 5:
-                # noise or no changes
-              #  reward_ext = 0
-           # else:
-             #   reward_ext = delta_changes
-            reward_ext = 0
+            reward_ext = -angle_difference+360
 
-            if angle_difference <= 100 & (valve_angle_after != -1) & (valve_angle_previous != -1):
-
-                reward_ext = -angle_difference+100
-                print(f"reward: {reward_ext}")
-                done = True
-            elif valve_angle_previous == -1 or valve_angle_after == -1:
+            if valve_angle_previous == -1 or valve_angle_after == -1:
                 reward_ext = -1000
+                done = False
+
+            elif angle_difference < 5:
+                reward_ext += 1000
+                done = True
 
             else:
                 done = False
@@ -73,6 +68,7 @@ class Environment():
 
             Done = True
 
+        Done = False
         # Measure State of aruco marker
         final_aruco_position = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
         if len(final_aruco_position) == 0:
@@ -87,5 +83,8 @@ class Environment():
         # Calculate Reward, figure out how to index marker_pose
         reward = self.reward_function(target_angle, start_marker_pose, final_marker_pose)
 
+        if (target_angle-5)<final_marker_pose<(target_angle+5):
+            Done = True
+        
         return state, reward, Done
             

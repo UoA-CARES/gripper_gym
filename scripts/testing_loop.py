@@ -176,7 +176,7 @@ def train(td3, memory: MemoryBuffer):
         action_taken = 0
         target_angle = np.random.randint(0, 360)
 
-        while action_taken < 15: 
+        while not Done and action_taken < 15: 
 
             # Select an Action
             #td3.actor_net.eval() --> dont need bc we are not using batch norm???
@@ -216,6 +216,7 @@ def train(td3, memory: MemoryBuffer):
             state = next_state
             episode_reward += reward 
 
+        
             #this needs to be refactored because it isn't the best code
             
 
@@ -243,11 +244,11 @@ def fill_buffer(memory):
         #pick a random target angle
         target_angle = np.random.randint(0, 360)
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
-
+        print("todaloo")
         next_state, reward, done = env.step(action, target_angle)
-        
+       
         #update the policy here?????
-
+        print("here")
         memory.add(state, action, reward, next_state, done)
 
         #how full is the buffer?
@@ -258,7 +259,7 @@ def fill_buffer(memory):
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--seed", type=int, default=6969)
+    parser.add_argument("--seed", type=int, default=69)
     parser.add_argument("--batch_size", type=int, default=3)
     parser.add_argument("--buffer_capacity", type=int, default=10)
     parser.add_argument("--episode_num", type=int, default=20)
