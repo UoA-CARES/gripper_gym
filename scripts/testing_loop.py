@@ -261,7 +261,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=6969)
     parser.add_argument("--batch_size", type=int, default=3)
     parser.add_argument("--buffer_capacity", type=int, default=10)
-    parser.add_argument("--episode_num", type=int, default=10)
+    parser.add_argument("--episode_num", type=int, default=20)
 
     args = parser.parse_args()
     return args

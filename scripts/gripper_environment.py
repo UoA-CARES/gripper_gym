@@ -28,17 +28,21 @@ class Environment():
 
             print(f"target_angle: {target_angle}, delta changes: {delta_changes}, angle difference: {angle_difference}")
 
-            if -5 <= delta_changes <= 5:
+            #if -5 <= delta_changes <= 5:
                 # noise or no changes
-                reward_ext = 0
-            else:
-                reward_ext = delta_changes
+              #  reward_ext = 0
+           # else:
+             #   reward_ext = delta_changes
+            reward_ext = 0
 
-            if angle_difference <= 100:
+            if angle_difference <= 100 & (valve_angle_after != -1) & (valve_angle_previous != -1):
 
                 reward_ext = -angle_difference+100
                 print(f"reward: {reward_ext}")
                 done = True
+            elif valve_angle_previous == -1 or valve_angle_after == -1:
+                reward_ext = -1000
+
             else:
                 done = False
 
