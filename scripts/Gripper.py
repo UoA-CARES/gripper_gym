@@ -92,6 +92,8 @@ class Gripper(object):
 
     def move(self, steps=None, angles=None):
 
+        terminated = False
+
         if angles is not None:
             steps = self.angles_to_steps(angles)
 
@@ -120,9 +122,13 @@ class Gripper(object):
         while self.gripper_moving_check():
             if self.gripper_load_check():
                 print("Gripper load too high, theoretically should stop or throw error")
-                break
-        # return the current state
-        return self.current_positions()
+                terminated = True
+                self.close()
+                self.setup()
+                self.home()
+               
+        # return the current state and whether it was terminated
+        return self.current_positions(), terminated
 
     def current_positions(self):
         current_positions = []

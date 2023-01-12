@@ -169,7 +169,7 @@ def train(td3, memory: MemoryBuffer):
         #print(state)
 
 
-        while not Done and action_taken < 15: 
+        while not Done and action_taken < args.action_num: 
 
             # Select an Action
             #td3.actor_net.eval() --> dont need bc we are not using batch norm???
@@ -190,9 +190,9 @@ def train(td3, memory: MemoryBuffer):
             
             action = action.astype(int)
 
-            next_state, reward, Done = env.step(action, target_angle)
+            next_state, reward, terminated, Done = env.step(action, target_angle, action_taken)
             
-            memory.add(state, action, reward, next_state, Done)
+            memory.add(state, action, reward, next_state, terminated, Done)
 
             experiences = memory.sample(args.batch_size)
             
@@ -231,6 +231,7 @@ def fill_buffer(memory):
             
         # TODO: refactor the code surely i can make it better than this
         action = np.zeros(9)
+        action_taken = 0 #need it for step but is irrevilant at this point
     
         for i in range(0, len(MAX_ACTIONS)):
             action[i] = np.random.randint(MIN_ACTIONS[i], MAX_ACTIONS[i])
@@ -239,7 +240,7 @@ def fill_buffer(memory):
         #pick a random target angle
         target_angle = np.random.randint(0, 360)
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
-        next_state, reward, done = env.step(action, target_angle)
+        next_state, reward, terminated, done = env.step(action, target_angle, action_taken)
        
         memory.add(state, action, reward, next_state, done)
         #keep track of how full the buffer is 
@@ -252,6 +253,7 @@ def parse_args():
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--buffer_capacity", type=int, default=16)
     parser.add_argument("--episode_num", type=int, default=20)
+    parser.add_argument("--action_num", type=int, default=15)
 
     args = parser.parse_args()
     return args
