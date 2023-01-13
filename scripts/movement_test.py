@@ -25,7 +25,7 @@ BAUDRATE = 57600
 
 NUM_MOTORS = 9
 
-DEVICENAME = 'COM5'
+DEVICENAME = '/dev/ttyUSB0'
 
 TORQUE_ENABLE = 1  # Value for enabling the torque
 TORQUE_DISABLE = 0  # Value for disabling the torque
