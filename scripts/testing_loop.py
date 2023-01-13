@@ -49,8 +49,8 @@ CRITIC_LR = 1e-3
 #EPISODE_NUM = 10
 #BATCH_SIZE = 8  #32 good
 
-MAX_ACTIONS = np.array([1023, 750, 750, 1023, 750, 750, 1023, 750, 750])  #have generalised this to 750 for lower joints for consistency
-MIN_ACTIONS = np.array([0, 250, 250, 0, 250, 250, 0, 250, 250]) #have generalised this to 250 for lower joints for consistency
+MAX_ACTIONS = np.array([900, 750, 750, 900, 750, 750, 900, 750, 750])  #have generalised this to 750 for lower joints for consistency
+MIN_ACTIONS = np.array([100, 250, 250, 100, 250, 250, 100, 250, 250]) #have generalised this to 250 for lower joints for consistency
 
 env = Environment()
 
@@ -255,9 +255,9 @@ def fill_buffer(memory):
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=69)
-    parser.add_argument("--batch_size", type=int, default=8)
-    parser.add_argument("--buffer_capacity", type=int, default=16)
-    parser.add_argument("--episode_num", type=int, default=20)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--buffer_capacity", type=int, default=32)
+    parser.add_argument("--episode_num", type=int, default=100)
     parser.add_argument("--action_num", type=int, default=15)
 
     args = parser.parse_args()

@@ -5,8 +5,6 @@ from Gripper import Gripper
 from Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
 
-# TODO: sort this all out um yep make this work better with the testing loop
-
 class Environment():
 
 
@@ -62,11 +60,11 @@ class Environment():
                 start_marker_pose = -1
             else:
                 start_marker_pose = start_marker_pose[0][1][2]
-            print(f"start_marker_pose: {start_marker_pose}")
+            #print(f"start_marker_pose: {start_marker_pose}")
             
             # Take Action (maybe this needs to be in its own while loop?)
             state, terminated = self.gripper.move(action)
-            print(f"state: {state}")
+            #print(f"state: {state}")
 
             Done = True #need this to tell that the action is complete
 
@@ -80,17 +78,21 @@ class Environment():
             final_marker_pose = -1
         else:
             final_marker_pose = final_aruco_position[0][1][2]
-        print(f"final_marker_pose: {final_marker_pose}")
+        #print(f"final_marker_pose: {final_marker_pose}")
 
         state.append(final_marker_pose)
-        print(f"state being returned {state}")
+        #print(f"state being returned {state}")
         
         # Calculate Reward, figure out how to index marker_pose
         reward = self.reward_function(target_angle, start_marker_pose, final_marker_pose, action_taken, terminated)
 
-        if (target_angle-5)<final_marker_pose<(target_angle+5):
+        goal_reached = 0
+
+        if (target_angle-10)<final_marker_pose<(target_angle+10):
             terminated = False
             Done = True #not to sure about this but keeping it for now
+            goal_reached += 1
+            print(f"goal reached = {goal_reached}")
         
         return state, reward, terminated, Done
             

@@ -31,8 +31,8 @@ class Gripper(object):
         leds = [0, 3, 2, 0, 7, 5, 0, 4, 6]
         # Ideally these would all be the same but some are slightly physically offset
         # TODO: paramatise this further for when we have multiple grippers
-        max = [1023, 750, 769, 1023, 750, 802, 1023, 750, 794]
-        min = [0,    250, 130, 0,    198, 152, 0,    250, 140]
+        max = [900, 750, 769, 900, 750, 802, 900, 750, 794]
+        min = [100,    250, 130, 100,    198, 152, 100,    250, 140]
 
         # create the nine servo instances
         for i in range(0, self.num_motors):
