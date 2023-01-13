@@ -22,26 +22,27 @@ class Environment():
 
 
 #reward function 
-    def reward_function(self, target_angle, valve_angle_previous, valve_angle_after, action_taken):
+    def reward_function(self, target_angle, valve_angle_previous, valve_angle_after, action_taken, terminated):
             delta_changes = np.abs(target_angle - valve_angle_previous) - np.abs(target_angle - valve_angle_after)
             angle_difference = np.abs(target_angle - valve_angle_after)
 
             print(f"target_angle: {target_angle}, delta changes: {delta_changes}, angle difference: {angle_difference}")
 
-            reward_ext = -angle_difference+360 +  -(10*action_taken)+150
+            reward = (-angle_difference+360)+(-(10*action_taken)+150)
 
             if valve_angle_previous == -1 or valve_angle_after == -1:
-                reward_ext = 0
-                done = False
+                reward = 0
 
-            elif angle_difference < 5:
-                reward_ext += 1000
-                done = True
+            elif terminated:
+                reward += -1000
+
+            elif angle_difference < 10:
+                reward += 10000
 
             else:
                 done = False
 
-            return reward_ext
+            return reward
 
 #step
     def step(self, action, target_angle, action_taken):
@@ -71,6 +72,9 @@ class Environment():
 
         Done = False #need to reset so that i can tell the 
         # Measure State of aruco marker
+        if terminated: 
+            Done = True
+
         final_aruco_position = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
         if len(final_aruco_position) == 0:
             final_marker_pose = -1
@@ -82,7 +86,7 @@ class Environment():
         print(f"state being returned {state}")
         
         # Calculate Reward, figure out how to index marker_pose
-        reward = self.reward_function(target_angle, start_marker_pose, final_marker_pose, action_taken)
+        reward = self.reward_function(target_angle, start_marker_pose, final_marker_pose, action_taken, terminated)
 
         if (target_angle-5)<final_marker_pose<(target_angle+5):
             terminated = False
