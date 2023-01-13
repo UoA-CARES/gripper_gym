@@ -246,8 +246,8 @@ def fill_buffer(memory):
         target_angle = np.random.randint(0, 360)
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
         next_state, reward, terminated, done = env.step(action, target_angle, action_taken)
-       
-        memory.add(state, action, reward, next_state, terminated, done)
+        print(reward)
+        memory.add(state, action, reward, next_state, done)
         #keep track of how full the buffer is 
         print(f"Buffer: {len(memory.buffer)} / {memory.buffer.maxlen}", end='\r')
         state = next_state
@@ -256,7 +256,7 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=69)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--buffer_capacity", type=int, default=32)
+    parser.add_argument("--buffer_capacity", type=int, default=100)
     parser.add_argument("--episode_num", type=int, default=100)
     parser.add_argument("--action_num", type=int, default=15)
 
