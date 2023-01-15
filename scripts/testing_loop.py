@@ -65,8 +65,13 @@ class Actor(nn.Module):
         self.hidden_size = [128, 64, 32]
 
         self.h_linear_1 = nn.Linear(in_features=observation_size, out_features=self.hidden_size[0])
+        nn.ReLU()
         self.h_linear_2 = nn.Linear(in_features=self.hidden_size[0], out_features=self.hidden_size[1])
+        nn.ReLU()
+        nn.BatchNorm1d(self.hidden_size[1])
         self.h_linear_3 = nn.Linear(in_features=self.hidden_size[1], out_features=self.hidden_size[2])
+        nn.ReLU()
+        nn.BatchNorm1d(self.hidden_size[2])
         self.h_linear_4 = nn.Linear(in_features=self.hidden_size[2], out_features=num_actions)
 
         self.optimiser = optim.Adam(self.parameters(), lr=learning_rate)
@@ -139,6 +144,11 @@ def main():
 
     print(f"Filling Buffer...")
 
+    f = open("testinglog.txt", "a")
+    f.write("start of testing log")
+    f.write("\n")
+    f.close
+
     fill_buffer(memory)
 
     train(td3, memory)
@@ -209,16 +219,18 @@ def train(td3, memory: MemoryBuffer):
                 print("Episode Terminated")
                 f = open("testinglog.txt", "a")
                 f.write(f"the current epsiode is {episode}, this was TERMINATED at {action_taken} actions taken")
-                f.close
+                f.write("\n")
+                f.close()
                 historical_reward.append(episode_reward)
                 episode += 1
 
         historical_reward.append(episode_reward)
 
-        if episode % 100:
+        if episode % 10 == 0:
             f = open("testinglog.txt", "a")
-            f.write(f"the current epsiode is {episode}, the number of actions taken was {action_taken}, the reward was {episode_reward} ")
-            f.close
+            f.write(f"the current epsiode is {episode}, the number of actions taken was {action_taken}, the reward was {episode_reward}")
+            f.write("\n")
+            f.close()
         plt.plot(historical_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
 
@@ -238,7 +250,12 @@ def fill_buffer(memory):
 
     env.gripper.setup()
     state = env.gripper.home()
- 
+
+    f = open("testinglog.txt", "a")
+    f.write("training")
+    f.write("\n")
+    f.close()
+
     while len(memory.buffer) < memory.buffer.maxlen:
       
             
@@ -264,8 +281,8 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=69)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--buffer_capacity", type=int, default=32)
-    parser.add_argument("--episode_num", type=int, default=10)
+    parser.add_argument("--buffer_capacity", type=int, default=1000)
+    parser.add_argument("--episode_num", type=int, default=1000)
     parser.add_argument("--action_num", type=int, default=15)
 
     args = parser.parse_args()
