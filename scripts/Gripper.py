@@ -11,7 +11,7 @@ from Servo import Servo
 from Camera import Camera
 
 class Gripper(object):
-    def __init__(self, device_name="COM5", baudrate=57600, protocol=2.0, torque_limit=180, speed_limit=100):
+    def __init__(self, device_name="/dev/ttyUSB0", baudrate=57600, protocol=2.0, torque_limit=180, speed_limit=100):
         # Setup Servor handlers
         self.device_name = device_name
         self.baudrate = baudrate

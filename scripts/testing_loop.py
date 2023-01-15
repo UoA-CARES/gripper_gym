@@ -30,12 +30,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-if torch.cuda.is_available():
-    DEVICE = torch.device('cuda')
-    print("Working with GPU")
-else:
-    DEVICE = torch.device('cpu')
-    print("Working with CPU")
+#if torch.cuda.is_available():
+   # DEVICE = torch.device('cuda')
+    #print("Working with GPU")
+
+DEVICE = torch.device('cpu')
+print("Working with CPU")
 
 
 #BUFFER_CAPACITY = 10
@@ -199,6 +199,9 @@ def train(td3, memory: MemoryBuffer):
             for _ in range(0, 10): #can be bigger
                 
                 td3.learn(experiences)
+
+            with open("testinglog.txt", mode = "w") as f:
+                f.write("this text is written with python")
 
             action_taken += 1
             print(f"actions taken = {action_taken}")
