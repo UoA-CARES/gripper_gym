@@ -40,7 +40,6 @@ import torch.optim as optim
 DEVICE = torch.device('cpu')
 print("Working with CPU")
 
-
 #BUFFER_CAPACITY = 10
 
 GAMMA = 0.995
@@ -210,19 +209,18 @@ def train(td3, memory: MemoryBuffer):
                 #print("learning")
                 td3.learn(experiences)
 
-            with open("testinglog.txt", mode = "w") as f:
-                f.write("this text is written with python")
-
             action_taken += 1
             print(f"actions taken = {action_taken}")
 
             state = next_state
             episode_reward += reward 
-
-            #this needs to be refactored because it isn't the best code
-            
-
+        
         historical_reward.append(episode_reward)
+
+        if episode % 100:
+            f = open("testinglog.txt", "a")
+            f.write(f"the current epsiode is {episode}, the number of actions taken was {action_taken}, the reward was {episode_reward} ")
+            f.close
         plt.plot(historical_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
     plt.show()
@@ -249,7 +247,6 @@ def fill_buffer(memory):
 
         next_state, reward, done = env.step(action, target_angle)
         
-        #update the policy here?????
 
         memory.add(state, action, reward, next_state, done)
 
