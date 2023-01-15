@@ -93,6 +93,9 @@ class Environment():
             Done = True #not to sure about this but keeping it for now
             goal_reached += 1
             print(f"goal reached = {goal_reached}")
+            f = open("testingloop.txt", "a")
+            f.write(f"the goal angle was reached in {action_taken} actions")
+            f.close
         
         return state, reward, terminated, Done
             
