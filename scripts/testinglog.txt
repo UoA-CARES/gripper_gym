@@ -1,2 +1,41 @@
 training
 start of testing log
+training
+start of testing log
+training
+start of testing log
+start of testing log
+training
+the current epsiode is 0, the number of actions taken was 10, the reward was 2193.5662148199626
+the current epsiode is 12, the number of actions taken was 10, the reward was 2852.4921018387877
+the current epsiode is 18, this was TERMINATED at 1 actions taken
+the current epsiode is 21, this was TERMINATED at 1 actions taken
+the current epsiode is 23, this was TERMINATED at 1 actions taken
+the current epsiode is 24, the number of actions taken was 1, the reward was -598.9353395082854
+the current epsiode is 24, the number of actions taken was 10, the reward was 3401.299874622894
+the current epsiode is 26, this was TERMINATED at 1 actions taken
+the current epsiode is 33, this was TERMINATED at 1 actions taken
+the current epsiode is 36, the number of actions taken was 10, the reward was 3643.951572757592
+the current epsiode is 48, the number of actions taken was 10, the reward was 2997.152137816694
+the current epsiode is 49, this was TERMINATED at 1 actions taken
+the current epsiode is 60, the number of actions taken was 10, the reward was 4335.04610929408
+the current epsiode is 72, the number of actions taken was 10, the reward was 3573.374438409627
+the current epsiode is 84, the number of actions taken was 1, the reward was 10504.624886203115
+the current epsiode is 96, the number of actions taken was 10, the reward was 4207.31746068452
+the current epsiode is 108, the number of actions taken was 10, the reward was 3279.8980411364764
+the current epsiode is 120, the number of actions taken was 10, the reward was 4520.337154306615
+the current epsiode is 132, the number of actions taken was 10, the reward was 4443.084255010208
+the current epsiode is 144, the number of actions taken was 10, the reward was 3451.4113726456503
+the current epsiode is 156, the number of actions taken was 10, the reward was 3299.487591508036
+the current epsiode is 168, the number of actions taken was 10, the reward was -650.5790362242814
+the current epsiode is 180, the number of actions taken was 10, the reward was 3173.437826178634
+the current epsiode is 192, the number of actions taken was 10, the reward was -597.8758472429257
+the current epsiode is 204, the number of actions taken was 10, the reward was 4416.753053915776
+the current epsiode is 216, the number of actions taken was 10, the reward was 3753.9779721296504
+the current epsiode is 228, the number of actions taken was 10, the reward was 2755.362362376259
+the current epsiode is 235, this was TERMINATED at 10 actions taken --> i terminated this to see if it would move. it didn't. 
+the current epsiode is 240, the number of actions taken was 10, the reward was 3037.8463221866423
+the current epsiode is 252, the number of actions taken was 10, the reward was 1800.350417413099
+the current epsiode is 263, this was TERMINATED at 3 actions taken --> maybe self terminating it is a bad idea bc then it learns that when it moves thats bad
+the current epsiode is 264, the number of actions taken was 3, the reward was 305.7578590912851
+the current epsiode is 276, the number of actions taken was 10, the reward was 2328.9459609893847

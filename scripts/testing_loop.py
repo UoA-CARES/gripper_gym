@@ -173,7 +173,19 @@ def train(td3, memory: MemoryBuffer):
         episode_reward = 0 
         Done = False
         action_taken = 0
-        target_angle = np.random.randint(0, 360)
+
+        #TODO: change this so it gets the current angle and adds a random amount to it
+        frame = env.camera.get_frame()
+        target_angle = env.aruco_detector.get_marker_poses(frame, env.camera.camera_matrix, env.camera.camera_distortion)
+        if len(target_angle) == 0:
+            target_angle = -360
+        else:
+            target_angle = target_angle[0][1][2]+ np.random.randint(10, 360)
+        
+
+        if target_angle > 360:
+            target_angle = target_angle - 360
+
         print(f"episode {episode}")
         #print(state)
 
@@ -205,7 +217,7 @@ def train(td3, memory: MemoryBuffer):
 
             experiences = memory.sample(args.batch_size)
             
-            for _ in range(0, 10): #can be bigger
+            for _ in range(0, 5): #can be bigger
                 
                 td3.learn(experiences)
 
@@ -267,8 +279,15 @@ def fill_buffer(memory):
             action[i] = np.random.randint(MIN_ACTIONS[i], MAX_ACTIONS[i])
 
         action = action.astype(int)
-        #pick a random target angle
-        target_angle = np.random.randint(0, 360)
+        #pick a random target angle (but also make sure it isn't the current angle)
+        frame = env.camera.get_frame()
+        target_angle = env.aruco_detector.get_marker_poses(frame, env.camera.camera_matrix, env.camera.camera_distortion)
+        if len(target_angle) == 0:
+            target_angle = -1
+        else:
+            target_angle = target_angle[0][1][2]+ np.random.randint(10, 360)
+        if target_angle > 360:
+            target_angle = target_angle - 360
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
         next_state, reward, terminated, done = env.step(action, target_angle, action_taken)
         print(reward)
@@ -281,8 +300,8 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=6969)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--buffer_capacity", type=int, default=2000)
-    parser.add_argument("--episode_num", type=int, default=2000)
+    parser.add_argument("--buffer_capacity", type=int, default=500)
+    parser.add_argument("--episode_num", type=int, default=1500)
     parser.add_argument("--action_num", type=int, default=10)
 
     args = parser.parse_args()
