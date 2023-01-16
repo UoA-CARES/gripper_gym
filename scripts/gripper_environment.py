@@ -24,12 +24,12 @@ class Environment():
             delta_changes = np.abs(target_angle - valve_angle_previous) - np.abs(target_angle - valve_angle_after)
             angle_difference = np.abs(target_angle - valve_angle_after)
 
-            print(f"target_angle: {target_angle}, delta changes: {delta_changes}, angle difference: {angle_difference}")
+            #print(f"target_angle: {target_angle}, angle difference: {angle_difference}")
 
-            reward = (-angle_difference+360)+(-(10*action_taken)+150)
+            reward = ((-0.5*angle_difference)+360)+(-(10*action_taken)+150)
 
             if valve_angle_previous == -1 or valve_angle_after == -1:
-                reward = 0
+                reward += 0
 
             elif terminated:
                 reward += -1000
@@ -86,15 +86,13 @@ class Environment():
         # Calculate Reward, figure out how to index marker_pose
         reward = self.reward_function(target_angle, start_marker_pose, final_marker_pose, action_taken, terminated)
 
-        goal_reached = 0
 
         if (target_angle-10)<final_marker_pose<(target_angle+10):
             terminated = False
             Done = True #not to sure about this but keeping it for now
-            goal_reached += 1
-            print(f"goal reached = {goal_reached}")
-            f = open("testingloop.txt", "a")
+            f = open("testinglog.txt", "a")
             f.write(f"the goal angle was reached in {action_taken} actions")
+            f.write("\n")
             f.close
         
         return state, reward, terminated, Done

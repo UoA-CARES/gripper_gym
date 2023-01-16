@@ -86,7 +86,7 @@ class Gripper(object):
     def gripper_load_check(self):
         #enumerate through the servos and make sure the load isn't higher than maybe like 30%
         for id, servo in self.servos.items():
-            if servo.current_load() > 20:
+            if servo.current_load() > 18:
                 return True
 
 
