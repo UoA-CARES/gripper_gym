@@ -30,7 +30,7 @@ class Environment():
             reward = ((-0.1*angle_difference)+360)+(-(10*action_taken)+150)+(2*rel_angle_diff)
 
             if valve_angle_previous == -1 or valve_angle_after == -1:
-                reward = 0
+                reward += -100
                 f = open("testinglog181.txt", "a")
                 f.write(f"the aruco marker couldn't be seen")
                 f.write("\n")
@@ -39,7 +39,7 @@ class Environment():
 
 
             elif terminated:
-                reward += -1000
+                reward += -500
 
             elif angle_difference < 10:
                 reward += 10000

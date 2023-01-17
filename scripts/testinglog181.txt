@@ -12,3 +12,36 @@ the current epsiode is 12, the number of actions taken was 2, the reward was 223
 the current epsiode is 12, this was TERMINATED at 2 actions taken
 the current epsiode is 16, this was TERMINATED at 1 actions taken
 start of testing log
+training
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+start of testing log
+training
+start of testing log
+training
+the aruco marker couldn't be seen
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+start of testing log
+training
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+start of testing log
+training
+the aruco marker couldn't be seen
+the aruco marker couldn't be seen
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the aruco marker couldn't be seen
+the goal angle was reached in 0 actions
+the aruco marker couldn't be seen
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
