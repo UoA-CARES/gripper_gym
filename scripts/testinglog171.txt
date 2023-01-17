@@ -125,54 +125,19 @@ the current epsiode is 1260, the number of actions taken was 10, the reward was 
 the current epsiode is 1272, the number of actions taken was 10, the reward was 4352.778178881558
 the current epsiode is 1284, the number of actions taken was 10, the reward was 3660.564359465393
 the current epsiode is 1296, the number of actions taken was 10, the reward was 4474.045656879656
-training
-start of testing log
-training
-the goal angle was reached in 0 actions
-the goal angle was reached in 0 actions
-the goal angle was reached in 0 actions
-the goal angle was reached in 0 actions
-start of testing log
-training
-the current epsiode is 0, the number of actions taken was 10, the reward was 3275.0941425352494
-the goal angle was reached in 0 actions
-training
-the current epsiode is 0, the number of actions taken was 10, the reward was 3278.3145138887157
-the goal angle was reached in 0 actions
-start of testing log
-training
-start of testing log
-training
-the current epsiode is 0, this was TERMINATED at 1 actions taken
-the current epsiode is 1, this was TERMINATED at 1 actions taken
-the current epsiode is 2, this was TERMINATED at 10 actions taken
-the goal angle was reached in 0 actions
-the current epsiode is 6, this was TERMINATED at 2 actions taken
-the current epsiode is 7, this was TERMINATED at 1 actions taken
-the current epsiode is 8, this was TERMINATED at 1 actions taken
-the current epsiode is 9, this was TERMINATED at 2 actions taken
-the current epsiode is 10, this was TERMINATED at 2 actions taken
-the current epsiode is 11, this was TERMINATED at 1 actions taken
-the current epsiode is 12, the number of actions taken was 1, the reward was -547.1094029168813
-the current epsiode is 12, this was TERMINATED at 2 actions taken
-the current epsiode is 13, this was TERMINATED at 2 actions taken
-the current epsiode is 14, this was TERMINATED at 2 actions taken
-the current epsiode is 15, this was TERMINATED at 2 actions taken
-the current epsiode is 16, this was TERMINATED at 2 actions taken
-the current epsiode is 17, this was TERMINATED at 2 actions taken
-the current epsiode is 18, this was TERMINATED at 2 actions taken
-the current epsiode is 19, this was TERMINATED at 2 actions taken
-the current epsiode is 20, this was TERMINATED at 1 actions taken
-the current epsiode is 21, this was TERMINATED at 6 actions taken
-the current epsiode is 22, this was TERMINATED at 3 actions taken
-the current epsiode is 23, this was TERMINATED at 2 actions taken
-the current epsiode is 24, the number of actions taken was 2, the reward was -31.735879096828683
-the current epsiode is 24, the number of actions taken was 10, the reward was 3777.1478510437737
-the current epsiode is 28, this was TERMINATED at 1 actions taken
-the goal angle was reached in 0 actions
-the current epsiode is 36, the number of actions taken was 10, the reward was 4266.471725049723
-the current epsiode is 38, this was TERMINATED at 2 actions taken
-the current epsiode is 48, the number of actions taken was 10, the reward was 4079.4652639471283
-the current epsiode is 60, the number of actions taken was 10, the reward was 4204.480852907008
-the current epsiode is 72, the number of actions taken was 10, the reward was 4065.7702148924127
-start of testing log
+the current epsiode is 1308, the number of actions taken was 10, the reward was 3464.9703205198234
+the current epsiode is 1320, the number of actions taken was 10, the reward was 3758.5162198537946
+the current epsiode is 1332, the number of actions taken was 10, the reward was 4537.084691340265
+the current epsiode is 1344, the number of actions taken was 10, the reward was 3949.9998716043883
+the current epsiode is 1356, the number of actions taken was 10, the reward was 3112.868502311682
+the current epsiode is 1368, the number of actions taken was 10, the reward was 2700.5047009193995
+the current epsiode is 1380, the number of actions taken was 10, the reward was 3679.4656021355386
+the current epsiode is 1392, the number of actions taken was 10, the reward was 4419.642504413937
+the current epsiode is 1404, the number of actions taken was 10, the reward was 4025.697345307976
+the current epsiode is 1416, the number of actions taken was 10, the reward was 4018.7921952110523
+the current epsiode is 1428, the number of actions taken was 10, the reward was 4272.900948503268
+the current epsiode is 1440, the number of actions taken was 10, the reward was 3693.9092428482663
+the current epsiode is 1452, the number of actions taken was 10, the reward was -99.95628482900588
+the current epsiode is 1464, the number of actions taken was 10, the reward was 1197.649705582609
+the current epsiode is 1476, the number of actions taken was 10, the reward was -114.77917751372178
+the current epsiode is 1488, the number of actions taken was 10, the reward was 2123.468993429704

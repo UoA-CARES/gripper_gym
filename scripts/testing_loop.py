@@ -25,6 +25,10 @@ from argparse import ArgumentParser
 import random
 import matplotlib.pyplot as plt
 
+#for ctrl-c handling
+import signal
+import time
+
 #these are just for the networks that should get moved
 import torch
 import torch.nn as nn
@@ -110,6 +114,8 @@ class Critic(nn.Module):
 
 def main():
 
+    signal.signal(signal.SIGINT, ctrlc_handler)
+
     observation_size = 10  
 
     action_num = 9
@@ -153,6 +159,14 @@ def main():
 
     train(td3, memory)
 
+def ctrlc_handler(signum, frame):
+    res = input("ctrl-c pressed. press y to exit and save")
+    if res == 'y':
+        plt.show()
+        plt.savefig('terminatedplt.png')
+        exit()
+
+
 
 def train(td3, memory: MemoryBuffer):
 
@@ -174,17 +188,17 @@ def train(td3, memory: MemoryBuffer):
         Done = False
         action_taken = 0
 
-        #TODO: change this so it gets the current angle and adds a random amount to it
-        frame = env.camera.get_frame()
-        target_angle = env.aruco_detector.get_marker_poses(frame, env.camera.camera_matrix, env.camera.camera_distortion)
-        if len(target_angle) == 0:
-            target_angle = -360
-        else:
-            target_angle = target_angle[0][1][2]+ np.random.randint(10, 360)
-        
-
-        if target_angle > 360:
-            target_angle = target_angle - 360
+        # davids suggestion
+        target_angle = np.random.randint(1,5)
+        if target_angle == 1:
+            target_angle = 89
+        elif target_angle == 2:
+            target_angle = 179
+        elif target_angle == 3:
+            target_angle = 269
+        elif target_angle == 4:
+            target_angle = 359
+        else: target_angle = -1
 
         print(f"episode {episode}")
         #print(state)
@@ -243,7 +257,7 @@ def train(td3, memory: MemoryBuffer):
             f.write(f"the current epsiode is {episode}, the number of actions taken was {action_taken}, the reward was {episode_reward}")
             f.write("\n")
             f.close()
-        plt.plot(historical_reward)
+        #plt.plot(historical_reward)
         print(f"Episode #{episode} Reward {episode_reward}")
 
         plt.plot(historical_reward)
@@ -256,6 +270,7 @@ def train(td3, memory: MemoryBuffer):
         xint.append(int(each))
     plt.xticks(xint)
     plt.show()
+    plt.savefig('testing181.png')
 
 
 def fill_buffer(memory):
@@ -270,7 +285,6 @@ def fill_buffer(memory):
 
     while len(memory.buffer) < memory.buffer.maxlen:
       
-            
         # TODO: refactor the code surely i can make it better than this
         action = np.zeros(9)
         action_taken = 0 #need it for step but is irrevilant at this point
@@ -279,15 +293,17 @@ def fill_buffer(memory):
             action[i] = np.random.randint(MIN_ACTIONS[i], MAX_ACTIONS[i])
 
         action = action.astype(int)
-        #pick a random target angle (but also make sure it isn't the current angle)
-        frame = env.camera.get_frame()
-        target_angle = env.aruco_detector.get_marker_poses(frame, env.camera.camera_matrix, env.camera.camera_distortion)
-        if len(target_angle) == 0:
-            target_angle = -1
-        else:
-            target_angle = target_angle[0][1][2]+ np.random.randint(10, 360)
-        if target_angle > 360:
-            target_angle = target_angle - 360
+        #davids suggestion
+        target_angle = np.random.randint(1,5)
+        if target_angle == 1:
+            target_angle = 89
+        elif target_angle == 2:
+            target_angle = 179
+        elif target_angle == 3:
+            target_angle = 269
+        elif target_angle == 4:
+            target_angle = 359
+        else: target_angle = -1
         #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
         next_state, reward, terminated, done = env.step(action, target_angle, action_taken)
         print(reward)
@@ -300,7 +316,7 @@ def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=6969)
     parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--buffer_capacity", type=int, default=500)
+    parser.add_argument("--buffer_capacity", type=int, default=32)
     parser.add_argument("--episode_num", type=int, default=1500)
     parser.add_argument("--action_num", type=int, default=10)
 
