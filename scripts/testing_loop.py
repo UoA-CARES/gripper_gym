@@ -150,7 +150,7 @@ def main():
 
     print(f"Filling Buffer...")
 
-    f = open("testinglog.txt", "a")
+    f = open("testinglog181.txt", "a")
     f.write("start of testing log")
     f.write("\n")
     f.close
@@ -243,7 +243,7 @@ def train(td3, memory: MemoryBuffer):
 
             if terminated:
                 print("Episode Terminated")
-                f = open("testinglog.txt", "a")
+                f = open("testinglog181.txt", "a")
                 f.write(f"the current epsiode is {episode}, this was TERMINATED at {action_taken} actions taken")
                 f.write("\n")
                 f.close()
@@ -253,7 +253,7 @@ def train(td3, memory: MemoryBuffer):
         historical_reward.append(episode_reward)
 
         if episode % 12 == 0:
-            f = open("testinglog.txt", "a")
+            f = open("testinglog181.txt", "a")
             f.write(f"the current epsiode is {episode}, the number of actions taken was {action_taken}, the reward was {episode_reward}")
             f.write("\n")
             f.close()
@@ -278,7 +278,7 @@ def fill_buffer(memory):
     env.gripper.setup()
     state = env.gripper.home()
 
-    f = open("testinglog.txt", "a")
+    f = open("testinglog181.txt", "a")
     f.write("training")
     f.write("\n")
     f.close()
@@ -315,9 +315,9 @@ def fill_buffer(memory):
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--seed", type=int, default=6969)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--buffer_capacity", type=int, default=32)
-    parser.add_argument("--episode_num", type=int, default=1500)
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--buffer_capacity", type=int, default=100)
+    parser.add_argument("--episode_num", type=int, default=1000)
     parser.add_argument("--action_num", type=int, default=10)
 
     args = parser.parse_args()

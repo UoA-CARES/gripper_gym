@@ -176,3 +176,36 @@ the current epsiode is 48, the number of actions taken was 10, the reward was 40
 the current epsiode is 60, the number of actions taken was 10, the reward was 4204.480852907008
 the current epsiode is 72, the number of actions taken was 10, the reward was 4065.7702148924127
 start of testing log
+training
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+start of testing log
+training
+start of testing log
+training
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+start of testing log
+training
+the goal angle was reached in 0 actions
+start of testing log
+training
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+start of testing log
+training
+the goal angle was reached in 0 actions
+the goal angle was reached in 0 actions
+start of testing log
