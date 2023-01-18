@@ -23,21 +23,25 @@ class Environment():
     def reward_function(self, target_angle, valve_angle_previous, valve_angle_after, action_taken, terminated):
             
             angle_difference = np.abs(target_angle - valve_angle_after)
-            rel_angle_diff = np.abs(valve_angle_after - valve_angle_previous)
 
-            print(f"valve angle prev: {valve_angle_previous}, valve angle post: {valve_angle_after} target_angle: {target_angle}, angle difference: {angle_difference}, relative angle: {rel_angle_diff}")
+            #get this to sort out the -1 thingy
+            if valve_angle_previous == -1 or valve_angle_after == -1:
+                rel_angle_diff = 0
+            else:
+                rel_angle_diff = np.abs(valve_angle_after - valve_angle_previous)
 
-            reward = ((-0.1*angle_difference)+360)+(-(10*action_taken)+150)+(2*rel_angle_diff)
+            print(f"target_angle: {target_angle} valve angle prev: {valve_angle_previous}, valve angle post: {valve_angle_after}, angle difference: {angle_difference}, relative angle: {rel_angle_diff}")
+
+            reward = ((-0.5*angle_difference))+(-(4*action_taken))+(10*rel_angle_diff)
 
             if valve_angle_previous == -1 or valve_angle_after == -1:
                 reward += -100
-                f = open("testinglog181.txt", "a")
+
+                f = open("testinglog181_2.txt", "a")
                 f.write(f"the aruco marker couldn't be seen")
                 f.write("\n")
                 f.close
         
-
-
             elif terminated:
                 reward += -500
 
@@ -98,7 +102,7 @@ class Environment():
         if (target_angle-10)<final_marker_pose<(target_angle+10):
             terminated = False
             Done = True #not to sure about this but keeping it for now
-            f = open("testinglog181.txt", "a")
+            f = open("testinglog181_2.txt", "a")
             f.write(f"the goal angle was reached in {action_taken} actions")
             f.write("\n")
             f.close
