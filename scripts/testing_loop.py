@@ -11,7 +11,7 @@ directory
 #memory replays 
 
 #TODO: track the error messages so i know when things are breaking
-
+from datetime import datetime
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
@@ -37,11 +37,9 @@ import torch.optim as optim
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
     print("Working with GPU")
-
-DEVICE = torch.device('cpu')
-print("Working with CPU")
-
-#BUFFER_CAPACITY = 10
+else:
+    DEVICE = torch.device('cpu')
+    print("Working with CPU")
 
 GAMMA = 0.995
 TAU = 0.005
@@ -49,14 +47,8 @@ TAU = 0.005
 ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 
-#EPISODE_NUM = 10
-#BATCH_SIZE = 8  #32 good
-
 MAX_ACTIONS = np.array([800, 750, 750, 800, 750, 750, 800, 750, 750])  #have generalised this to 750 for lower joints for consistency
 MIN_ACTIONS = np.array([200, 250, 250, 200, 250, 250, 200, 250, 250]) #have generalised this to 250 for lower joints for consistency
-
-env = Environment()
-
 
 #need to move these
 class Actor(nn.Module):
@@ -111,14 +103,105 @@ class Critic(nn.Module):
         q1 = self.Q1(x)
         return q1
 
+def ctrlc_handler(signum, frame):
+    res = input("ctrl-c pressed. press y to exit and save")
+    if res == 'y':
+        plt.show()
+        plt.savefig('terminatedplt.png')
+        exit()
+
+def normalise_state(state):
+    # modify normalisation
+    normalise_state = []
+    for i in range(0, len(state-1)):
+        normalise_state[i] = state[i]/1023
+    normalise_state[i+1] = state[i+1]/360
+    return normalise_state
+
+def train(network, memory: MemoryBuffer):
+
+    args = parse_args()
+
+    now = datetime.now()
+    now = now.strftime("%Y-%M-%D-%H-%M-%S")
+    logger = open(f"logs/{now}-log.txt", "a")
+    
+    historical_reward = []
+
+    env = Environment()
+
+    for episode in range(0, args.episode_num):
+        print(f"Start of Episode {episode}")
+
+        state, terminated = env.reset()
+        if terminated:
+            print(f"Gripper failed to go to initial home on episode {episode}/{args.episode_num}!")
+            exit()
+
+        normalised_state = normalise_state(state)
+          
+        episode_reward = 0
+        step = 0
+        terminated = False
+
+        for step in range(0, args.number_steps):
+            print(f"Taking step {step}/{args.number_steps}")
+
+            action = network.forward(state)
+            
+            action = action.astype(int)
+            next_state, reward, terminated, truncated = env.step(action)
+            
+            memory.add(state, action, reward, next_state, terminated)
+
+            if len(memory.buffer) >= memory.buffer.maxlen:
+                experiences = memory.sample(args.batch_size)
+                
+                for _ in range(0, args.G):
+                    network.learn(experiences)
+
+            state = next_state
+            episode_reward += reward
+
+            if terminated:
+                print("Episode Terminated")
+                logger.write(f"The current epsiode is {episode}, this was TERMINATED at {step} actions taken\n")
+                break
+
+        historical_reward.append(episode_reward)
+    
+    # plt.xlabel("Episode")
+    # plt.ylabel("Reward") 
+    # plt.title("Reward per Episode")     
+    # xint = []
+    # locs, labels = plt.xticks()
+    # for each in locs:
+    #     xint.append(int(each))
+    # plt.xticks(xint)
+    # plt.show()
+    # plt.savefig('testing181_2.png')
+
+    # logger.write("\n")
+    # logger.close
+
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument("--seed", type=int, default=6969)
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--buffer_capacity", type=int, default=1000)
+    parser.add_argument("--episode_num", type=int, default=1000)
+    parser.add_argument("--number_steps", type=int, default=10)
+    parser.add_argument("--G", type=int, default=10)
+
+    args = parser.parse_args()
+    return args
 
 def main():
 
     signal.signal(signal.SIGINT, ctrlc_handler)
 
-    observation_size = 10  
-
-    action_num = 9
+    observation_size = 10
+    action_size = 9
 
     #setup the grippers
     args = parse_args()
@@ -129,9 +212,9 @@ def main():
 
     memory = MemoryBuffer(args.buffer_capacity)
 
-    actor = Actor(observation_size, action_num, ACTOR_LR, max_actions)
-    critic_one = Critic(observation_size, action_num, CRITIC_LR)
-    critic_two = Critic(observation_size, action_num, CRITIC_LR)
+    actor = Actor(observation_size, action_size, ACTOR_LR, max_actions)
+    critic_one = Critic(observation_size, action_size, CRITIC_LR)
+    critic_two = Critic(observation_size, action_size, CRITIC_LR)
 
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -150,178 +233,8 @@ def main():
 
     print(f"Filling Buffer...")
 
-    f = open("testinglog181_2.txt", "a")
-    f.write("start of testing log")
-    f.write("\n")
-    f.close
-
-    fill_buffer(memory)
-
     train(td3, memory)
 
-def ctrlc_handler(signum, frame):
-    res = input("ctrl-c pressed. press y to exit and save")
-    if res == 'y':
-        plt.show()
-        plt.savefig('terminatedplt.png')
-        exit()
-
-
-
-def train(td3, memory: MemoryBuffer):
-
-    args = parse_args()
-
-    historical_reward = []
-
-    state = env.gripper.home()
-    #to get the array the correct length for the first action I need to  
-    state.append(-1)
-
-    for episode in range(0, args.episode_num):
-
-        #map state values to 0 - 1 
-        for i in range(0, len(state)):
-            state[i] = (state[i])/360
-          
-        episode_reward = 0 
-        Done = False
-        action_taken = 0
-
-        # davids suggestion
-        target_angle = np.random.randint(1,5)
-        if target_angle == 1:
-            target_angle = 89
-        elif target_angle == 2:
-            target_angle = 179
-        elif target_angle == 3:
-            target_angle = 269
-        elif target_angle == 4:
-            target_angle = 359
-        else: target_angle = -1
-
-        print(f"episode {episode}")
-        #print(state)
-
-
-        while not Done and action_taken < args.action_num: 
-
-            # Select an Action
-            #td3.actor_net.eval() --> dont need bc we are not using batch norm???
-            with torch.no_grad():
-                
-                state_tensor = torch.FloatTensor(state) 
-                
-                state_tensor = state_tensor.to(DEVICE)
-                action = td3.forward(state_tensor) #potientially a naming conflict
-                action = action.numpy()
-
-            td3.actor_net.train(True)
-
-            #convert actor output to valid integer steps within the max and min
-            for i in range(0, len(action)):
-                #map 0 - 1 to min - max
-                action[i] = (action[i]) * (MAX_ACTIONS[i] - MIN_ACTIONS[i]) + MIN_ACTIONS[i]
-            
-            action = action.astype(int)
-
-            next_state, reward, terminated, Done = env.step(action, target_angle, action_taken)
-            
-            memory.add(state, action, reward, next_state, Done)
-
-            experiences = memory.sample(args.batch_size)
-            
-            for _ in range(0, 5): #can be bigger
-                
-                td3.learn(experiences)
-
-            action_taken += 1
-            print(f"actions taken = {action_taken}")
-
-            state = next_state
-            episode_reward += reward
-
-            if terminated:
-                print("Episode Terminated")
-                f = open("testinglog181_2.txt", "a")
-                f.write(f"the current epsiode is {episode}, this was TERMINATED at {action_taken} actions taken")
-                f.write("\n")
-                f.close()
-                historical_reward.append(episode_reward)
-                episode += 1
-
-        historical_reward.append(episode_reward)
-
-        if episode % 12 == 0:
-            f = open("testinglog181_2.txt", "a")
-            f.write(f"the current epsiode is {episode}, the number of actions taken was {action_taken}, the reward was {episode_reward}")
-            f.write("\n")
-            f.close()
-        #plt.plot(historical_reward)
-        print(f"Episode #{episode} Reward {episode_reward}")
-
-        plt.plot(historical_reward)
-    plt.xlabel("Episode")
-    plt.ylabel("Reward") 
-    plt.title("Reward per Episode")     
-    xint = []
-    locs, labels = plt.xticks()
-    for each in locs:
-        xint.append(int(each))
-    plt.xticks(xint)
-    plt.show()
-    plt.savefig('testing181_2.png')
-
-
-def fill_buffer(memory):
-
-    env.gripper.setup()
-    state = env.gripper.home()
-
-    f = open("testinglog181_2.txt", "a")
-    f.write("training")
-    f.write("\n")
-    f.close()
-
-    while len(memory.buffer) < memory.buffer.maxlen:
-      
-        # TODO: refactor the code surely i can make it better than this
-        action = np.zeros(9)
-        action_taken = 0 #need it for step but is irrevilant at this point
-    
-        for i in range(0, len(MAX_ACTIONS)):
-            action[i] = np.random.randint(MIN_ACTIONS[i], MAX_ACTIONS[i])
-
-        action = action.astype(int)
-        #davids suggestion
-        target_angle = np.random.randint(1,5)
-        if target_angle == 1:
-            target_angle = 89
-        elif target_angle == 2:
-            target_angle = 179
-        elif target_angle == 3:
-            target_angle = 269
-        elif target_angle == 4:
-            target_angle = 359
-        else: target_angle = -1
-        #TODO: would be good to have a thing here to add a thing to the memory if the actions terminated
-        next_state, reward, terminated, done = env.step(action, target_angle, action_taken)
-        print(reward)
-        memory.add(state, action, reward, next_state, done)
-        #keep track of how full the buffer is 
-        print(f"Buffer: {len(memory.buffer)} / {memory.buffer.maxlen}", end='\r')
-        state = next_state
-
-def parse_args():
-    parser = ArgumentParser()
-    parser.add_argument("--seed", type=int, default=6969)
-    parser.add_argument("--batch_size", type=int, default=16)
-    parser.add_argument("--buffer_capacity", type=int, default=1000)
-    parser.add_argument("--episode_num", type=int, default=1000)
-    parser.add_argument("--action_num", type=int, default=10)
-
-    args = parser.parse_args()
-    return args
 
 if __name__ == '__main__':
     main()

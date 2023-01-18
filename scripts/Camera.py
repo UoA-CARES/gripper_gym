@@ -25,8 +25,8 @@ class Camera(object):
         self.aruco_params = cv2.aruco.DetectorParameters_create()
         self.marker_size = 18  # mm
         #TODO: make this relative
-        self.camera_matrix = np.loadtxt(("/home/anyone/gripperCode/Gripper-Code/scripts/config/camera_matrix.txt"))
-        self.camera_distortion = np.loadtxt(("/home/anyone/gripperCode/Gripper-Code/scripts/config/camera_distortion.txt"))
+        self.camera_matrix = np.loadtxt((home+"/gripperCode/Gripper-Code/scripts/config/camera_matrix.txt"))
+        self.camera_distortion = np.loadtxt((home+"/gripperCode/Gripper-Code/scripts/config/camera_distortion.txt"))
 
     def get_frame(self):  
         returned, frame = self.camera.read()

@@ -33,54 +33,46 @@ class Servo(object):
         self.max = max
         self.min = min
 
-    #turn on L
     def turn_on_LED(self):
         dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(self.port_handler, self.motor_id, Servo.addresses["led"], self.LED_colour)
         self.process_result(dxl_comm_result, dxl_error, message="successfully turned on LEDs")
 
-    # limit the torque of the motors
     def limit_torque(self):
         dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(self.port_handler, self.motor_id, Servo.addresses["torque_limit"], self.torque_limit)
         self.process_result(dxl_comm_result, dxl_error, message="has been successfully torque limited")
 
-    # enable the torque of the motors
     def enable_torque(self):
         dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(self.port_handler, self.motor_id, Servo.addresses["torque_enable"], 1)
         self.process_result(dxl_comm_result, dxl_error, message="has been successfully torque enabled")
 
-    # disable the torque of the motors
     def disable_torque(self):
         dxl_comm_result, dxl_error = self.packet_handler.write1ByteTxRx(self.port_handler, self.motor_id, Servo.addresses["torque_enable"], 0)
         self.process_result(dxl_comm_result, dxl_error, message="has successfully disabled torque" )
 
-    # limit the speed of the servos
     def limit_speed(self):
         dxl_comm_result, dxl_error = self.packet_handler.write2ByteTxRx(self.port_handler, self.motor_id, Servo.addresses["moving_speed"], self.speed_limit)
         self.process_result(dxl_comm_result, dxl_error, message="has been successfully speed limited")
 
-    # check whether the servo is moving using the inbuilt moving flag
     def moving_check(self):
         dxl_moving_result = self.packet_handler.read1ByteTxRx(
             self.port_handler, self.motor_id, Servo.addresses["moving"])
         return int(dxl_moving_result[0])
 
-    # get the present position of the servo
     def present_position(self):
-        # write and read to servos in order to get the present position
         dxl_comm_result = self.packet_handler.read2ByteTxRx(
             self.port_handler, self.motor_id, Servo.addresses["present_position"])
         return dxl_comm_result
 
-    #read the current result
     def current_load(self): 
         dxl_comm_result = self.packet_handler.read2ByteTxRx(
             self.port_handler, self.motor_id, Servo.addresses["present_load"])
-        #convert it to a value between 0-1023 regardless of direction and then maps this between 0-100
-        current_load_percent = ((dxl_comm_result[0] % 1023)/1023)*100
         
+        # Convert it to a value between 0 - 1023 regardless of direction and then maps this between 0-100
+        # See section 2.4.21 link for details on why this is required
+        # https://emanual.robotis.com/docs/en/dxl/x/xl320/ 
+        current_load_percent = ((dxl_comm_result[0] % 1023) / 1023) * 100
         return current_load_percent
 
-    #return whether an action is valid or not (boolean)
     def verify_step(self, step):
         return self.min <= step <= self.max
 

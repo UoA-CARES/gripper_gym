@@ -69,10 +69,26 @@ class Gripper(object):
     this will be a 9 element of array of integers between 0 and 1023
     """
 
-    def angles_to_steps(self, angles):
-        steps = angles
+    def action_to_steps(self, action):
+        steps = action
+        for i in range(0, len(steps)):
+            max = self.servos[i].max 
+            min = self.servos[i].min
+            steps[i] = steps[i] * (max - min) + min
+        return steps
+
+    def steps_to_angles(self, steps):
+        # 0 to 1023 steps to -150 to 150 degrees 
+        angles = steps
         for i in range(0,len(angles)):
-            steps[i] = (3.41*angles[i])+511.5
+            angles[i] = (angles[i] - 511.5) / 3.41 # TODO add url to documentation
+        return angles
+
+    def angles_to_steps(self, angles):
+        # # -150 to 150 degrees to 0 to 1023 steps
+        steps = angles
+        for i in range(0,len(steps)):
+            steps[i] = (3.41 * steps[i]) + 511.5 # TODO add url to documentation
         return steps
 
     def verify_steps(self, steps):
@@ -83,19 +99,21 @@ class Gripper(object):
                 return False
         return True
 
-    def gripper_load_check(self):
-        #enumerate through the servos and make sure the load isn't higher than maybe like 30%
-        for id, servo in self.servos.items():
-            if servo.current_load() > 20:
+    def is_overloaded(self):
+        for _, servo in self.servos.items():
+            if servo.current_load() > 20:#% of maximum load
                 return True
+        return False
 
-
-    def move(self, steps=None, angles=None):
+    def move(self, steps=None, angles=None, action=None):
 
         terminated = False
 
         if angles is not None:
             steps = self.angles_to_steps(angles)
+
+        if action is not None:
+            steps = self.action_to_steps(action)
 
         if steps is None:
             print(f"Steps is None no action given")
@@ -120,12 +138,13 @@ class Gripper(object):
 
         # using moving flag to check if the motors have reached their goal position
         while self.gripper_moving_check():
-            if self.gripper_load_check():
+            if self.is_overloaded():
                 print("Gripper load too high")
                 terminated = True
                 self.close()
                 self.setup()
                 self.home()
+                break
                
         # return the current state and whether it was terminated
         return self.current_positions(), terminated
@@ -149,9 +168,9 @@ class Gripper(object):
                               [250, 512],  # 8 middle
                               [750, 512]])  # 9 finger tip
 
-        self.move(steps=reset_seq[:, 0])
-        self.move(steps=reset_seq[:, 1])
-        return self.current_positions()  # includes current valve position
+        _, gripper_error = self.move(steps=reset_seq[:, 0])
+        _, gripper_error = self.move(steps=reset_seq[:, 1])
+        return self.current_positions(), gripper_error
 
     def gripper_moving_check(self):
         moving = False
