@@ -113,18 +113,28 @@ def ctrlc_handler(signum, frame):
 def normalise_state(state):
     # modify normalisation
     normalise_state = []
-    for i in range(0, len(state-1)):
-        normalise_state[i] = state[i]/1023
-    normalise_state[i+1] = state[i+1]/360
+    for i in range(0, len(state)-1):
+        normalise_state.append(state[i]/1023)
+    normalise_state.append(state[len(state)-1]/360)
     return normalise_state
 
+def plot_util():
+    pass
+
+#TODO: implement incase things
+def save_models():
+    pass
+
+
 def train(network, memory: MemoryBuffer):
+
+    #NOTE henry could you just also check that the buffer is actually getting filled 
 
     args = parse_args()
 
     now = datetime.now()
-    now = now.strftime("%Y-%M-%D-%H-%M-%S")
-    logger = open(f"logs/{now}-log.txt", "a")
+    now = now.strftime("%Y-%m-%j-%H")
+    logger = open(f"{now}-log.txt", "w")
     
     historical_reward = []
 
@@ -147,7 +157,8 @@ def train(network, memory: MemoryBuffer):
         for step in range(0, args.number_steps):
             print(f"Taking step {step}/{args.number_steps}")
 
-            action = network.forward(state)
+            #get the action from the network
+            action = network.forward(normalised_state)
             
             action = action.astype(int)
             next_state, reward, terminated, truncated = env.step(action)
@@ -232,6 +243,7 @@ def main():
     )
 
     print(f"Filling Buffer...")
+
 
     train(td3, memory)
 

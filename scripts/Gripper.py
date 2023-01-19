@@ -18,6 +18,7 @@ class Gripper(object):
         self.protocol = protocol  # NOTE: XL-320 uses protocol 2
 
         self.port_handler = dxl.PortHandler(self.device_name)
+        print(self.port_handler)
         self.packet_handler = dxl.PacketHandler(self.protocol)
 
         self.group_sync_write = dxl.GroupSyncWrite(
@@ -85,7 +86,7 @@ class Gripper(object):
         return angles
 
     def angles_to_steps(self, angles):
-        # # -150 to 150 degrees to 0 to 1023 steps
+        #  -150 to 150 degrees to 0 to 1023 steps
         steps = angles
         for i in range(0,len(steps)):
             steps[i] = (3.41 * steps[i]) + 511.5 # TODO add url to documentation
@@ -126,6 +127,8 @@ class Gripper(object):
         for id, servo  in self.servos.items():
             self.group_sync_write.addParam(
                 id+1, [dxl.DXL_LOBYTE(steps[id]), dxl.DXL_HIBYTE(steps[id])])
+
+    
 
         # transmit the packet
         dxl_comm_result = self.group_sync_write.txPacket()
