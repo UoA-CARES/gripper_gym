@@ -180,18 +180,24 @@ def train(network, memory: MemoryBuffer):
                 break
 
         historical_reward.append(episode_reward)
-    
-    # plt.xlabel("Episode")
-    # plt.ylabel("Reward") 
-    # plt.title("Reward per Episode")     
-    # xint = []
-    # locs, labels = plt.xticks()
-    # for each in locs:
-    #     xint.append(int(each))
-    # plt.xticks(xint)
-    # plt.show()
-    # plt.savefig('testing181_2.png')
 
+        #TODO: plot function, and figure out a way to get it to show without having to close the figure at the end of every episode
+        plt.plot(historical_reward)
+    
+    plt.xlabel("Episode")
+    plt.ylabel("Reward") 
+    plt.title("Reward per Episode")     
+    xint = []
+    locs, labels = plt.xticks()
+    for each in locs:
+        xint.append(int(each))
+    plt.xticks(xint)
+    plt.show()
+    #TODO add the date thingy to this 
+    plt.savefig('testing191_2.png')
+
+
+    #TODO: check if this ever closes 
     # logger.write("\n")
     # logger.close
 
