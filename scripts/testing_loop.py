@@ -134,7 +134,7 @@ def train(network, memory: MemoryBuffer):
 
     now = datetime.now()
     now = now.strftime("%Y-%m-%j-%H")
-    logger = open(f"{now}-log.txt", "w")
+    logger = open(f"logs/{now}-log.txt", "w")
     
     historical_reward = []
 
@@ -247,9 +247,6 @@ def main():
         tau=TAU,
         device=DEVICE
     )
-
-    print(f"Filling Buffer...")
-
 
     train(td3, memory)
 
