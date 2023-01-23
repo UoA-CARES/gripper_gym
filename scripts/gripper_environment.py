@@ -1,36 +1,43 @@
+import logging
 import numpy as np
-#import dynamixel_sdk as dxl
 
 from Gripper import Gripper
 from Camera import Camera
-from cares_lib.vision.ArucoDetector import ArucoDetector
 
-class Environment():
+from cares_lib.vision.ArucoDetector import ArucoDetector
+from cares_lib.dynamixel.Servo import DynamixelServoError
+
+class GripperEnvironment():
     def __init__(self):
         self.gripper = Gripper()
         self.camera = Camera()
         self.aruco_detector = ArucoDetector(marker_size=18)
         self.target_angle = self.choose_target_angle()
 
-        self.gripper.setup()
+        self.marker_id = 0
 
     def reset(self):
-        state, terminated = self.gripper.home()
+        try:
+            state = self.gripper.home()
+        except DynamixelServoError as error:
+            logging.error("Gripper failed to home during reset")
+            exit()
 
-        marker_pose = self.get_marker_pose(marker_id=0)
-        #beths bad addition -- NOTE henry we may need to think of a better way to do this bc i have gotten a lot of 'NoneType' object is not subscriptable errors trying to get this to work
+        marker_pose = self.find_marker_pose(marker_id=self.marker_id)
+
         if marker_pose is None:
-            marker_yaw = -1
+            marker_yaw = -1# replace with a raise exception
         else:
             marker_yaw = marker_pose[1][2]
+
         state.append(marker_yaw)
 
         self.target_angle = self.choose_target_angle()
 
-        return state, terminated
+        return state
 
     def choose_target_angle(self):
-        # davids suggestion - choose 1 of 4 angles to make training easier
+        # David's suggestion - choose 1 of 4 angles to make training easier
         target_angle = np.random.randint(1,5)
         if target_angle == 1:
             return 90
@@ -42,67 +49,61 @@ class Environment():
             return 0
         return -1 # Should not return -1
 
-    def reward_function(self, target_angle, start_marker_pose, final_marker_pose, gripper_error):
+    def reward_function(self, target_angle, start_marker_pose, final_marker_pose):
+        if start_marker_pose is None: 
+            logging.debug("Start Marker Pose is None")
+            return 0, True
 
         if final_marker_pose is None:
-            print("Final Marker Pose is None")
+            logging.debug("Final Marker Pose is None")
             return 0, True
-        if start_marker_pose is None: 
-            print("Start Marker Pose is None")
-            return 0, True
-
-        terminated = False
         
-        #NOTE to henry: this is another bad fix im not sure what u want to do with the Nones, tad confused about that so this is a work around to get the logic working :) 
-
+        terminated = False
+    
         valve_angle_before = start_marker_pose[1][2]
         valve_angle_after  = final_marker_pose[1][2]
 
         angle_difference = np.abs(target_angle - valve_angle_after)
-        # change in difference = difference - new difference
         delta_changes    = np.abs(target_angle - valve_angle_before) - np.abs(target_angle - valve_angle_after)
 
         reward = 0
-        # maybe paramatise the noise parameters
-        if -3 <= delta_changes <= 3:
+        # TODO paramatise the noise tolerance parameters
+        noise_tolerance = 3
+        if -noise_tolerance <= delta_changes <= noise_tolerance:
             reward = 0
         else:
             reward = delta_changes
 
-        if angle_difference <= 3:
+        if angle_difference <= noise_tolerance:
             reward = reward + 100
-            print("Reached the Goal Angle!")
+            logging.debug("Reached the Goal Angle!")
             terminated = True
         
         return reward, terminated
 
-    #TODO push this back into aruco detector at some point
-    def get_marker_pose(self, marker_id):
-
-        marker_poses = {}
-        detect_attempts = 0
-
-        while len(marker_poses) == 0 and detect_attempts < 4:
-            print("detecting......")
+    def find_marker_pose(self, marker_id):
+        detect_attempts = 4
+        for i in range(0, detect_attempts):
+            logging.debug(f"Attempting to detect marker attempt {i}/{detect_attempts}")
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
-            detect_attempts += 1
-        #marker_pose = None #kept between 0-360 degrees thus -1 is not found
-        if marker_id in marker_poses:
-            marker_pose = marker_poses[marker_id]
-        else:
-            marker_pose = None
-        return marker_pose
+            if marker_id in marker_poses:
+                return marker_poses[marker_id]
+        return None
 
     #TODO: change the 0 in all the marker pose indexing to an aruco id variable
     def step(self, action):
         
         # Get initial pose of the marker before moving to help calculate reward after moving
-        start_marker_pose = self.get_marker_pose(marker_id=0)
+        start_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
-        state, gripper_error = self.gripper.move(action=action)
+        try:
+            state = self.gripper.move(action=action)
+        except DynamixelServoError as error:
+            logging.error("Gripper has raised an internal error while trying to move")
+            exit()
 
-        final_marker_pose = self.get_marker_pose(marker_id=0)
+        final_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
         final_marker_yaw = -1
         if final_marker_pose is not None:
@@ -110,7 +111,7 @@ class Environment():
 
         state.append(final_marker_yaw)
         
-        reward, terminated = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose, gripper_error)
+        reward, terminated = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose)
 
         truncated = False #never truncate the episode but here for completion sake
         return state, reward, terminated, truncated

@@ -15,15 +15,15 @@ from datetime import datetime
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
-#TODO: figure out why this isnt working
-#from cares_reinforcement_learning.examples.Actor import Actor
-#from cares_reinforcement_learning.examples.Critic import Critic
 
-from gripper_environment import Environment
+from gripper_environment import GripperEnvironment
 import numpy as np
 from argparse import ArgumentParser
 import random
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+
+import plotly.graph_objects as go
+import pandas as pd
 
 #for ctrl-c handling
 import signal
@@ -47,7 +47,7 @@ TAU = 0.005
 ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 
-MAX_ACTIONS = np.array([800, 750, 750, 800, 750, 750, 800, 750, 750])  #have generalised this to 750 for lower joints for consistency
+MAX_ACTIONS = np.array([800, 750, 750, 800, 750, 750, 800, 750, 750]) #have generalised this to 750 for lower joints for consistency
 MIN_ACTIONS = np.array([200, 250, 250, 200, 250, 250, 200, 250, 250]) #have generalised this to 250 for lower joints for consistency
 
 #need to move these
@@ -108,7 +108,7 @@ def ctrlc_handler(signum, frame):
     if res == 'y':
         plt.show()
         plt.savefig('terminatedplt.png')
-        exit()
+    exit()
 
 def normalise_state(state):
     # modify normalisation
@@ -134,12 +134,22 @@ def train(network, memory: MemoryBuffer):
 
     now = datetime.now()
     now = now.strftime("%Y-%m-%j-%H")
-    logger = open(f"logs/{now}-log.txt", "w")
+
+    log_path = f"logs"
+    logger = open(f"{log_path}/{now}-log.txt", "w")
     
-    historical_reward = []
+    historical_reward = {}
+    historical_reward["episode"] = []
+    historical_reward["reward"] = []
 
-    env = Environment()
+    df = pd.DataFrame(historical_reward)
 
+    scatter = go.Scatter()
+    figure = go.FigureWidget(scatter)
+    figure.show()
+
+    env = GripperEnvironment()
+    
     for episode in range(0, args.episode_num):
         print(f"Start of Episode {episode}")
 
@@ -166,6 +176,7 @@ def train(network, memory: MemoryBuffer):
             memory.add(state, action, reward, next_state, terminated)
 
             if len(memory.buffer) >= memory.buffer.maxlen:
+                print("Training Network")
                 experiences = memory.sample(args.batch_size)
                 
                 for _ in range(0, args.G):
@@ -179,27 +190,16 @@ def train(network, memory: MemoryBuffer):
                 logger.write(f"The current epsiode is {episode}, this was TERMINATED at {step} actions taken\n")
                 break
 
-        historical_reward.append(episode_reward)
+        historical_reward["episode"].append(episode)
+        historical_reward["reward"].append(episode_reward)
 
-        #TODO: plot function, and figure out a way to get it to show without having to close the figure at the end of every episode
-        plt.plot(historical_reward)
-    
-    plt.xlabel("Episode")
-    plt.ylabel("Reward") 
-    plt.title("Reward per Episode")     
-    xint = []
-    locs, labels = plt.xticks()
-    for each in locs:
-        xint.append(int(each))
-    plt.xticks(xint)
-    plt.show()
-    #TODO add the date thingy to this 
-    plt.savefig('testing191_2.png')
+        scatter.x = historical_reward["episode"]
+        scatter.y = historical_reward["reward"]
 
-
-    #TODO: check if this ever closes 
-    # logger.write("\n")
-    # logger.close
+    scatter.x = historical_reward["episode"]
+    scatter.y = historical_reward["reward"]
+        
+    logger.close()
 
 def parse_args():
     parser = ArgumentParser()
@@ -220,7 +220,6 @@ def main():
     observation_size = 10
     action_size = 9
 
-    #setup the grippers
     args = parse_args()
     
     # TODO: change this once i change the max min thing in the servo class
