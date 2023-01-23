@@ -5,28 +5,25 @@ from Gripper import Gripper
 from Camera import Camera
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
-from cares_lib.dynamixel.Servo import DynamixelServoError
+# from cares_lib.dynamixel.Servo import DynamixelServoError
 
 class GripperEnvironment():
     def __init__(self):
         self.gripper = Gripper()
         self.camera = Camera()
+        
         self.aruco_detector = ArucoDetector(marker_size=18)
         self.target_angle = self.choose_target_angle()
 
         self.marker_id = 0
 
     def reset(self):
-        try:
-            state = self.gripper.home()
-        except DynamixelServoError as error:
-            logging.error("Gripper failed to home during reset")
-            exit()
+        state = self.gripper.home()
 
         marker_pose = self.find_marker_pose(marker_id=self.marker_id)
 
         if marker_pose is None:
-            marker_yaw = -1# replace with a raise exception
+            marker_yaw = -1# TODO replace with a raise exception?
         else:
             marker_yaw = marker_pose[1][2]
 
@@ -58,7 +55,7 @@ class GripperEnvironment():
             logging.debug("Final Marker Pose is None")
             return 0, True
         
-        terminated = False
+        done = False
     
         valve_angle_before = start_marker_pose[1][2]
         valve_angle_after  = final_marker_pose[1][2]
@@ -77,9 +74,9 @@ class GripperEnvironment():
         if angle_difference <= noise_tolerance:
             reward = reward + 100
             logging.debug("Reached the Goal Angle!")
-            terminated = True
+            done = True
         
-        return reward, terminated
+        return reward, done
 
     def find_marker_pose(self, marker_id):
         detect_attempts = 4
@@ -97,11 +94,7 @@ class GripperEnvironment():
         # Get initial pose of the marker before moving to help calculate reward after moving
         start_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
-        try:
-            state = self.gripper.move(action=action)
-        except DynamixelServoError as error:
-            logging.error("Gripper has raised an internal error while trying to move")
-            exit()
+        state = self.gripper.move(action=action)
 
         final_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
@@ -111,8 +104,8 @@ class GripperEnvironment():
 
         state.append(final_marker_yaw)
         
-        reward, terminated = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose)
+        reward, done = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose)
 
         truncated = False #never truncate the episode but here for completion sake
-        return state, reward, terminated, truncated
+        return state, reward, done, truncated
             

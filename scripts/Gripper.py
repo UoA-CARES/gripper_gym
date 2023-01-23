@@ -14,18 +14,16 @@ from Camera import Camera
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 
 class Gripper(object):
-    def __init__(self, device_name="/dev/ttyUSB0", baudrate=115200, protocol=2.0, torque_limit=180, speed_limit=100):
+    def __init__(self, gripper_id=0, device_name="/dev/ttyUSB0", baudrate=115200, protocol=2.0, torque_limit=180, speed_limit=100):
         # Setup Servor handlers
+        self.gripper_id = gripper_id
         self.device_name = device_name
         self.baudrate = baudrate
         self.protocol = protocol  # NOTE: XL-320 uses protocol 2
 
         self.port_handler = dxl.PortHandler(self.device_name)
         self.packet_handler = dxl.PacketHandler(self.protocol)
-        try:
-            self.setup_handlers()
-        except IOError as error:
-            raise IOError("Failed to initialise port and packet handler") from error
+        self.setup_handlers()
 
         self.group_sync_write = dxl.GroupSyncWrite(self.port_handler, self.packet_handler, Servo.addresses["goal_position"], 2)
         self.group_sync_read  = dxl.GroupSyncRead(self.port_handler, self.packet_handler,  Servo.addresses["current_position"], 2)
@@ -42,24 +40,24 @@ class Gripper(object):
         try:
             for i in range(0, self.num_motors):
                 self.servos[i] = Servo(self.port_handler, self.packet_handler, leds[i], i+1, torque_limit, speed_limit, max[i], min[i])
-                self.setup_servos()
+            self.setup_servos()
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Failed to initialise Gripper servos") from error
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
 
     def setup_handlers(self):
-        if self.port_handler.openPort():
-            logging.info(f"Succeeded to open the port {self.device_name}")
-        else:
-            error_message = f"Failed to open the port {self.device_name}"
+        if not self.port_handler.openPort():
+            error_message = f"Failed to open port {self.device_name}"
             logging.error(error_message)
             raise IOError(error_message)
 
-        if self.port_handler.setBaudRate(self.baudrate):
-            logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
-        else:
+        logging.info(f"Succeeded to open port {self.device_name}")
+
+        if not self.port_handler.setBaudRate(self.baudrate):
             error_message = f"Failed to change the baudrate to {self.baudrate}"
             logging.error(error_message)
             raise IOError(error_message)
+
+        logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
     
     def setup_servos(self):
         try:
@@ -69,37 +67,46 @@ class Gripper(object):
                 servo.enable_torque()
                 servo.turn_on_LED()
         except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper failed to setup servos") from error
+                raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to setup servos") from error
 
-    def is_overloaded(self):
-        for _, servo in self.servos.items():
-            try:
-                current_load = servo.current_load() 
-                if current_load > 20:#% of maximum load
-                    return True
-            except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper failed to check load") from error
-        return False
+    def current_positions(self):
+        try:
+            current_positions = []
+            for id, servo in self.servos.items():
+                servo_position = servo.current_position()
+                current_positions.append(servo_position)
+            return current_positions
+        except DynamixelServoError as error:
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read current position") from error
 
-    def stop_moving(self):
-        for _, servo in self.servos.items():
-            try:
-                servo.stop_moving()
-            except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper failed to stop moving") from error
+    def current_load(self):
+        try:
+            current_load = []
+            for _, servo in self.servos.items():
+                current_load.append(servo.current_load())
+            return current_load
+        except DynamixelServoError as error:
+                raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to check load") from error
 
     def is_moving(self):
-        gripper_moving = False
-        for _, servo in self.servos.items():
-            try:
+        try:
+            gripper_moving = False
+            for _, servo in self.servos.items():
                 gripper_moving |= servo.is_moving()
-            except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper failed to check if moving") from error
-        return gripper_moving
+            return gripper_moving
+        except DynamixelServoError as error:
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to check if moving") from error
 
-    def move_servo(self, servo_id, target_step=None, target_angle=None, wait=True):
+    def stop_moving(self):
+        try:
+            for _, servo in self.servos.items():
+                servo.stop_moving()
+        except DynamixelServoError as error:
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to stop moving") from error
+
+    def move_servo(self, servo_id, target_step=None, target_angle=None, wait=True, timeout=5):
         if servo_id not in self.servos:
-            error_message = f"Dynamixel#{servo_id} is not associated to this gripper"
+            error_message = f"Dynamixel#{servo_id} is not associated to Gripper#{self.gripper_id}"
             logging.error(error_message)
             raise DynamixelServoError(error_message)
         
@@ -107,17 +114,17 @@ class Gripper(object):
             target_step = Servo.angle_to_step(target_angle)
 
         if target_step is None:
-            error_message = f"No move command given to Dynamixel#{servo_id}: Step {target_step} Angles {target_angle}"
+            error_message = f"Gripper#{self.gripper_id}: No move command given to Dynamixel#{servo_id} - Step {target_step} Angles {target_angle}"
             logging.error(error_message)
             raise DynamixelServoError(error_message)
 
         try:
-            servo_pose = self.servos[servo_id].move(target_step, wait=wait)
+            servo_pose = self.servos[servo_id].move(target_step, wait=wait, timeout=timeout)
             return self.current_positions()
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper failed while moving Dynamixel#{servo_id}") from error
+            raise DynamixelServoError(f"Gripper#{self.gripper_id} failed while moving Dynamixel#{servo_id}") from error
 
-    def move(self, steps=None, angles=None, action=None, wait=True):
+    def move(self, steps=None, angles=None, action=None, wait=True, timeout=5):
         if angles is not None:
             steps = self.angles_to_steps(angles)
 
@@ -125,12 +132,12 @@ class Gripper(object):
             steps = self.action_to_steps(action)
 
         if steps is None:
-            error_message = f"No move command given to Gripper: Step {steps} Angles {angles} Action {action}"
+            error_message = f"Gripper#{self.gripper_id}: No move command given - Step {steps} Angles {angles} Action {action}"
             logging.error(error_message)
             raise DynamixelServoError(error_message)
 
         if not self.verify_steps(steps):
-            error_message = f"The move command provided to Gripper is out of bounds: Step {steps} Angles {angles} Action {action}"
+            error_message = f"Gripper#{self.gripper_id}: The move command provided is out of bounds: Step {steps} Angles {angles} Action {action}"
             logging.error(error_message)
             raise DynamixelServoError(error_message)
 
@@ -140,60 +147,37 @@ class Gripper(object):
 
         dxl_comm_result = self.group_sync_write.txPacket()
         if dxl_comm_result != dxl.COMM_SUCCESS:
-            error_message = "group_sync_write Failed"
+            error_message = f"Gripper#{self.gripper_id}: group_sync_write Failed"
             logging.error(error_message)
             raise DynamixelServoError(error_message)
         
-        logging.debug("group_sync_write Succeeded")
+        logging.debug(f"Gripper#{self.gripper_id}: group_sync_write Succeeded")
         self.group_sync_write.clearParam()
 
-        # using moving flag to check if the motors have reached their goal position
         try:
-            while self.is_moving() and wait:
-                if self.is_overloaded():
-                    logging.warn("Gripper load too high on one of the servos resetting gripper")
-                    self.close()
-                    self.setup_servos()
-                    break
+            start_time = time.perf_counter()
+            while wait and self.is_moving() and time.perf_time() < start_time + timeout:
+                pass
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper failed while moving") from error
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed while moving") from error
                
-        # return the current state and whether it was terminated
         try:
             return self.current_positions()
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper failed to read its positions") from error
-
-    def current_positions(self):
-        current_positions = []
-        for id, servo in self.servos.items():
-            servo_position = servo.current_position()
-            current_positions.append(servo_position)
-        return current_positions
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read its position") from error
 
     def home(self):
-        home_pose = [512,  # 1 base plate 512
-                    250,  # 2 middle
-                    750,  # 3 finger tip
-
-                    512,  # 4 baseplate
-                    250,  # 5 middle
-                    750,  # 6 finger tip
-
-                    512,  # 7 baseplate
-                    250,  # 8 middle
-                    750]  # 9 finger tip
-
         try:
+            home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]
             return self.move(steps=home_pose)
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper failed to Home") from error
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to Home") from error
 
     def verify_steps(self, steps):
         # check all actions are within min max of each servo
         for id, servo in self.servos.items():
             if not servo.verify_step(steps[id]):
-                logging.warn(f"Step for servo {id+1} is out of bounds")
+                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id+1} is out of bounds")
                 return False
         return True
 

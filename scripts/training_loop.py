@@ -1,45 +1,31 @@
-
-"""
-This is an example script that shows how one uses the cares reinforcement learning package.
-To run this specific example, move the file so that it is at the same level as the package root
-directory
-    -- script.py
-    -- summer_reinforcement_learning/
-"""
-
-#network
-#memory replays 
-
-#TODO: track the error messages so i know when things are breaking
+import logging
+import signal
+import time
+import random
+import numpy as np
 from datetime import datetime
+from argparse import ArgumentParser
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
 
 from gripper_environment import GripperEnvironment
-import numpy as np
-from argparse import ArgumentParser
-import random
-# import matplotlib.pyplot as plt
 
 import plotly.graph_objects as go
 import pandas as pd
 
-#for ctrl-c handling
-import signal
-import time
 
-#these are just for the networks that should get moved
+#TODO network setup should be shifted to its own module
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
-    print("Working with GPU")
+    logging.info("Working with GPU")
 else:
     DEVICE = torch.device('cpu')
-    print("Working with CPU")
+    logging.info("Working with CPU")
 
 GAMMA = 0.995
 TAU = 0.005
@@ -47,6 +33,7 @@ TAU = 0.005
 ACTOR_LR = 1e-4
 CRITIC_LR = 1e-3
 
+#TODO should move this to a configuration file
 MAX_ACTIONS = np.array([800, 750, 750, 800, 750, 750, 800, 750, 750]) #have generalised this to 750 for lower joints for consistency
 MIN_ACTIONS = np.array([200, 250, 250, 200, 250, 250, 200, 250, 250]) #have generalised this to 250 for lower joints for consistency
 
@@ -104,10 +91,7 @@ class Critic(nn.Module):
         return q1
 
 def ctrlc_handler(signum, frame):
-    res = input("ctrl-c pressed. press y to exit and save")
-    if res == 'y':
-        plt.show()
-        plt.savefig('terminatedplt.png')
+    res = input("ctrl-c pressed. press anything to quit")
     exit()
 
 def normalise_state(state):
@@ -118,88 +102,64 @@ def normalise_state(state):
     normalise_state.append(state[len(state)-1]/360)
     return normalise_state
 
+#TODO - plot utils move to cares_lib or cares_reinforcement_learning
 def plot_util():
     pass
 
-#TODO: implement incase things
+#TODO: implement - likely best to move into networks
 def save_models():
     pass
 
-
-def train(network, memory: MemoryBuffer):
-
-    #NOTE henry could you just also check that the buffer is actually getting filled 
-
-    args = parse_args()
-
-    now = datetime.now()
-    now = now.strftime("%Y-%m-%j-%H")
-
-    log_path = f"logs"
-    logger = open(f"{log_path}/{now}-log.txt", "w")
-    
+def train(args, network, memory: MemoryBuffer):    
     historical_reward = {}
     historical_reward["episode"] = []
     historical_reward["reward"] = []
 
-    df = pd.DataFrame(historical_reward)
+    # df = pd.DataFrame(historical_reward)
 
-    scatter = go.Scatter()
-    figure = go.FigureWidget(scatter)
-    figure.show()
+    # scatter = go.Scatter()
+    # figure  = go.FigureWidget(scatter)
+    # figure.show()
 
     env = GripperEnvironment()
     
     for episode in range(0, args.episode_num):
-        print(f"Start of Episode {episode}")
+        logging.info(f"Start of Episode {episode}")
 
-        state, terminated = env.reset()
-        if terminated:
-            print(f"Gripper failed to go to initial home on episode {episode}/{args.episode_num}!")
-            exit()
-
+        state = env.reset()
         normalised_state = normalise_state(state)
           
         episode_reward = 0
         step = 0
-        terminated = False
+        done = False
 
         for step in range(0, args.number_steps):
-            print(f"Taking step {step}/{args.number_steps}")
+            logging.info(f"Taking step {step}/{args.number_steps}")
 
-            #get the action from the network
-            action = network.forward(normalised_state)
+            action = network.forward(normalised_state)            
             
             action = action.astype(int)
-            next_state, reward, terminated, truncated = env.step(action)
+            next_state, reward, done, truncated = env.step(action)
             
-            memory.add(state, action, reward, next_state, terminated)
+            memory.add(state, action, reward, next_state, done)
 
+            # TODO change to a percent of the max size or set size
             if len(memory.buffer) >= memory.buffer.maxlen:
-                print("Training Network")
+
+                logging.info("Training Network")
                 experiences = memory.sample(args.batch_size)
-                
                 for _ in range(0, args.G):
                     network.learn(experiences)
 
             state = next_state
             episode_reward += reward
 
-            if terminated:
-                print("Episode Terminated")
-                logger.write(f"The current epsiode is {episode}, this was TERMINATED at {step} actions taken\n")
+            if done:
+                logging.info("Episode {episode} was completed with {step} actions taken\n")
                 break
 
         historical_reward["episode"].append(episode)
         historical_reward["reward"].append(episode_reward)
-
-        scatter.x = historical_reward["episode"]
-        scatter.y = historical_reward["reward"]
-
-    scatter.x = historical_reward["episode"]
-    scatter.y = historical_reward["reward"]
-        
-    logger.close()
 
 def parse_args():
     parser = ArgumentParser()
@@ -209,11 +169,18 @@ def parse_args():
     parser.add_argument("--episode_num", type=int, default=1000)
     parser.add_argument("--number_steps", type=int, default=10)
     parser.add_argument("--G", type=int, default=10)
+    return parser.parse_args()
 
-    args = parser.parse_args()
-    return args
+def set_seeds(seed):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
 
 def main():
+    now = datetime.now()
+    now = now.strftime("%Y-%m-%d-%H-%M-%S")    
+    log_path = f"logs/{now}.log"
+    logging.basicConfig(filename=log_path, level=logging.DEBUG)
 
     signal.signal(signal.SIGINT, ctrlc_handler)
 
@@ -232,9 +199,7 @@ def main():
     critic_one = Critic(observation_size, action_size, CRITIC_LR)
     critic_two = Critic(observation_size, action_size, CRITIC_LR)
 
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
-    random.seed(args.seed)
+    set_seeds(args.seed)
 
     td3 = TD3(
         actor_network=actor,
@@ -247,8 +212,7 @@ def main():
         device=DEVICE
     )
 
-    train(td3, memory)
-
+    train(args, td3, memory)
 
 if __name__ == '__main__':
     main()
