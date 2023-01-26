@@ -1,107 +1,111 @@
+import logging
 import numpy as np
-#import dynamixel_sdk as dxl
 
 from Gripper import Gripper
 from Camera import Camera
+
 from cares_lib.vision.ArucoDetector import ArucoDetector
+# from cares_lib.dynamixel.Servo import DynamixelServoError
 
-class Environment():
-
-
-#init
+class GripperEnvironment():
     def __init__(self):
         self.gripper = Gripper()
         self.camera = Camera()
+        
         self.aruco_detector = ArucoDetector(marker_size=18)
+        self.target_angle = self.choose_target_angle()
 
-#reset
+        self.marker_id = 0
+
     def reset(self):
-        self.gripper.home()
+        state = self.gripper.home()
 
+        marker_pose = self.find_marker_pose(marker_id=self.marker_id)
 
-#reward function 
-    def reward_function(self, target_angle, valve_angle_previous, valve_angle_after, action_taken, terminated):
-            
-            angle_difference = np.abs(target_angle - valve_angle_after)
-            rel_angle_diff = np.abs(valve_angle_after - valve_angle_previous)
-
-            print(f"valve angle prev: {valve_angle_previous}, valve angle post: {valve_angle_after} target_angle: {target_angle}, angle difference: {angle_difference}, relative angle: {rel_angle_diff}")
-
-            reward = ((-0.1*angle_difference)+360)+(-(10*action_taken)+150)+(2*rel_angle_diff)
-
-            if valve_angle_previous == -1 or valve_angle_after == -1:
-                reward += -100
-                f = open("testinglog181.txt", "a")
-                f.write(f"the aruco marker couldn't be seen")
-                f.write("\n")
-                f.close
-        
-
-
-            elif terminated:
-                reward += -500
-
-            elif angle_difference < 10:
-                reward += 10000
-
-            else:
-                done = False
-
-            return reward
-
-#step
-    def step(self, action, target_angle, action_taken):
-
-        #TODO: change the 0 in all the marker pose indexing to an aruco id variable
-        #TODO: get check to do something when the aruco marker can't be found
-
-        Done = False
-        terminated = False
-
-        while not Done:
-            frame = self.camera.get_frame()
-            start_marker_pose = self.aruco_detector.get_marker_poses(
-                frame, self.camera.camera_matrix, self.camera.camera_distortion)
-            
-            if len(start_marker_pose) == 0:
-                start_marker_pose = -1
-            else:
-                start_marker_pose = start_marker_pose[0][1][2]
-            #print(f"start_marker_pose: {start_marker_pose}")
-            
-            # Take Action (maybe this needs to be in its own while loop?)
-            state, terminated = self.gripper.move(action)
-            #print(f"state: {state}")
-
-            Done = True #need this to tell that the action is complete
-
-        Done = False #need to reset so that i can tell the 
-        # Measure State of aruco marker
-        if terminated: 
-            Done = True
-
-        frame = self.camera.get_frame()
-        final_aruco_position = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
-        if len(final_aruco_position) == 0:
-            final_marker_pose = -1
+        if marker_pose is None:
+            marker_yaw = -1# TODO replace with a raise exception?
         else:
-            final_marker_pose = final_aruco_position[0][1][2]
-        #print(f"final_marker_pose: {final_marker_pose}")
+            marker_yaw = marker_pose[1][2]
 
-        state.append(final_marker_pose)
-        #print(f"state being returned {state}")
+        state.append(marker_yaw)
+
+        self.target_angle = self.choose_target_angle()
+
+        return state
+
+    def choose_target_angle(self):
+        # David's suggestion - choose 1 of 4 angles to make training easier
+        target_angle = np.random.randint(1,5)
+        if target_angle == 1:
+            return 90
+        elif target_angle == 2:
+            return 180
+        elif target_angle == 3:
+            return 270
+        elif target_angle == 4:
+            return 0
+        return -1 # Should not return -1
+
+    def reward_function(self, target_angle, start_marker_pose, final_marker_pose):
+        if start_marker_pose is None: 
+            logging.debug("Start Marker Pose is None")
+            return 0, True
+
+        if final_marker_pose is None:
+            logging.debug("Final Marker Pose is None")
+            return 0, True
         
-        # Calculate Reward, figure out how to index marker_pose
-        reward = self.reward_function(target_angle, start_marker_pose, final_marker_pose, action_taken, terminated)
+        done = False
+    
+        valve_angle_before = start_marker_pose[1][2]
+        valve_angle_after  = final_marker_pose[1][2]
 
+        angle_difference = np.abs(target_angle - valve_angle_after)
+        delta_changes    = np.abs(target_angle - valve_angle_before) - np.abs(target_angle - valve_angle_after)
 
-        if (target_angle-10)<final_marker_pose<(target_angle+10):
-            terminated = False
-            Done = True #not to sure about this but keeping it for now
-            f = open("testinglog181.txt", "a")
-            f.write(f"the goal angle was reached in {action_taken} actions")
-            f.write("\n")
-            f.close
+        reward = 0
+        # TODO paramatise the noise tolerance parameters
+        noise_tolerance = 3
+        if -noise_tolerance <= delta_changes <= noise_tolerance:
+            reward = 0
+        else:
+            reward = delta_changes
+
+        if angle_difference <= noise_tolerance:
+            reward = reward + 100
+            logging.debug("Reached the Goal Angle!")
+            done = True
         
-        return state, reward, terminated, Done
+        return reward, done
+
+    def find_marker_pose(self, marker_id):
+        detect_attempts = 4
+        for i in range(0, detect_attempts):
+            logging.debug(f"Attempting to detect marker attempt {i}/{detect_attempts}")
+            frame = self.camera.get_frame()
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
+            if marker_id in marker_poses:
+                return marker_poses[marker_id]
+        return None
+
+    #TODO: change the 0 in all the marker pose indexing to an aruco id variable
+    def step(self, action):
+        
+        # Get initial pose of the marker before moving to help calculate reward after moving
+        start_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
+        
+        state = self.gripper.move(action=action)
+
+        final_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
+        
+        final_marker_yaw = -1
+        if final_marker_pose is not None:
+            final_marker_yaw = final_marker_pose[1][2]
+
+        state.append(final_marker_yaw)
+        
+        reward, done = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose)
+
+        truncated = False #never truncate the episode but here for completion sake
+        return state, reward, done, truncated
             

@@ -50,7 +50,6 @@ jointPos = np.array([[512, 300, 300, 400, 400, 512, 512],  # 1 base plate
 # endregion
 def main():
 
-    # create gripper instance
     gripper = Gripper()
 
     # setup the gripper
