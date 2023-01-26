@@ -1,18 +1,7 @@
-#include <vector>
 
-bool led_state = true;
-int led_pin = 14;
 
-enum Command {
-  STOP,
-  MOVE, 
-  GET_STATE
-};
 
-enum Response {
-  SUCCEEDED,
-  ERROR_STATE
-};
+
 
 // C++ does not have a built in split function, and Arduino variations are mixed bags. This is clean and works nicely enough.
 String getValue(String data, char separator, int index){
@@ -90,12 +79,7 @@ String processCommand(String command){
   return String(Response::SUCCEEDED)+","+response;
 }
 
-void setup(){
-  Serial.begin(57600);
-  pinMode(led_pin, OUTPUT);
-}
-
-void loop(){
+void run_led(){
   if(Serial.available()){
     String command = Serial.readStringUntil('\n');
     

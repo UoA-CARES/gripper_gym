@@ -39,6 +39,20 @@ glhf
 
 #define ESC_ASCII_VALUE                 0x1b
 
+enum Command {
+  STOP,
+  MOVE, 
+  GET_STATE
+};
+
+enum Response {
+  SUCCEEDED,
+  ERROR_STATE
+};
+
+bool led_state = true;
+int led_pin = 14;
+
 class ServoMotor{
   public:
     ServoMotor(int id, dynamixel::PortHandler *portHandler, dynamixel::PacketHandler *packetHandler, int max, int min){
@@ -92,13 +106,13 @@ class ServoMotor{
     }
 
     void limitTorque(int torque_limit, int &dxl_comm_result, uint8_t &dxl_error){
-      Serial.print("limiting torque / ");
+      //Serial.print("limiting torque / ");
       dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_TORQUE_LIMIT, torque_limit, &dxl_error);
     }
 
     void enableTorque(int &dxl_comm_result, uint8_t &dxl_error){
-      Serial.print("enabling torque of ");
-      Serial.print(this->id) ;
+      //Serial.print("enabling torque of ");
+      //Serial.print(this->id) ;
       dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_TORQUE_ENABLE, TORQUE_ENABLE, &dxl_error);
     }
 
@@ -111,7 +125,7 @@ class ServoMotor{
     }
 
     void setLED(int color, int &dxl_comm_result, uint8_t &dxl_error){
-      Serial.println(" / turning on LED ");
+      //Serial.println(" / turning on LED ");
       dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_LEDS, color, &dxl_error);
     }
 
@@ -206,8 +220,7 @@ class Gripper{
       this->groupSyncWrite->clearParam();
       
       long int start_time = millis() * 1000;
-      if(wait && this->isMoving(dxl_comm_result, dxl_error) && millis() * 1000 < start_time + timeout){
-        Serial.println("uh got here dunno what to do now :)"); 
+      if(wait && this->isMoving(dxl_comm_result, dxl_error) && millis() * 1000 < start_time + timeout){ 
       }
     }
 
@@ -258,30 +271,30 @@ void setup() {
   while(!Serial);
 
 
-  Serial.println("Start..");
+  //Serial.println("Start..");
   // Need to set device name with parameter
   dynamixel::PortHandler *portHandler = dynamixel::PortHandler::getPortHandler(DEVICENAME);
   dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(PROTOCOL_VERSION);
   
   if(!portHandler->openPort()){
-    Serial.println("Failed to open the port!");
+    //Serial.println("Failed to open the port!");
     return;
   }
-  Serial.println("Succeeded to open the port!");
+  //Serial.println("Succeeded to open the port!");
 
   // Set port baudrate
   if(!portHandler->setBaudRate(BAUDRATE)){
-    Serial.println("Failed to change the baudrate!");
+    //Serial.println("Failed to change the baudrate!");
     return;
   }
 
   gripper = new Gripper(portHandler, packetHandler); 
+
+  gripper->enableServos();
+  
 }   
 
 void loop(){
-
-
-   Serial.print("loop maybe??");
 
    int joint_pos1[9] = {512, 300, 300, 400, 400, 512, 512, 300, 512};     
    int joint_pos2[9] = {512, 300, 300, 400, 400, 512, 512, 512, 300};
@@ -293,6 +306,8 @@ void loop(){
    delay(1000);
    gripper->move(joint_pos3);
    delay(1000);
+
+   run_led();
 
    Serial.end();
 
