@@ -58,7 +58,6 @@ class ServoMotor{
     void move(int target_step, int servo_id, int &dxl_comm_result, uint8_t &dxl_error, bool wait=false, int timeout=5){
       this->target_position = target_step;
       int current_position = this->currentPosition(dxl_comm_result, dxl_error);
-
       //TODO make the actual call to move the servo
       groupSyncRead.addParam(servo_id)
       groupSyncWrite.addParam(servo_id, target_position)
@@ -69,13 +68,11 @@ class ServoMotor{
          print(dxl_comm_result)
       // Clear syncwrite parameter storage
       groupSyncWrite.clearParam();
-
       long int start_time = millis() * 1000;
       if(wait && this->isMoving(dxl_comm_result, dxl_error) && millis() * 1000 < start_time + timeout){
         
       }
     }
-
   */  
 
     void stopMoving(int &dxl_comm_result, uint8_t &dxl_error){
@@ -251,7 +248,9 @@ class Gripper{
     dynamixel::GroupSyncRead *groupSyncRead;
 };
 
-//NOTE currently only gonna work in the setup FOR NOW but will move some things to the loop when appropriate
+// TODO move stuff above into other files etc
+
+Gripper *gripper;
 
 void setup() {
   // put your setup code here, to run once:
@@ -263,39 +262,42 @@ void setup() {
   // Need to set device name with parameter
   dynamixel::PortHandler *portHandler = dynamixel::PortHandler::getPortHandler(DEVICENAME);
   dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(PROTOCOL_VERSION);
-
-  // Open port
+  
   if(!portHandler->openPort()){
-    Serial.print("Failed to open the port!\n");
+    Serial.println("Failed to open the port!");
     return;
   }
-  Serial.print("Succeeded to open the port!\n");
+  Serial.println("Succeeded to open the port!");
 
   // Set port baudrate
   if(!portHandler->setBaudRate(BAUDRATE)){
-    Serial.print("Failed to change the baudrate!\n");
+    Serial.println("Failed to change the baudrate!");
     return;
   }
-  Serial.print("Succeeded to change the baudrate!\n");
 
-  Gripper gripper(portHandler, packetHandler); //NOTE this is not gonna work in the loop so need to sort out a pointer thingy for it  l
-
-  //when serial protocol is implement these positions will be taken from the serial comms, so will already just be a 1d array 
-  
-  int joint_pos1[9] = {512, 300, 300, 400, 400, 512, 512, 300, 512};     
-  int joint_pos2[9] = {512, 300, 300, 400, 400, 512, 512, 512, 300};
-  int joint_pos3[9] = {512, 623, 623, 653, 750, 750, 512, 400, 512 };
-
-   gripper.enableServos();
-   gripper.move(joint_pos1);
-   delay(1000);
-   gripper.move(joint_pos2);
-   delay(1000);
-   gripper.move(joint_pos3);
-   delay(1000);
-   gripper.move(joint_pos1);
-}
+  gripper = new Gripper(portHandler, packetHandler); 
+}   
 
 void loop(){
+
+
+   Serial.print("loop maybe??");
+
+   int joint_pos1[9] = {512, 300, 300, 400, 400, 512, 512, 300, 512};     
+   int joint_pos2[9] = {512, 300, 300, 400, 400, 512, 512, 512, 300};
+   int joint_pos3[9] = {512, 623, 623, 653, 750, 750, 512, 400, 512 };
+  
+   gripper->move(joint_pos1);
+   delay(1000);
+   gripper->move(joint_pos2);
+   delay(1000);
+   gripper->move(joint_pos3);
+   delay(1000);
+
+   Serial.end();
+
+   
+
+
   
 }
