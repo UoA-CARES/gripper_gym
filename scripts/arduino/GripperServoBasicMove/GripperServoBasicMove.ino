@@ -11,6 +11,9 @@ glhf
 #define ADDRESS_TORQUE_ENABLE           24
 #define ADDRESS_GOAL_POSITION           30 
 #define ADDRESS_PRESENT_POSITION        37
+#define ADDRESS_SPEED_LIMIT             32
+#define ADDRESS_TORQUE_LIMIT            15  
+#define ADDRESS_LEDS                     25
 
 // Data Byte Length
 #define LENGTH_GOAL_POSITION            2
@@ -92,13 +95,13 @@ class ServoMotor{
     }
 
     void limitTorque(int torque_limit, int &dxl_comm_result, uint8_t &dxl_error){
-      
-      
+      Serial.print("limiting torque / ");
+      dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_TORQUE_LIMIT, torque_limit, &dxl_error);
     }
 
     void enableTorque(int &dxl_comm_result, uint8_t &dxl_error){
       Serial.print("enabling torque of ");
-      Serial.println(this->id) ;
+      Serial.print(this->id) ;
       dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_TORQUE_ENABLE, TORQUE_ENABLE, &dxl_error);
     }
 
@@ -107,11 +110,12 @@ class ServoMotor{
     }
 
     void limitSpeed(int speed_limit, int &dxl_comm_result, uint8_t &dxl_error){
-      
+      dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_SPEED_LIMIT, speed_limit, &dxl_error);
     }
 
     void setLED(int color, int &dxl_comm_result, uint8_t &dxl_error){
-      
+      Serial.println(" / turning on LED ");
+      dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_LEDS, color, &dxl_error);
     }
 
     bool verifyStep(int step){
@@ -138,7 +142,7 @@ class ServoMotor{
 
 class Gripper{
   public:
-    Gripper(dynamixel::PortHandler *portHandler, dynamixel::PacketHandler *packetHandler, int torque_limit=180, int speed_limit=100){
+    Gripper(dynamixel::PortHandler *portHandler, dynamixel::PacketHandler *packetHandler, int torque_limit=80, int speed_limit=100){
        this->portHandler = portHandler;
        this->packetHandler = packetHandler;
 
@@ -147,9 +151,7 @@ class Gripper{
 
       int max[NUM_SERVOS] = {900, 750, 769, 900, 750, 802, 900, 750, 794};
       int min[NUM_SERVOS] = {100, 250, 130, 100, 198, 152, 100, 250, 140};
-
-        
-
+      
       this->torque_limit = torque_limit;
       this->speed_limit = speed_limit;
 
@@ -159,6 +161,8 @@ class Gripper{
     }
 
     bool enableServos(){
+
+      int leds[NUM_SERVOS] = {0, 3, 2, 0, 7, 5, 0, 4, 6};
       // currently just ignores any issues with servo communication here...
       for(int servo_id = 0; servo_id < (NUM_SERVOS); servo_id++){
         int dxl_comm_result = 0;
@@ -166,7 +170,7 @@ class Gripper{
         servos[servo_id]->limitTorque(this->torque_limit, dxl_comm_result, dxl_error);
         servos[servo_id]->limitSpeed(this->speed_limit, dxl_comm_result, dxl_error);
         servos[servo_id]->enableTorque(dxl_comm_result, dxl_error);
-        servos[servo_id]->setLED(LEDS[servo_id], dxl_comm_result, dxl_error);
+        servos[servo_id]->setLED(leds[servo_id], dxl_comm_result, dxl_error);
       }
       return true;
     }
@@ -275,26 +279,21 @@ void setup() {
   Serial.print("Succeeded to change the baudrate!\n");
 
   Gripper gripper(portHandler, packetHandler); //NOTE this is not gonna work in the loop so need to sort out a pointer thingy for it  l
+
+  //when serial protocol is implement these positions will be taken from the serial comms, so will already just be a 1d array 
+  
   int joint_pos1[9] = {512, 300, 300, 400, 400, 512, 512, 300, 512};     
   int joint_pos2[9] = {512, 300, 300, 400, 400, 512, 512, 512, 300};
   int joint_pos3[9] = {512, 623, 623, 653, 750, 750, 512, 400, 512 };
 
    gripper.enableServos();
-
-  //i think the easiest way to do this is to get the list of actions i want as a vector and then iterate through that?
-  //or i think i can transpose the matrix and get it through colums 
-   Serial.println("1");
    gripper.move(joint_pos1);
-   Serial.println("2");
    delay(1000);
    gripper.move(joint_pos2);
-   Serial.println("3");
    delay(1000);
    gripper.move(joint_pos3);
    delay(1000);
    gripper.move(joint_pos1);
-   
- 
 }
 
 void loop(){
