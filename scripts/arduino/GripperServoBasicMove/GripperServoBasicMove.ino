@@ -4,7 +4,6 @@ beth has been filling in the rest.
 glhf
 */
 #include <vector> 
-#include <array>
 #include <DynamixelSDK.h>
 
 // Control table address could be differ by Dynamixel Series
@@ -296,18 +295,17 @@ void setup() {
 
 void loop(){
 
-   int joint_pos1[9] = {512, 300, 300, 400, 400, 512, 512, 300, 512};     
-   int joint_pos2[9] = {512, 300, 300, 400, 400, 512, 512, 512, 300};
-   int joint_pos3[9] = {512, 623, 623, 653, 750, 750, 512, 400, 512 };
-  
+   
+  /*
    gripper->move(joint_pos1);
    delay(1000);
    gripper->move(joint_pos2);
    delay(1000);
    gripper->move(joint_pos3);
    delay(1000);
+   */
 
-   run_led();
+   run_gripper();
 
    Serial.end();
 

@@ -79,14 +79,25 @@ String processCommand(String command){
   return String(Response::SUCCEEDED)+","+response;
 }
 
-void run_led(){
+void run_gripper(){
+
+  int joint_pos1[9] = {512, 300, 300, 400, 400, 512, 512, 300, 512};     
+  int joint_pos2[9] = {512, 300, 300, 400, 400, 512, 512, 512, 300};
+  int joint_pos3[9] = {512, 623, 623, 653, 750, 750, 512, 400, 512 };
+  
   if(Serial.available()){
     String command = Serial.readStringUntil('\n');
     
-    if(led_state)
+    if(command = MOVE){
+      gripper->move(joint_pos1);
+      delay(1000);
+      gripper->move(joint_pos3);
+      delay(1000);
       digitalWrite(led_pin, HIGH);
-    else
+    }
+    else{
       digitalWrite(led_pin, LOW);
+    }
     led_state = !led_state;
 
     String response = processCommand(command);
