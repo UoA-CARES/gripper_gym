@@ -5,163 +5,114 @@ by the University of Auckland Robotics Lab
 Beth Cutler
 
 '''
+import logging
+
+import serial
+import time
 import numpy as np
-import dynamixel_sdk as dxl
-from Servo import Servo
-from Camera import Camera
+# from Camera import Camera
+
+from enum import Enum, auto
+
+class Command(Enum):
+    STOP = 0
+    MOVE = 1
+    GET_STATE = 2
+
+class Response(Enum):
+    SUCCEEDED = 0
+    ERROR_STATE = 1
+    TIMEOUT = 2
+
+class GripperError(IOError):
+    pass
 
 class Gripper(object):
-    def __init__(self, device_name="/dev/ttyUSB0", baudrate=57600, protocol=2.0, torque_limit=180, speed_limit=100):
+    def __init__(self, gripper_id=0, device_name="/dev/ttyACM0", baudrate=115200):
         # Setup Servor handlers
+        self.gripper_id = gripper_id
         self.device_name = device_name
         self.baudrate = baudrate
-        self.protocol = protocol  # NOTE: XL-320 uses protocol 2
+        self.arduino = serial.Serial(device_name, baudrate)
 
-        self.port_handler = dxl.PortHandler(self.device_name)
-        self.packet_handler = dxl.PacketHandler(self.protocol)
+    def process_response(self, response):
+      if '\n' not in response:
+        logging.debug(f"Serial Read Timeout")
+        return Response.TIMEOUT
+      error_state = int(response.split(',')[0])
+      logging.debug(f"Error Flag: {error_state} {Response(error_state)}")
+      return Response(error_state)
 
-        self.group_sync_write = dxl.GroupSyncWrite(
-            self.port_handler, self.packet_handler, Servo.addresses["goal_position"], 2)
-        self.group_sync_read = dxl.GroupSyncRead(
-            self.port_handler, self.packet_handler,  Servo.addresses["present_position"], 2)
+    def current_positions(self,timeout=5):
+        command = f"{Command.GET_STATE.value}"
+        logging.debug(f"Command: {command}")
 
-        self.num_motors = 9
-        self.servos = {}
+        try:
+            self.arduino.write(command.encode())
+        except serial.SerialException as error:
+            raise GripperError(f"Gripper#{self.gripper_id} failed to write to arduino {self.device_name}") from error
 
-        leds = [0, 3, 2, 0, 7, 5, 0, 4, 6]
-        # Ideally these would all be the same but some are slightly physically offset
-        # TODO: paramatise this further for when we have multiple grippers
-        max = [900, 750, 769, 900, 750, 802, 900, 750, 794]
-        min = [100,    250, 130, 100,    198, 152, 100,    250, 140]
+        self.arduino.timeout = timeout
+        response = self.arduino.read_until(b'\n').decode()
+        logging.debug(f"Response: {response}")
+        
+        comm_result = self.process_response(response)
+        if comm_result != Response.SUCCEEDED:
+            raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} getting current position")
 
-        # create the nine servo instances
-        for i in range(0, self.num_motors):
-            self.servos[i] = Servo(self.port_handler, self.packet_handler,
-                                   leds[i], i+1, torque_limit, speed_limit, max[i], min[i])
+        state = [int(x) for x in response.split(',')[1:]] 
+        return state
 
-        # set up camera instance
-        # self.camera = Camera()
+    def stop_moving(self,timeout=5):
+        try:
+            command = f"{Command.STOP.value}"
+            self.arduino.write(command.encode())
+            logging.debug(f"Command: {command}")
 
-    def setup(self):
-        # open port, set baudrate
-        if self.port_handler.openPort():
-            print("Succeeded to open the port")
-        else:
-            print("Failed to open the port")
-            quit()
+            self.arduino.timeout = timeout
+            response = self.arduino.read_until(b'\n').decode()
+            comm_result = self.process_response(response)
+            logging.debug(f"Response: {response}")
 
-        # set port baudrate
-        if self.port_handler.setBaudRate(self.baudrate):
-            print("Succeeded to change the baudrate")
-        else:
-            print("Failed to change the baudrate")
-            quit()
+            if comm_result != Response.SUCCEEDED:
+                raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} while stopping")
 
-        # setup certain specs of the servos
-        for _, servo in self.servos.items():
-            servo.limit_torque()
-            servo.limit_speed()
-            servo.enable_torque()
-            servo.turn_on_LED()
+            state = [int(x) for x in response.split(',')[1:]] 
+            return state              
+            
+        except GripperError as error:
+            raise GripperError(f"Gripper#{self.gripper_id}: failed to stop moving") from error
 
-    """ 
-    actions is an array of joint positions that specifiy the desired position of each servo
-    this will be a 9 element of array of integers between 0 and 1023
-    """
+    def move_servo(self, servo_id, target_step, timeout=5):
+        raise NotImplementedError("TODO implement this if you want it.")
 
-    def angles_to_steps(self, angles):
-        steps = angles
-        for i in range(0,len(angles)):
-            steps[i] = (3.41*angles[i])+511.5
-        return steps
+    def move(self, target_step, timeout=5):
+        command = ','.join(str(item) for item in target_step)
+        command = f"{Command.MOVE.value},{command}"
+        logging.debug(f"Command: {command}")
 
-    def verify_steps(self, steps):
-        # check all actions are within min max of each servo
-        for id, servo in self.servos.items():
-            if not servo.verify_step(steps[id]):
-                print(f"Step for servo {id+1} is out of bounds")
-                return False
-        return True
+        try:
+          self.arduino.write(command.encode())
+        except serial.SerialException as error:
+          raise GripperError(f"Gripper#{self.gripper_id} failed to write to arduino {self.device_name}") from error
 
-    def gripper_load_check(self):
-        #enumerate through the servos and make sure the load isn't higher than maybe like 30%
-        for id, servo in self.servos.items():
-            if servo.current_load() > 20:
-                return True
+        self.arduino.timeout = timeout
+        response = self.arduino.read_until(b'\n').decode()
+        logging.debug(f"Response: {response}")
 
+        comm_result = self.process_response(response)
+        if comm_result != Response.SUCCEEDED:
+          raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} during move command")
 
-    def move(self, steps=None, angles=None):
+        state = [int(x) for x in response.split(',')[1:]] 
+        return state
 
-        terminated = False
-
-        if angles is not None:
-            steps = self.angles_to_steps(angles)
-
-        if steps is None:
-            print(f"Steps is None no action given")
-            exit()
-
-        if not self.verify_steps(steps):
-            print(f"The action provided is out of bounds: {steps}")
-            exit()
-
-        for id, servo  in self.servos.items():
-            self.group_sync_write.addParam(
-                id+1, [dxl.DXL_LOBYTE(steps[id]), dxl.DXL_HIBYTE(steps[id])])
-
-        # transmit the packet
-        dxl_comm_result = self.group_sync_write.txPacket()
-        if dxl_comm_result == dxl.COMM_SUCCESS:
-            print("group_sync_write Succeeded")
-        else:
-            print("group_sync_write Failed")
-            exit()
-        self.group_sync_write.clearParam()
-
-        # using moving flag to check if the motors have reached their goal position
-        while self.gripper_moving_check():
-            if self.gripper_load_check():
-                print("Gripper load too high")
-                terminated = True
-                self.close()
-                self.setup()
-                self.home()
-               
-        # return the current state and whether it was terminated
-        return self.current_positions(), terminated
-
-    def current_positions(self):
-        current_positions = []
-        for id, servo in self.servos.items():
-            current_positions.append(servo.present_position()[0])
-        return current_positions
-
-    def home(self):
-        reset_seq = np.array([[512, 512],  # 1 base plate
-                              [250, 512],  # 2 middle
-                              [750, 512],  # 3 finger tip
-
-                              [512, 512],  # 4 baseplate
-                              [198, 460],  # 5 middle
-                              [750, 512],  # 6 finger tip
-
-                              [512, 512],  # 7 baseplate
-                              [250, 512],  # 8 middle
-                              [750, 512]])  # 9 finger tip
-
-        self.move(steps=reset_seq[:, 0])
-        self.move(steps=reset_seq[:, 1])
-        return self.current_positions()  # includes current valve position
-
-    def gripper_moving_check(self):
-        moving = False
-        for _, servo in self.servos.items():
-            moving |= servo.moving_check()
-        return moving
+    def home(self,timeout=5):
+        try:
+          home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]
+          return self.move(home_pose,timeout=timeout)
+        except GripperError as error:
+            raise GripperError(f"Gripper#{self.gripper_id}: failed to Home") from error
 
     def close(self):
-        # disable torque
-        for _, servo in self.servos.items():
-            servo.disable_torque()
-        # close port
-        self.port_handler.closePort()
+        self.arduino.close()  

@@ -107,6 +107,8 @@ class ServoMotor{
     void limitTorque(int torque_limit, int &dxl_comm_result, uint8_t &dxl_error){
       //Serial.print("limiting torque / ");
       dxl_comm_result = this->packetHandler->write1ByteTxRx(this->portHandler, this->id, ADDRESS_TORQUE_LIMIT, torque_limit, &dxl_error);
+      //hmm what to do with the error
+      //bc i dont think i can print it??????????
     }
 
     void enableTorque(int &dxl_comm_result, uint8_t &dxl_error){
