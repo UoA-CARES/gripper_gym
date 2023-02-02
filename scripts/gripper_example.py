@@ -16,7 +16,7 @@ def main():
         gripper.move(target_steps)
     except GripperError as error:
         # Handle the error gracefully here as required...
-        print(error)
+        logging.error(error)
         exit() # kill the program entirely as gripper is unrecoverable for whatever reason
 
 if __name__ == "__main__":

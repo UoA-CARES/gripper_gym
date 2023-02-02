@@ -22,6 +22,7 @@ class GripperEnvironment():
             state = self.gripper.home()
         except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
+            logging.error(error)
             exit()
 
         marker_pose = self.find_marker_pose(marker_id=self.marker_id)
@@ -102,6 +103,7 @@ class GripperEnvironment():
             state = self.gripper.move(action=action)
         except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
+            logging.error(error)
             exit()
 
         final_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
