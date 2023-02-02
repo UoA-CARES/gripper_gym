@@ -10,7 +10,7 @@ Camera Class
 '''
 
 from pathlib import Path
-home = str(Path.home())
+file_path = Path(__file__).parent.resolve()
 
 class Camera(object):
 
@@ -25,8 +25,8 @@ class Camera(object):
         self.aruco_params = cv2.aruco.DetectorParameters_create()
         self.marker_size = 18  # mm
         #TODO: make this relative
-        self.camera_matrix = np.loadtxt(("/home/anyone/gripperCode/Gripper-Code/scripts/config/camera_matrix.txt"))
-        self.camera_distortion = np.loadtxt(("/home/anyone/gripperCode/Gripper-Code/scripts/config/camera_distortion.txt"))
+        self.camera_matrix = np.loadtxt(f"{file_path}/config/camera_matrix.txt")
+        self.camera_distortion = np.loadtxt(f"{file_path}/config/camera_distortion.txt")
 
     def get_frame(self):  
         returned, frame = self.camera.read()
