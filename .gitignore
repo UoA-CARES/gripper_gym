@@ -1,2 +1,5 @@
-scripts/logs
 __pycache__/
+*.pyc
+*.pyo
+scripts/logs
+

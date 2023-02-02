@@ -1,209 +1,131 @@
-'''
-Gripper Class intended to work with the reinforcement learning package being developed
-by the University of Auckland Robotics Lab
-
-Beth Cutler
-
-'''
 import logging
 
+import backoff
+import serial
 import time
 import numpy as np
-import dynamixel_sdk as dxl
-from Camera import Camera
-from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
+# from Camera import Camera
+
+from enum import Enum, auto
+
+class Command(Enum):
+    PING       = 0
+    STOP       = 1
+    MOVE       = 2
+    MOVE_SERVO = 3
+    GET_STAT   = 4
+
+class Response(Enum):
+    SUCCEEDED   = 0
+    ERROR_STATE = 1
+    TIMEOUT     = 2
+
+def handle_gripper_error(error):
+    logging.error(error)
+    logging.info("Please fix the gripper and press enter to try again or x to quit: ")
+    value  = input()
+    if value == 'x':
+        logging.info("Giving up correcting gripper")
+        return True 
+    return False
+
+class GripperError(IOError):
+    pass
 
 class Gripper(object):
-    def __init__(self, gripper_id=0, device_name="/dev/ttyUSB0", baudrate=115200, protocol=2.0, torque_limit=180, speed_limit=100):
+    def __init__(self, gripper_id=0, device_name="/dev/ttyACM0", baudrate=115200):
         # Setup Servor handlers
         self.gripper_id = gripper_id
         self.device_name = device_name
         self.baudrate = baudrate
-        self.protocol = protocol  # NOTE: XL-320 uses protocol 2
+        self.arduino = serial.Serial(device_name, baudrate)
 
-        self.port_handler = dxl.PortHandler(self.device_name)
-        self.packet_handler = dxl.PacketHandler(self.protocol)
-        self.setup_handlers()
+    def process_response(self, response):
+      if '\n' not in response:
+        logging.debug(f"Serial Read Timeout")
+        return Response.TIMEOUT
+      error_state = int(response.split(',')[0])
+      message = response.split(',')[1:]
+      logging.debug(f"Error Flag: {error_state} {Response(error_state)} {message}")
+      return Response(error_state), message
 
-        self.group_sync_write = dxl.GroupSyncWrite(self.port_handler, self.packet_handler, Servo.addresses["goal_position"], 2)
-        self.group_sync_read  = dxl.GroupSyncRead(self.port_handler, self.packet_handler,  Servo.addresses["current_position"], 2)
+    @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
+    def send_command(self, command, timeout=5):
+        try:
+            self.arduino.write(command.encode())
+        except serial.SerialException as error:
+            raise GripperError(f"Failed to write to Gripper#{self.gripper_id} assigned port {self.device_name}") from error
+
+        self.arduino.timeout = timeout
+        response = self.arduino.read_until(b'\n').decode()
+        logging.debug(f"Response: {response}")
         
-        self.servos = {}
-        self.num_motors = 9
+        comm_result, message = self.process_response(response)
+        if comm_result != Response.SUCCEEDED:
+            raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
+
+        state = [int(x) for x in message.split(',')]
+        return state
+
+    def current_positions(self,timeout=5):
+        command = f"{Command.GET_STATE.value}"
+        logging.debug(f"Command: {command}")
+
+        try:
+            return self.send_command(command, timeout)
+        except GripperError as error:
+            raise GripperError(f"Failed to read position of Gripper#{self.gripper_id}") from error
+
+    def stop_moving(self,timeout=5):
+        command = f"{Command.STOP.value}"
+        logging.debug(f"Command: {command}")
+
+        try:
+            return self.send_command(command, timeout)
+        except GripperError as error:
+            raise GripperError(f"Failed to read stop Gripper#{self.gripper_id}") from error
+
+    def move_servo(self, servo_id, target_step, timeout=5):
+        command = f"{Command.MOVE_SERVO.value},{servo_id},{target_step}"
+        logging.debug(f"Command: {command}")
+
+        try:
+            return self.send_command(command, timeout)
+        except GripperError as error:
+            raise GripperError(f"Failed to move servo {servo_id} on Gripper#{self.gripper_id} to {target_step}") from error
+
+    def move(self, target_steps, timeout=5):
+        command = ','.join(str(item) for item in target_steps)
+        command = f"{Command.MOVE.value},{command}"
+        logging.debug(f"Command: {command}")
+
+        try:
+            return self.send_command(command, timeout)
+        except GripperError as error:
+            raise GripperError(f"Failed to move Gripper#{self.gripper_id} to {target_steps}") from error
         
-        leds = [0, 3, 2, 0, 7, 5, 0, 4, 6]# TODO set colour IDs in Servo
-        # Ideally these would all be the same but some are slightly physically offset
-        # TODO: paramatise this further for when we have multiple grippers
-        max = [900, 750, 769, 900, 750, 802, 900, 750, 794]
-        min = [100, 250, 130, 100, 198, 152, 100, 250, 140]
+    def home(self,timeout=5):
+        try:
+          home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]
+          return self.move(home_pose,timeout=timeout)
+        except GripperError as error:
+            raise GripperError(f"Failed tom home Gripper#{self.gripper_id}") from error
+
+    def ping(self):
+        command = f"{Command.PING}"
+        logging.debug(f"Command: {command}")
 
         try:
-            for i in range(0, self.num_motors):
-                self.servos[i] = Servo(self.port_handler, self.packet_handler, leds[i], i+1, torque_limit, speed_limit, max[i], min[i])
-            self.setup_servos()
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
+            return self.send_command(command)
+        except GripperError as error:
+            raise GripperError(f"Failed to fully Ping Gripper#{self.gripper_id}") from error
 
-    def setup_handlers(self):
-        if not self.port_handler.openPort():
-            error_message = f"Failed to open port {self.device_name}"
-            logging.error(error_message)
-            raise IOError(error_message)
-
-        logging.info(f"Succeeded to open port {self.device_name}")
-
-        if not self.port_handler.setBaudRate(self.baudrate):
-            error_message = f"Failed to change the baudrate to {self.baudrate}"
-            logging.error(error_message)
-            raise IOError(error_message)
-
-        logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
-    
-    def setup_servos(self):
+    def enable(self):
         try:
-            for _, servo in self.servos.items():
-                servo.limit_torque()
-                servo.limit_speed()
-                servo.enable_torque()
-                servo.turn_on_LED()
-        except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to setup servos") from error
-
-    def current_positions(self):
-        try:
-            current_positions = []
-            for id, servo in self.servos.items():
-                servo_position = servo.current_position()
-                current_positions.append(servo_position)
-            return current_positions
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read current position") from error
-
-    def current_load(self):
-        try:
-            current_load = []
-            for _, servo in self.servos.items():
-                current_load.append(servo.current_load())
-            return current_load
-        except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to check load") from error
-
-    def is_moving(self):
-        try:
-            gripper_moving = False
-            for _, servo in self.servos.items():
-                gripper_moving |= servo.is_moving()
-            return gripper_moving
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to check if moving") from error
-
-    def stop_moving(self):
-        try:
-            for _, servo in self.servos.items():
-                servo.stop_moving()
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to stop moving") from error
-
-    def move_servo(self, servo_id, target_step=None, target_angle=None, wait=True, timeout=5):
-        if servo_id not in self.servos:
-            error_message = f"Dynamixel#{servo_id} is not associated to Gripper#{self.gripper_id}"
-            logging.error(error_message)
-            raise DynamixelServoError(error_message)
-        
-        if target_angle is not None:
-            target_step = Servo.angle_to_step(target_angle)
-
-        if target_step is None:
-            error_message = f"Gripper#{self.gripper_id}: No move command given to Dynamixel#{servo_id} - Step {target_step} Angles {target_angle}"
-            logging.error(error_message)
-            raise DynamixelServoError(error_message)
-
-        try:
-            servo_pose = self.servos[servo_id].move(target_step, wait=wait, timeout=timeout)
-            return self.current_positions()
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id} failed while moving Dynamixel#{servo_id}") from error
-
-    def move(self, steps=None, angles=None, action=None, wait=True, timeout=5):
-        if angles is not None:
-            steps = self.angles_to_steps(angles)
-
-        if action is not None:
-            steps = self.action_to_steps(action)
-
-        if steps is None:
-            error_message = f"Gripper#{self.gripper_id}: No move command given - Step {steps} Angles {angles} Action {action}"
-            logging.error(error_message)
-            raise DynamixelServoError(error_message)
-
-        if not self.verify_steps(steps):
-            error_message = f"Gripper#{self.gripper_id}: The move command provided is out of bounds: Step {steps} Angles {angles} Action {action}"
-            logging.error(error_message)
-            raise DynamixelServoError(error_message)
-
-        for id, servo  in self.servos.items():
-            servo.target_position = steps[id]
-            self.group_sync_write.addParam(id+1, [dxl.DXL_LOBYTE(steps[id]), dxl.DXL_HIBYTE(steps[id])])
-
-        dxl_comm_result = self.group_sync_write.txPacket()
-        if dxl_comm_result != dxl.COMM_SUCCESS:
-            error_message = f"Gripper#{self.gripper_id}: group_sync_write Failed"
-            logging.error(error_message)
-            raise DynamixelServoError(error_message)
-        
-        logging.debug(f"Gripper#{self.gripper_id}: group_sync_write Succeeded")
-        self.group_sync_write.clearParam()
-
-        try:
-            start_time = time.perf_counter()
-            while wait and self.is_moving() and time.perf_time() < start_time + timeout:
-                pass
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed while moving") from error
-               
-        try:
-            return self.current_positions()
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read its position") from error
-
-    def home(self):
-        try:
-            home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]
-            return self.move(steps=home_pose)
-        except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to Home") from error
-
-    def verify_steps(self, steps):
-        # check all actions are within min max of each servo
-        for id, servo in self.servos.items():
-            if not servo.verify_step(steps[id]):
-                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id+1} is out of bounds")
-                return False
-        return True
-
-    def action_to_steps(self, action):
-        steps = action
-        for i in range(0, len(steps)):
-            max = self.servos[i].max
-            min = self.servos[i].min
-            steps[i] = steps[i] * (max - min) + min
-        return steps
-
-    def steps_to_angles(self, steps):
-        angles = []
-        for i in range(0,len(steps)):
-            angles.append(Servo.step_to_angle(steps[i]))
-        return angles
-
-    def angles_to_steps(self, angles):
-        steps = []
-        for i in range(0,len(steps)):
-            steps.append(Servo.angle_to_step(steps[i]))
-        return steps
+            self.ping()
+        except GripperError as error:
+            raise GripperError(f"Failed to enable Gripper#{self.gripper_id}") from error
 
     def close(self):
-        # disable torque
-        for _, servo in self.servos.items():
-            servo.disable_torque()
-        # close port
-        self.port_handler.closePort()
+        logging.debug(f"Closing Gripper#{self.gripper_id}")
+        self.arduino.close()

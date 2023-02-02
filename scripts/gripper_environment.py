@@ -1,8 +1,8 @@
 import logging
 import numpy as np
 
-from Gripper import Gripper
 from Camera import Camera
+from Gripper import Gripper, GripperError
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
 # from cares_lib.dynamixel.Servo import DynamixelServoError
@@ -18,7 +18,11 @@ class GripperEnvironment():
         self.marker_id = 0
 
     def reset(self):
-        state = self.gripper.home()
+        try:
+            state = self.gripper.home()
+        except GripperError as error:
+            # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
+            exit()
 
         marker_pose = self.find_marker_pose(marker_id=self.marker_id)
 
@@ -94,7 +98,11 @@ class GripperEnvironment():
         # Get initial pose of the marker before moving to help calculate reward after moving
         start_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
-        state = self.gripper.move(action=action)
+        try:
+            state = self.gripper.move(action=action)
+        except GripperError as error:
+            # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
+            exit()
 
         final_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
@@ -108,4 +116,3 @@ class GripperEnvironment():
 
         truncated = False #never truncate the episode but here for completion sake
         return state, reward, done, truncated
-            
