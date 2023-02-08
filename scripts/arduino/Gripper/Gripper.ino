@@ -49,8 +49,9 @@ enum Command {
   STOP,
   MOVE,
   MOVE_SERVO,
-  GET_STATE
-};
+  GET_STATE, 
+  ENABLED 
+  };
 
 // Needs to match the enum order in Gripper.py
 enum Response {
@@ -60,7 +61,7 @@ enum Response {
 
 class Gripper{
   public:
-    Gripper(int baudrate=9600,int torque_limit=80, int speed_limit=100){
+    Gripper(int baudrate=9600,int torque_limit=180, int speed_limit=180){
 
       int max[NUM_SERVOS] = {900, 750, 769, 900, 750, 802, 900, 750, 794};
       int min[NUM_SERVOS] = {100, 250, 130, 100, 198, 152, 100, 250, 140};
@@ -352,6 +353,14 @@ String moveServo(String command){
   return getState();
 }
 
+String enableServos(){
+  
+  if(!gripper->enableServos()){
+    return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();
+  }
+  return getState();
+}
+
 String processCommand(String command){
   String response;
   //this isn't perfect as spam data can be interpretted as a given action but whatever
@@ -367,6 +376,8 @@ String processCommand(String command){
       return moveServo(command);
     case Command::GET_STATE:
       return getState();
+    case Command::ENABLED: 
+      return enableServos();
     default:
       return String(Response::ERROR_STATE)+",Unkown Command: "+command;
   }

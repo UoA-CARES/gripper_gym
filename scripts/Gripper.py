@@ -14,6 +14,7 @@ class Command(Enum):
     MOVE       = 2
     MOVE_SERVO = 3
     GET_STAT   = 4
+    ENABLED    = 5
 
 class Response(Enum):
     SUCCEEDED   = 0
@@ -64,7 +65,7 @@ class Gripper(object):
         if comm_result != Response.SUCCEEDED:
             raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
 
-        state = [int(x) for x in message.split(',')]
+        state = [int(x) for x in message]
         return state
 
     def current_positions(self,timeout=5):
@@ -109,7 +110,7 @@ class Gripper(object):
           home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]
           return self.move(home_pose,timeout=timeout)
         except GripperError as error:
-            raise GripperError(f"Failed tom home Gripper#{self.gripper_id}") from error
+            raise GripperError(f"Failed to home Gripper#{self.gripper_id}") from error
 
     def ping(self):
         command = f"{Command.PING}"
@@ -121,8 +122,11 @@ class Gripper(object):
             raise GripperError(f"Failed to fully Ping Gripper#{self.gripper_id}") from error
 
     def enable(self):
+        
+        command = f"{Command.ENABLED}"
+        logging.debug(f"Command: {command}")
         try:
-            self.ping()
+            return self.send_command(command)
         except GripperError as error:
             raise GripperError(f"Failed to enable Gripper#{self.gripper_id}") from error
 
