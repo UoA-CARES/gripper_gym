@@ -14,7 +14,7 @@ class Command(Enum):
     MOVE       = 2
     MOVE_SERVO = 3
     GET_STAT   = 4
-    ENABLED    = 5
+    LED        = 5
 
 class Response(Enum):
     SUCCEEDED   = 0
@@ -22,12 +22,15 @@ class Response(Enum):
     TIMEOUT     = 2
 
 def handle_gripper_error(error):
-    logging.error(error)
+    logging.warning(error)
     logging.info("Please fix the gripper and press enter to try again or x to quit: ")
     value  = input()
     if value == 'x':
         logging.info("Giving up correcting gripper")
         return True 
+    elif value == 'y':
+        logging.info("moving on...")
+        #figure out exit condition
     return False
 
 class GripperError(IOError):
@@ -44,7 +47,7 @@ class Gripper(object):
     def process_response(self, response):
       if '\n' not in response:
         logging.debug(f"Serial Read Timeout")
-        return Response.TIMEOUT
+        return Response.TIMEOUT, "timed out, hopefully moving on..."
       error_state = int(response.split(',')[0])
       message = response.split(',')[1:]
       logging.debug(f"Error Flag: {error_state} {Response(error_state)} {message}")
@@ -62,6 +65,7 @@ class Gripper(object):
         logging.debug(f"Response: {response}")
         
         comm_result, message = self.process_response(response)
+        
         if comm_result != Response.SUCCEEDED:
             raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
 
@@ -77,7 +81,7 @@ class Gripper(object):
         except GripperError as error:
             raise GripperError(f"Failed to read position of Gripper#{self.gripper_id}") from error
 
-    def stop_moving(self,timeout=5):
+        memory.add(state, action, reward)
         command = f"{Command.STOP.value}"
         logging.debug(f"Command: {command}")
 
@@ -121,9 +125,10 @@ class Gripper(object):
         except GripperError as error:
             raise GripperError(f"Failed to fully Ping Gripper#{self.gripper_id}") from error
 
-    def enable(self):
+    #leds, further extend to enable
+    def led(self):
         
-        command = f"{Command.ENABLED}"
+        command = f"{Command.LED}"
         logging.debug(f"Command: {command}")
         try:
             return self.send_command(command)

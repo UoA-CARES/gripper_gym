@@ -50,7 +50,7 @@ enum Command {
   MOVE,
   MOVE_SERVO,
   GET_STATE, 
-  ENABLED 
+  LED_ON 
   };
 
 // Needs to match the enum order in Gripper.py
@@ -153,6 +153,14 @@ class Gripper{
       if(!success)
         this->error_message = "Failed to setup servos";
       return success;
+    }
+
+    bool ledOn(){
+      bool success = true; 
+      for(int i = 0; i < NUM_SERVOS; i++){
+        int id = SERVO_IDS[i];
+        success &= this->dxl->writeControlTableItem(LED, id, LEDS[i]);
+      }
     }
 
     bool move(int servo_id, int goal_position, bool wait=true, long int timeout=5000){
@@ -353,12 +361,14 @@ String moveServo(String command){
   return getState();
 }
 
-String enableServos(){
+String ledOn(){
+
+  bool success = gripper->ledOn();
   
-  if(!gripper->enableServos()){
+  if(!success){
     return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();
   }
-  return getState();
+  return String(Response::SUCCEEDED)+", apparently the leds are on";
 }
 
 String processCommand(String command){
@@ -376,8 +386,8 @@ String processCommand(String command){
       return moveServo(command);
     case Command::GET_STATE:
       return getState();
-    case Command::ENABLED: 
-      return enableServos();
+    case Command::LED_ON: 
+      return ledOn();
     default:
       return String(Response::ERROR_STATE)+",Unkown Command: "+command;
   }

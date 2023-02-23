@@ -100,7 +100,7 @@ class GripperEnvironment():
         start_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
         try:
-            state = self.gripper.move(action=action)
+            state = self.gripper.move(action)
         except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)

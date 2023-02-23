@@ -8,7 +8,7 @@ def main():
     gripper = Gripper(device_name="/dev/ttyACM0")
     # These calls to setup the gripper will work or alert the operator to any issues to resolve them, if operator can't resolve it will simply crash with an exception
     gripper.ping()
-    gripper.enable()
+    gripper.led()
     gripper.home()
 
     # Will run and alert the operator if it can't be resolved, if operate can't resolve it then it will return to this except block to exit gracefully outside of the gripper class.
