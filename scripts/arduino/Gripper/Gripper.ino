@@ -325,6 +325,12 @@ String getState() {
   return String(Response::SUCCEEDED)+","+poseToString(current_position);
 }
 
+String getTimeoutState() {
+  std::vector<int> current_position;
+  return String(Response::TIMEOUT)+","+poseToString(current_position);
+
+}
+
 String stopGripper(String command) {
   //stop gripper
   int dxl_comm_result = 0;
@@ -345,9 +351,10 @@ std::vector<int> commandToPose(String command) {
 
 String moveGripper(String command){
   std::vector<int> target_position = commandToPose(command);
+  std::vector<int> current_position;
   
   if(!gripper->move(target_position)){
-    return String(Response::TIMEOUT)+","+gripper->getErrorMessage();  
+    return getState();  
   }
   return getState();
 }
@@ -355,9 +362,10 @@ String moveGripper(String command){
 String moveServo(String command){
   int servo_id = getValue(command, ',', 1).toInt();
   int target_position = getValue(command, ',', 2).toInt();
+  std::vector<int> current_position;
   
   if(!gripper->move(servo_id, target_position)){
-    return String(Response::TIMEOUT+","+gripper->getErrorMessage());  
+    return getState();  
   }
   return getState();
 }

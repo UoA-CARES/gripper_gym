@@ -13,7 +13,7 @@ class Command(Enum):
     STOP       = 1
     MOVE       = 2
     MOVE_SERVO = 3
-    GET_STAT   = 4
+    GET_STATE   = 4
     LED        = 5
 
 class Response(Enum):
@@ -28,9 +28,6 @@ def handle_gripper_error(error):
     if value == 'x':
         logging.info("Giving up correcting gripper")
         return True 
-    elif value == 'y':
-        logging.info("moving on...")
-        #figure out exit condition
     return False
 
 class GripperError(IOError):
@@ -46,8 +43,11 @@ class Gripper(object):
 
     def process_response(self, response):
       if '\n' not in response:
-        logging.debug(f"Serial Read Timeout")
-        return Response.TIMEOUT, "timed out, hopefully moving on..."
+        #logging.debug(f"Serial Read Timeout")
+        current_positions = self.current_positions()
+        current_positions = [int(x) for x in current_positions]
+        logging.debug(f"current positions = {current_positions}")
+        return Response.TIMEOUT, current_positions
       error_state = int(response.split(',')[0])
       message = response.split(',')[1:]
       logging.debug(f"Error Flag: {error_state} {Response(error_state)} {message}")
@@ -68,7 +68,9 @@ class Gripper(object):
         
         if comm_result != Response.SUCCEEDED:
             if comm_result == Response.TIMEOUT: 
-                pass
+                state = [int(x) for x in message]
+                logging.info(f"STATE: {state}")
+                return state
             else:   
                 raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
 
@@ -76,22 +78,14 @@ class Gripper(object):
         return state
 
     def current_positions(self,timeout=5):
-        command = f"{Command.GET_STATE.value}"
-        logging.debug(f"Command: {command}")
+        command = f"{Command.GET_STATE.value}\n"
+        logging.debug(f"get state command sent: {command}")
 
         try:
-            return self.send_command(command, timeout)
+            return  self.send_command(command, timeout)
         except GripperError as error:
             raise GripperError(f"Failed to read position of Gripper#{self.gripper_id}") from error
 
-        memory.add(state, action, reward)
-        command = f"{Command.STOP.value}"
-        logging.debug(f"Command: {command}")
-
-        try:
-            return self.send_command(command, timeout)
-        except GripperError as error:
-            raise GripperError(f"Failed to read stop Gripper#{self.gripper_id}") from error
 
     def move_servo(self, servo_id, target_step, timeout=5):
         command = f"{Command.MOVE_SERVO.value},{servo_id},{target_step}"
