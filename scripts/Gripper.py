@@ -67,7 +67,10 @@ class Gripper(object):
         comm_result, message = self.process_response(response)
         
         if comm_result != Response.SUCCEEDED:
-            raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
+            if comm_result == Response.TIMEOUT: 
+                pass
+            else:   
+                raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
 
         state = [int(x) for x in message]
         return state

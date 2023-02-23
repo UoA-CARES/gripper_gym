@@ -56,7 +56,8 @@ enum Command {
 // Needs to match the enum order in Gripper.py
 enum Response {
   SUCCEEDED,
-  ERROR_STATE
+  ERROR_STATE, 
+  TIMEOUT
 };
 
 class Gripper{
@@ -346,7 +347,7 @@ String moveGripper(String command){
   std::vector<int> target_position = commandToPose(command);
   
   if(!gripper->move(target_position)){
-    return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();  
+    return String(Response::TIMEOUT)+","+gripper->getErrorMessage();  
   }
   return getState();
 }
@@ -356,7 +357,7 @@ String moveServo(String command){
   int target_position = getValue(command, ',', 2).toInt();
   
   if(!gripper->move(servo_id, target_position)){
-    return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();  
+    return String(Response::TIMEOUT+","+gripper->getErrorMessage());  
   }
   return getState();
 }
