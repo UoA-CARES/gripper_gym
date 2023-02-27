@@ -70,7 +70,7 @@ class GripperEnvironment():
 
         reward = 0
         # TODO paramatise the noise tolerance parameters
-        noise_tolerance = 3
+        noise_tolerance = 10
         if -noise_tolerance <= delta_changes <= noise_tolerance:
             reward = 0
         else:
