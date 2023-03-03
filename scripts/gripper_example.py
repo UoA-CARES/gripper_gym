@@ -8,13 +8,14 @@ def main():
     gripper = Gripper(device_name="/dev/ttyACM0")
     # These calls to setup the gripper will work or alert the operator to any issues to resolve them, if operator can't resolve it will simply crash with an exception
     gripper.ping()
-    gripper.led()
+    #gripper.led()
     gripper.home()
 
     # Will run and alert the operator if it can't be resolved, if operate can't resolve it then it will return to this except block to exit gracefully outside of the gripper class.
     try:
         target_steps1 = [412, 350, 650, 412, 350, 650, 412, 350, 650]
         target_steps2 = [512, 512, 512, 512, 512, 512, 512, 512, 512]
+        
         target_steps3 = [611, 673, 373, 611, 673, 373, 611, 673, 373]
 
         for i in range(0,10):

@@ -116,5 +116,6 @@ class GripperEnvironment():
         
         reward, done = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose)
 
+
         truncated = False #never truncate the episode but here for completion sake
         return state, reward, done, truncated

@@ -6,6 +6,9 @@ import time
 import numpy as np
 # from Camera import Camera
 
+#TODO: figure out how to update to the latest version of careslib so i can get the slack bot from there
+from slackbot import SlackBot
+
 from enum import Enum, auto
 
 class Command(Enum):
@@ -24,11 +27,20 @@ class Response(Enum):
 def handle_gripper_error(error):
     logging.warning(error)
     logging.info("Please fix the gripper and press enter to try again or x to quit: ")
+    message_slack(f"{error}, please fix before the programme continues")
     value  = input()
     if value == 'x':
         logging.info("Giving up correcting gripper")
         return True 
     return False
+
+def message_slack(message):
+        with open('slack_token.txt') as file: 
+            slack_token = file.read()
+
+        slack_bot = SlackBot(slack_token=slack_token)
+
+        slack_bot.post_message(channel="#cares-chat-bot", message=message)
 
 class GripperError(IOError):
     pass
@@ -131,6 +143,8 @@ class Gripper(object):
             return self.send_command(command)
         except GripperError as error:
             raise GripperError(f"Failed to enable Gripper#{self.gripper_id}") from error
+        
+    
 
     def close(self):
         logging.debug(f"Closing Gripper#{self.gripper_id}")
