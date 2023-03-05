@@ -70,7 +70,7 @@ class GripperEnvironment():
 
         reward = 0
         # TODO paramatise the noise tolerance parameters
-        noise_tolerance = 3
+        noise_tolerance = 10
         if -noise_tolerance <= delta_changes <= noise_tolerance:
             reward = 0
         else:
@@ -100,7 +100,7 @@ class GripperEnvironment():
         start_marker_pose = self.find_marker_pose(marker_id=self.marker_id)
         
         try:
-            state = self.gripper.move(action=action)
+            state = self.gripper.move(action)
         except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)
@@ -115,6 +115,7 @@ class GripperEnvironment():
         state.append(final_marker_yaw)
         
         reward, done = self.reward_function(self.target_angle, start_marker_pose, final_marker_pose)
+
 
         truncated = False #never truncate the episode but here for completion sake
         return state, reward, done, truncated

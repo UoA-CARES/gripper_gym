@@ -6,6 +6,9 @@ import time
 import numpy as np
 # from Camera import Camera
 
+#TODO: figure out how to update to the latest version of careslib so i can get the slack bot from there
+from slackbot import SlackBot
+
 from enum import Enum, auto
 
 class Command(Enum):
@@ -13,7 +16,8 @@ class Command(Enum):
     STOP       = 1
     MOVE       = 2
     MOVE_SERVO = 3
-    GET_STAT   = 4
+    GET_STATE   = 4
+    LED        = 5
 
 class Response(Enum):
     SUCCEEDED   = 0
@@ -21,13 +25,22 @@ class Response(Enum):
     TIMEOUT     = 2
 
 def handle_gripper_error(error):
-    logging.error(error)
+    logging.warning(error)
     logging.info("Please fix the gripper and press enter to try again or x to quit: ")
+    message_slack(f"{error}, please fix before the programme continues")
     value  = input()
     if value == 'x':
         logging.info("Giving up correcting gripper")
         return True 
     return False
+
+def message_slack(message):
+        with open('slack_token.txt') as file: 
+            slack_token = file.read()
+
+        slack_bot = SlackBot(slack_token=slack_token)
+
+        slack_bot.post_message(channel="#cares-chat-bot", message=message)
 
 class GripperError(IOError):
     pass
@@ -42,8 +55,11 @@ class Gripper(object):
 
     def process_response(self, response):
       if '\n' not in response:
-        logging.debug(f"Serial Read Timeout")
-        return Response.TIMEOUT
+        #logging.debug(f"Serial Read Timeout")
+        current_positions = self.current_positions()
+        current_positions = [int(x) for x in current_positions]
+        logging.debug(f"current positions = {current_positions}")
+        return Response.TIMEOUT, current_positions
       error_state = int(response.split(',')[0])
       message = response.split(',')[1:]
       logging.debug(f"Error Flag: {error_state} {Response(error_state)} {message}")
@@ -61,29 +77,27 @@ class Gripper(object):
         logging.debug(f"Response: {response}")
         
         comm_result, message = self.process_response(response)
+        
         if comm_result != Response.SUCCEEDED:
-            raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
+            if comm_result == Response.TIMEOUT: 
+                state = [int(x) for x in message]
+                logging.info(f"STATE: {state}")
+                return state
+            else:   
+                raise GripperError(f"Gripper#{self.gripper_id}: {comm_result} {message}")
 
-        state = [int(x) for x in message.split(',')]
+        state = [int(x) for x in message]
         return state
 
     def current_positions(self,timeout=5):
-        command = f"{Command.GET_STATE.value}"
-        logging.debug(f"Command: {command}")
+        command = f"{Command.GET_STATE.value}\n"
+        logging.debug(f"get state command sent: {command}")
 
         try:
-            return self.send_command(command, timeout)
+            return  self.send_command(command, timeout)
         except GripperError as error:
             raise GripperError(f"Failed to read position of Gripper#{self.gripper_id}") from error
 
-    def stop_moving(self,timeout=5):
-        command = f"{Command.STOP.value}"
-        logging.debug(f"Command: {command}")
-
-        try:
-            return self.send_command(command, timeout)
-        except GripperError as error:
-            raise GripperError(f"Failed to read stop Gripper#{self.gripper_id}") from error
 
     def move_servo(self, servo_id, target_step, timeout=5):
         command = f"{Command.MOVE_SERVO.value},{servo_id},{target_step}"
@@ -109,7 +123,7 @@ class Gripper(object):
           home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]
           return self.move(home_pose,timeout=timeout)
         except GripperError as error:
-            raise GripperError(f"Failed tom home Gripper#{self.gripper_id}") from error
+            raise GripperError(f"Failed to home Gripper#{self.gripper_id}") from error
 
     def ping(self):
         command = f"{Command.PING}"
@@ -120,11 +134,17 @@ class Gripper(object):
         except GripperError as error:
             raise GripperError(f"Failed to fully Ping Gripper#{self.gripper_id}") from error
 
-    def enable(self):
+    #leds, further extend to enable
+    def led(self):
+        
+        command = f"{Command.LED}"
+        logging.debug(f"Command: {command}")
         try:
-            self.ping()
+            return self.send_command(command)
         except GripperError as error:
             raise GripperError(f"Failed to enable Gripper#{self.gripper_id}") from error
+        
+    
 
     def close(self):
         logging.debug(f"Closing Gripper#{self.gripper_id}")

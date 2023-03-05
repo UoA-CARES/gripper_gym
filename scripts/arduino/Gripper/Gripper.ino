@@ -49,18 +49,20 @@ enum Command {
   STOP,
   MOVE,
   MOVE_SERVO,
-  GET_STATE
-};
+  GET_STATE, 
+  LED_ON 
+  };
 
 // Needs to match the enum order in Gripper.py
 enum Response {
   SUCCEEDED,
-  ERROR_STATE
+  ERROR_STATE, 
+  TIMEOUT
 };
 
 class Gripper{
   public:
-    Gripper(int baudrate=9600,int torque_limit=80, int speed_limit=100){
+    Gripper(int baudrate=9600,int torque_limit=180, int speed_limit=180){
 
       int max[NUM_SERVOS] = {900, 750, 769, 900, 750, 802, 900, 750, 794};
       int min[NUM_SERVOS] = {100, 250, 130, 100, 198, 152, 100, 250, 140};
@@ -152,6 +154,14 @@ class Gripper{
       if(!success)
         this->error_message = "Failed to setup servos";
       return success;
+    }
+
+    bool ledOn(){
+      bool success = true; 
+      for(int i = 0; i < NUM_SERVOS; i++){
+        int id = SERVO_IDS[i];
+        success &= this->dxl->writeControlTableItem(LED, id, LEDS[i]);
+      }
     }
 
     bool move(int servo_id, int goal_position, bool wait=true, long int timeout=5000){
@@ -315,6 +325,12 @@ String getState() {
   return String(Response::SUCCEEDED)+","+poseToString(current_position);
 }
 
+String getTimeoutState() {
+  std::vector<int> current_position;
+  return String(Response::TIMEOUT)+","+poseToString(current_position);
+
+}
+
 String stopGripper(String command) {
   //stop gripper
   int dxl_comm_result = 0;
@@ -335,9 +351,10 @@ std::vector<int> commandToPose(String command) {
 
 String moveGripper(String command){
   std::vector<int> target_position = commandToPose(command);
+  std::vector<int> current_position;
   
   if(!gripper->move(target_position)){
-    return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();  
+    return getState();  
   }
   return getState();
 }
@@ -345,11 +362,22 @@ String moveGripper(String command){
 String moveServo(String command){
   int servo_id = getValue(command, ',', 1).toInt();
   int target_position = getValue(command, ',', 2).toInt();
+  std::vector<int> current_position;
   
   if(!gripper->move(servo_id, target_position)){
-    return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();  
+    return getState();  
   }
   return getState();
+}
+
+String ledOn(){
+
+  bool success = gripper->ledOn();
+  
+  if(!success){
+    return String(Response::ERROR_STATE)+","+gripper->getErrorMessage();
+  }
+  return String(Response::SUCCEEDED)+", apparently the leds are on";
 }
 
 String processCommand(String command){
@@ -367,6 +395,8 @@ String processCommand(String command){
       return moveServo(command);
     case Command::GET_STATE:
       return getState();
+    case Command::LED_ON: 
+      return ledOn();
     default:
       return String(Response::ERROR_STATE)+",Unkown Command: "+command;
   }
