@@ -189,6 +189,7 @@ def train(td3, memory: MemoryBuffer):
                 plt.plot(historical_reward)
                 episode += 1
                 #episode terminated, therefore break out of while loop
+                env.gripper.home()
                 Done = True
 
         historical_reward.append(episode_reward)
