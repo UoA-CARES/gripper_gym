@@ -162,6 +162,9 @@ class Gripper{
         int id = SERVO_IDS[i];
         success &= this->dxl->writeControlTableItem(LED, id, LEDS[i]);
       }
+      if(!success)
+        this->error_message = "Failed to turn LEDs on";
+      return success;
     }
 
     bool move(int servo_id, int goal_position, bool wait=true, long int timeout=5000){

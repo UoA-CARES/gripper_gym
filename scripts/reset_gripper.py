@@ -4,7 +4,7 @@ import logging
 import time
 from datetime import datetime
 import numpy as np
-from Gripper import Gripper
+from ArduinoGripper import Gripper
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
 def main():

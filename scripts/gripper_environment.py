@@ -1,16 +1,21 @@
 import logging
 import numpy as np
 
-from Camera import Camera
+from pathlib import Path
 from Gripper import Gripper, GripperError
 
+from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
 # from cares_lib.dynamixel.Servo import DynamixelServoError
 
 class GripperEnvironment():
     def __init__(self):
         self.gripper = Gripper()
-        self.camera = Camera()
+
+        file_path = Path(__file__).parent.resolve()
+        camera_matrix_path     = f"{file_path}/config/camera_matrix.txt"
+        camera_distortion_path = f"{file_path}/config/camera_distortion.txt"
+        self.camera = Camera(0, camera_matrix_path, camera_distortion_path)
         
         self.aruco_detector = ArucoDetector(marker_size=18)
         self.target_angle = self.choose_target_angle()
