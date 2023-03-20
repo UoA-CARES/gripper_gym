@@ -16,6 +16,7 @@ class U2D2Gripper(object):
                  num_motors=4,
                  min  = [440, 260, 500, 510],
                  max  = [500, 510, 580, 760],
+                 home_pose = [440, 510, 580, 510],
                  actuated_target=False):
 
         # Setup Servor handlers
@@ -31,6 +32,8 @@ class U2D2Gripper(object):
 
         self.group_sync_write = dxl.GroupSyncWrite(self.port_handler, self.packet_handler, Servo.addresses["goal_position"], 2)
         self.group_sync_read  = dxl.GroupSyncRead(self.port_handler, self.packet_handler, Servo.addresses["current_position"], 2)
+
+        self.home_pose = home_pose
 
         self.servos = {}
     
@@ -157,8 +160,7 @@ class U2D2Gripper(object):
 
     def home(self):
         try:
-            home_pose = [440, 510, 580, 510]#TODO abstract to gripper with N servos            
-            current_pose = self.move(home_pose)
+            current_pose = self.move(self.home_pose)
             if self.target_servo is not None:
                 self.target_servo.move(400)#TODO abstract home position for the target servo
             return current_pose

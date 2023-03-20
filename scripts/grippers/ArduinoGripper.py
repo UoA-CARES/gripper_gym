@@ -30,6 +30,7 @@ class ArduinoGripper(object):
                  num_motors=9,
                  min = [100, 200, 300, 400, 500, 600, 700, 800, 900],
                  max = [100, 200, 300, 400, 500, 600, 700, 800, 900],
+                 home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750],
                  target_servo=False):
         
         # Setup Servor handlers
@@ -38,6 +39,8 @@ class ArduinoGripper(object):
         self.device_name = device_name
         self.baudrate = baudrate
         self.arduino = serial.Serial(device_name, baudrate)
+
+        self.home_pose = home_pose
 
     def process_response(self, response):
       if '\n' not in response:
@@ -124,8 +127,7 @@ class ArduinoGripper(object):
         
     def home(self,timeout=5):
         try:
-          home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750]#TODO abstract to gripper with N servos
-          return self.move(home_pose,timeout=timeout)
+          return self.move(self.home_pose,timeout=timeout)
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Failed to home Gripper#{self.gripper_id}") from error
 

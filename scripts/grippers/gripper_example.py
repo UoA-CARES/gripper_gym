@@ -8,19 +8,21 @@ from U2D2Gripper import U2D2Gripper
 
 # Example of how to use Gripper
 def main(gripper_type):
+    logging.info(f"Running gripper {gripper_type}")
+
     gripper = None
     if gripper_type == 0:# U2D2
         gripper = U2D2Gripper()
     elif gripper_type == 1:# Arduino
         gripper = ArduinoGripper()
 
-    logging.debug("Pinging Gripper to find all servos")
+    logging.info("Pinging Gripper to find all servos")
     gripper.ping()
 
-    logging.debug("Moving the Gripper to a home position")
+    logging.info("Moving the Gripper to a home position")
     gripper.home()
 
-    logging.debug("Closing the Gripper")
+    logging.info("Closing the Gripper")
     gripper.close()
 
 if __name__ == "__main__":
