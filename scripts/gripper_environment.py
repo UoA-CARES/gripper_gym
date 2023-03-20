@@ -2,30 +2,39 @@ import logging
 import numpy as np
 
 from pathlib import Path
-from Gripper import Gripper, GripperError
+file_path = Path(__file__).parent.resolve()
+
+from grippers.ArduinoGripper import ArduinoGripper
+from grippers.U2D2Gripper import U2D2Gripper
 
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
-# from cares_lib.dynamixel.Servo import DynamixelServoError
+from cares_lib.dynamixel.Servo import DynamixelServoError
 
 class GripperEnvironment():
-    def __init__(self):
-        self.gripper = Gripper()
+    def __init__(self,
+                 gripper_type,
+                 marker_id=0,
+                 marker_size=18,
+                 camera_matrix_path = f"{file_path}/config/camera_matrix.txt",
+                 camera_distortion_path = f"{file_path}/config/camera_distortion.txt"):
+        
+        if gripper_type == 0:# U2D2
+            self.gripper = U2D2Gripper()
+        elif gripper_type == 1:# Arduino
+            self.gripper = ArduinoGripper()
 
-        file_path = Path(__file__).parent.resolve()
-        camera_matrix_path     = f"{file_path}/config/camera_matrix.txt"
-        camera_distortion_path = f"{file_path}/config/camera_distortion.txt"
         self.camera = Camera(0, camera_matrix_path, camera_distortion_path)
         
-        self.aruco_detector = ArucoDetector(marker_size=18)
+        self.aruco_detector = ArucoDetector(marker_size=marker_size)
         self.target_angle = self.choose_target_angle()
 
-        self.marker_id = 0
+        self.marker_id = marker_id
 
     def reset(self):
         try:
             state = self.gripper.home()
-        except GripperError as error:
+        except DynamixelServoError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)
             exit()
@@ -106,7 +115,7 @@ class GripperEnvironment():
         
         try:
             state = self.gripper.move(action)
-        except GripperError as error:
+        except DynamixelServoError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)
             exit()

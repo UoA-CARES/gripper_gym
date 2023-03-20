@@ -3,13 +3,13 @@ import backoff
 import dynamixel_sdk as dxl
 import time
 
-import helper as hlp
+import gripper_helper as ghlp
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 
 class U2D2Gripper(object):
     def __init__(self,
                  gripper_id=0,
-                 device_name="/dev/ttyUSB1",
+                 device_name="/dev/ttyUSB0",
                  baudrate=1000000,
                  torque_limit=280,
                  speed_limit=280,
@@ -59,7 +59,7 @@ class U2D2Gripper(object):
         logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
 
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def setup_servos(self):
         try:
             for _, servo in self.servos.items():
@@ -71,7 +71,7 @@ class U2D2Gripper(object):
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to setup servos") from error
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def current_positions(self):
         try:
             current_positions = []
@@ -82,7 +82,7 @@ class U2D2Gripper(object):
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read current position") from error
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def current_load(self):
         try:
             current_load = []
@@ -101,7 +101,7 @@ class U2D2Gripper(object):
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to check if moving") from error
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def stop_moving(self):
         try:
             for _, servo in self.servos.items():
@@ -109,7 +109,7 @@ class U2D2Gripper(object):
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to stop moving") from error
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def move_servo(self, servo_id, target_step, wait=True, timeout=5):
         if servo_id not in self.servos:
             error_message = f"Dynamixel#{servo_id} is not associated to Gripper#{self.gripper_id}"
@@ -122,7 +122,7 @@ class U2D2Gripper(object):
             raise DynamixelServoError(f"Gripper#{self.gripper_id} failed while moving Dynamixel#{servo_id}") from error
 
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def move(self, steps, wait=True, timeout=5):
 
         if not self.verify_steps(steps):
@@ -164,6 +164,13 @@ class U2D2Gripper(object):
             return current_pose
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to Home") from error
+        
+    def ping(self):
+        try:
+            for _, servo in self.servos.items():
+                servo.ping()
+        except DynamixelServoError as error:
+            raise DynamixelServoError(f"Failed to fully Ping Gripper#{self.gripper_id}") from error
 
     def close(self):
         # disable torque
@@ -175,3 +182,22 @@ class U2D2Gripper(object):
 
         # close port
         self.port_handler.closePort()
+
+    def verify_steps(self, steps):
+        # check all actions are within min max of each servo
+        for id, servo in self.servos.items():
+            if not servo.verify_step(steps[id]):
+                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id + 1} is out of bounds")
+                return False
+        return True
+
+    def action_to_steps(self, action):
+        steps = action
+        max_action = 1
+        min_action = -1
+        for i in range(0, len(steps)):
+            max = self.servos[i].max
+            min = self.servos[i].min
+            #steps[i] = steps[i] * (max - min) + min
+            steps[i] = int((steps[i] - min_action) * (max - min) / (max_action - min_action)  + min)
+        return steps

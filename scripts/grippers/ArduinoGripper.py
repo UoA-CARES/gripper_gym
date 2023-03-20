@@ -2,7 +2,7 @@ import logging
 import backoff
 import serial
 
-import helper as hlp
+import gripper_helper as ghlp
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
 from enum import Enum
@@ -51,7 +51,7 @@ class ArduinoGripper(object):
       logging.debug(f"Error Flag: {error_state} {Response(error_state)} {message}")
       return Response(error_state), message
 
-    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=hlp.handle_gripper_error)
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def send_command(self, command, timeout=5):
         try:
             self.arduino.write(command.encode())
