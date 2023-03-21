@@ -1,8 +1,10 @@
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-from pathlib import Path
+import pydantic
 from argparse import ArgumentParser
+
+from pathlib import Path
 
 import numpy as np
 import random
@@ -11,6 +13,8 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+from configurations import LearningConfig
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
@@ -27,36 +31,10 @@ else:
 def train(environment, network, memory):
     pass
 
-def parse_args():
-    # TODO will replace this with yaml files to load in configurations for everything
-    parser = ArgumentParser()
-    file_path = Path(__file__).parent.resolve()
-
-    parser.add_argument("--gripper_type",      type=int)
-    parser.add_argument("--camera_id",         type=int, default=0)
-    parser.add_argument("--marker_id",         type=int, default=0)
-    parser.add_argument("--marker_size",       type=int, default=18)
-    parser.add_argument("--camera_matrix",     type=str, default=f"{file_path}/config/camera_matrix.txt")
-    parser.add_argument("--camera_distortion", type=str, default=f"{file_path}/config/camera_distortion.txt")
-
-    parser.add_argument("--seed",              type=int, default=69)
-    parser.add_argument("--batch_size",        type=int, default=32)
-    parser.add_argument("--buffer_capacity",   type=int, default=100)
-    parser.add_argument("--episode_num",       type=int, default=100)
-    parser.add_argument("--action_num",        type=int, default=15)
-
-    args = parser.parse_args()
-    return args
-
 def main():
-    args = parse_args()
-
-    environment = GripperEnvironment(args.gripper_type,
-                                     args.camera_id,
-                                     args.marker_id,
-                                     args.marker_size,
-                                     args.camera_matrix,
-                                     args.camera_distortion)
+    file_path = Path(__file__).parent.resolve()
+    config = pydantic.parse_file_as(path=f"{file_path}/config/learning_config.json", type_=LearningConfig)
+    environment = GripperEnvironment(config.env_config)
 
     # TODO take these from the environment via the Gripper setup
     MAX_ACTIONS = np.array([900, 750, 750, 900, 750, 750, 900, 750, 750]) #have generalised this to 750 for lower joints for consistency

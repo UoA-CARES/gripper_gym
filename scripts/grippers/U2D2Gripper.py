@@ -3,11 +3,12 @@ import backoff
 import dynamixel_sdk as dxl
 import time
 
+from configurations import GripperConfig
 import grippers.gripper_helper as ghlp
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 
 class U2D2Gripper(object):
-    def __init__(self, config : ghlp.GripperConfig):
+    def __init__(self, config : GripperConfig):
 
         # Setup Servor handlers
         self.gripper_id  = config.gripper_id

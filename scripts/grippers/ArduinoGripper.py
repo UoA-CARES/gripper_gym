@@ -2,6 +2,7 @@ import logging
 import backoff
 import serial
 
+from configurations import GripperConfig
 import grippers.gripper_helper as ghlp
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
@@ -21,7 +22,7 @@ class Response(Enum):
     TIMEOUT     = 2
 
 class ArduinoGripper(object):
-    def __init__(self, config : ghlp.GripperConfig):
+    def __init__(self, config : GripperConfig):
         # Setup Servor handlers
         self.gripper_id = config.gripper_id
         

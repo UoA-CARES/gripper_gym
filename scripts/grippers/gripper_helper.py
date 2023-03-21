@@ -3,18 +3,7 @@ from cares_lib.slack_bot.SlackBot import SlackBot
 from pydantic import BaseModel
 from typing import List, Optional
 
-class GripperConfig(BaseModel):
-    gripper_type: int
-    gripper_id: int
-    device_name: str
-    baudrate: int
-    torque_limit: int
-    speed_limit: int
-    num_motors: int
-    min_value: List[int]
-    max_value: List[int]
-    home_pose: List[int]
-    actuated_target: bool
+from configurations import GripperConfig
 
 def message_slack(message):
     with open('slack_token.txt') as file: 

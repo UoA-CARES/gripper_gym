@@ -13,17 +13,6 @@ import grippers.gripper_helper as ghlp
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.dynamixel.Servo import DynamixelServoError
-
-class EnvironmentConfig(BaseModel):
-    # environment
-    camera_id: int
-    marker_id: int
-    marker_size: int
-    camera_matrix: Optional[str] = f"{file_path}/config/camera_matrix.txt"
-    camera_distortion: Optional[str] = f"{file_path}/config/camera_distortion.txt"
-
-    # gripper
-    gripper_config: GripperConfig
     
 
 class GripperEnvironment():
