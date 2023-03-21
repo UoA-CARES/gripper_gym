@@ -4,32 +4,39 @@ import numpy as np
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from grippers.ArduinoGripper import ArduinoGripper
-from grippers.U2D2Gripper import U2D2Gripper
+from pydantic import BaseModel
+from typing import List, Optional
+
+from grippers.gripper_helper import GripperConfig
+import grippers.gripper_helper as ghlp
 
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
-class GripperEnvironment():
-    def __init__(self,
-                 gripper_type,
-                 marker_id=0,
-                 marker_size=18,
-                 camera_matrix_path = f"{file_path}/config/camera_matrix.txt",
-                 camera_distortion_path = f"{file_path}/config/camera_distortion.txt"):
-        
-        if gripper_type == 0:# U2D2
-            self.gripper = U2D2Gripper()
-        elif gripper_type == 1:# Arduino
-            self.gripper = ArduinoGripper()
+class EnvironmentConfig(BaseModel):
+    # environment
+    camera_id: int
+    marker_id: int
+    marker_size: int
+    camera_matrix: Optional[str] = f"{file_path}/config/camera_matrix.txt"
+    camera_distortion: Optional[str] = f"{file_path}/config/camera_distortion.txt"
 
-        self.camera = Camera(0, camera_matrix_path, camera_distortion_path)
+    # gripper
+    gripper_config: GripperConfig
+    
+
+class GripperEnvironment():
+    def __init__(self, config : EnvironmentConfig):
         
-        self.aruco_detector = ArucoDetector(marker_size=marker_size)
+        self.gripper = ghlp.create_gripper(config.gripper_type)
+
+        self.camera = Camera(config.camera_id, config.camera_matrix, config.camera_distortion)
+        
+        self.aruco_detector = ArucoDetector(marker_size=config.marker_size)
         self.target_angle = self.choose_target_angle()
 
-        self.marker_id = marker_id
+        self.marker_id = config.marker_id
 
     def reset(self):
         try:

@@ -3,27 +3,17 @@ import backoff
 import dynamixel_sdk as dxl
 import time
 
-import gripper_helper as ghlp
+import grippers.gripper_helper as ghlp
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 
 class U2D2Gripper(object):
-    def __init__(self,
-                 gripper_id=0,
-                 device_name="/dev/ttyUSB0",
-                 baudrate=1000000,
-                 torque_limit=280,
-                 speed_limit=280,
-                 num_motors=4,
-                 min  = [440, 260, 500, 510],
-                 max  = [500, 510, 580, 760],
-                 home_pose = [440, 510, 580, 510],
-                 actuated_target=False):
+    def __init__(self, config : ghlp.GripperConfig):
 
         # Setup Servor handlers
-        self.gripper_id  = gripper_id
+        self.gripper_id  = config.gripper_id
         
-        self.device_name = device_name
-        self.baudrate = baudrate
+        self.device_name = config.device_name
+        self.baudrate = config.baudrate
         self.protocol = 2 # NOTE: XL-320 uses protocol 2, update if we ever use other servos
 
         self.port_handler   = dxl.PortHandler(self.device_name)
@@ -33,17 +23,17 @@ class U2D2Gripper(object):
         self.group_sync_write = dxl.GroupSyncWrite(self.port_handler, self.packet_handler, Servo.addresses["goal_position"], 2)
         self.group_sync_read  = dxl.GroupSyncRead(self.port_handler, self.packet_handler, Servo.addresses["current_position"], 2)
 
-        self.home_pose = home_pose
+        self.home_pose = config.home_pose
 
         self.servos = {}
     
         self.target_servo = None
-        if actuated_target:
-            self.target_servo = Servo(self.port_handler, self.packet_handler, 0, num_motors+1, 0, 1023)
+        if config.actuated_target:
+            self.target_servo = Servo(self.port_handler, self.packet_handler, 0, config.num_motors+1, 0, 1023)
 
         try:
-            for i in range(0, num_motors):
-                self.servos[i] = Servo(self.port_handler, self.packet_handler, i, i + 1, torque_limit, speed_limit, max[i], min[i])
+            for i in range(0, config.num_motors):
+                self.servos[i] = Servo(self.port_handler, self.packet_handler, i, i + 1, config.torque_limit, config.speed_limit, config.max_value[i], config.min_value[i])
             self.setup_servos()
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error

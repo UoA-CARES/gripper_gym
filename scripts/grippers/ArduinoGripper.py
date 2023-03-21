@@ -2,7 +2,7 @@ import logging
 import backoff
 import serial
 
-import gripper_helper as ghlp
+import grippers.gripper_helper as ghlp
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
 from enum import Enum
@@ -21,26 +21,15 @@ class Response(Enum):
     TIMEOUT     = 2
 
 class ArduinoGripper(object):
-    def __init__(self, 
-                 gripper_id=0, 
-                 device_name="/dev/ttyACM0", 
-                 baudrate=115200,
-                 torque_limit=280,
-                 speed_limit=280,
-                 num_motors=9,
-                 min = [100, 200, 300, 400, 500, 600, 700, 800, 900],
-                 max = [100, 200, 300, 400, 500, 600, 700, 800, 900],
-                 home_pose = [512, 250, 750, 512, 250, 750, 512, 250, 750],
-                 target_servo=False):
-        
+    def __init__(self, config : ghlp.GripperConfig):
         # Setup Servor handlers
-        self.gripper_id = gripper_id
+        self.gripper_id = config.gripper_id
         
-        self.device_name = device_name
-        self.baudrate = baudrate
-        self.arduino = serial.Serial(device_name, baudrate)
+        self.device_name = config.device_name
+        self.baudrate = config.baudrate
+        self.arduino = serial.Serial(config.device_name, config.baudrate)
 
-        self.home_pose = home_pose
+        self.home_pose = config.home_pose
 
     def process_response(self, response):
       if '\n' not in response:
