@@ -14,12 +14,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from configurations import LearningConfig
+from configurations import LearningConfig, EnvironmentConfig, GripperConfig
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
 
-from gripper_environment import GripperEnvironment
+from envrionments.RotationEnvironment import RotationEnvironment
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
@@ -31,38 +31,38 @@ else:
 def train(environment, network, memory):
     pass
 
-def main():
+def parse_args():
+    parser = ArgumentParser()
     file_path = Path(__file__).parent.resolve()
-    config = pydantic.parse_file_as(path=f"{file_path}/config/learning_config.json", type_=LearningConfig)
-    environment = GripperEnvironment(config.env_config)
+    
+    parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
+    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_config.json")
+    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_config.json")
+    
+    return parser.parse_args()
 
-    # TODO take these from the environment via the Gripper setup
-    MAX_ACTIONS = np.array([900, 750, 750, 900, 750, 750, 900, 750, 750]) #have generalised this to 750 for lower joints for consistency
-    MIN_ACTIONS = np.array([100, 250, 250, 100, 250, 250, 100, 250, 250]) #have generalised this to 250 for lower joints for consistency
-    action_num = 9
-    observation_size = 10
-    min_actions = MIN_ACTIONS
-    max_actions = MAX_ACTIONS
+def main():
+    args = parse_args()
+    env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
+    gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
+    learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
 
-    memory = MemoryBuffer(args.buffer_capacity)
+    environment = RotationEnvironment(env_config, gripper_config)
 
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
-    random.seed(args.seed)
 
-    network = None
-    # td3 = TD3(
-    #     actor_network=actor,
-    #     critic_one=critic_one,
-    #     critic_two=critic_two,
-    #     max_actions=max_actions,
-    #     min_actions=min_actions,
-    #     gamma=GAMMA,
-    #     tau=TAU,
-    #     device=DEVICE
-    # )
+    # read out all the learning configurations that are required
+    
+    # num_actions = learning_config.num_actions
+    # observation_size = learning_config.observation_space
 
-    train(environment, network, memory)
+    # memory = MemoryBuffer(args.buffer_capacity)
+    # torch.manual_seed(args.seed)
+    # np.random.seed(args.seed)
+    # random.seed(args.seed)
+
+    # network = None
+    
+    # train(environment, network, memory)
 
 if __name__ == '__main__':
     main()

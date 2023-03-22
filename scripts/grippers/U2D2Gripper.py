@@ -27,6 +27,7 @@ class U2D2Gripper(object):
         self.home_pose = config.home_pose
 
         self.servos = {}
+        self.num_motors = config.num_motors
     
         self.target_servo = None
         if config.actuated_target:

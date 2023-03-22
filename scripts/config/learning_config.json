@@ -4,24 +4,9 @@
     "buffer_capacity": 100,
     "episode_num": 100,
     "action_num": 15,
-
-    "env_config": {
-        "camera_id": 0,
-        "marker_id": 0,
-        "marker_size": 18,
-
-        "gripper_config": {
-            "gripper_type": 0,
-            "gripper_id": 0,
-            "device_name": "/dev/ttyUSB0",
-            "baudrate": 1000000,
-            "torque_limit": 280,
-            "speed_limit": 280,
-            "num_motors": 4,
-            "min_value": [440, 260, 500, 510],
-            "max_value": [500, 510, 580, 760],
-            "home_pose": [440, 510, 580, 510],
-            "actuated_target": false
-        }
-    }
+    
+    "G": 10,
+    "plot_freq": 25,
+    "max_steps_exploration": 3000,
+    "max_steps_training": 50000   
 }

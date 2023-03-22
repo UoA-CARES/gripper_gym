@@ -26,6 +26,8 @@ class ArduinoGripper(object):
         # Setup Servor handlers
         self.gripper_id = config.gripper_id
         
+        self.num_motors = config.num_motors
+
         self.device_name = config.device_name
         self.baudrate = config.baudrate
         self.arduino = serial.Serial(config.device_name, config.baudrate)
