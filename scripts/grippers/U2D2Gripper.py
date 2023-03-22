@@ -34,8 +34,8 @@ class U2D2Gripper(object):
             self.target_servo = Servo(self.port_handler, self.packet_handler, 0, config.num_motors+1, 0, 1023)
 
         try:
-            for i in range(0, config.num_motors):
-                self.servos[i] = Servo(self.port_handler, self.packet_handler, i, i + 1, config.torque_limit, config.speed_limit, config.max_value[i], config.min_value[i])
+            for id in range(1, self.num_motors+1):
+                self.servos[id] = Servo(self.port_handler, self.packet_handler, id, id, config.torque_limit, config.speed_limit, config.max_value[id-1], config.min_value[id-1])
             self.setup_servos()
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
@@ -126,8 +126,9 @@ class U2D2Gripper(object):
             raise DynamixelServoError(error_message)
 
         for id, servo in self.servos.items():
-            servo.target_position = steps[id]
-            self.group_sync_write.addParam(id + 1, [dxl.DXL_LOBYTE(steps[id]), dxl.DXL_HIBYTE(steps[id])])
+            target_position = steps[id-1]
+            servo.target_position = target_position
+            self.group_sync_write.addParam(id, [dxl.DXL_LOBYTE(target_position), dxl.DXL_HIBYTE(target_position)])
 
         dxl_comm_result = self.group_sync_write.txPacket()
         if dxl_comm_result != dxl.COMM_SUCCESS:
@@ -180,18 +181,8 @@ class U2D2Gripper(object):
     def verify_steps(self, steps):
         # check all actions are within min max of each servo
         for id, servo in self.servos.items():
-            if not servo.verify_step(steps[id]):
-                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id + 1} is out of bounds")
+            step = steps[id-1]
+            if not servo.verify_step(step):
+                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id} is out of bounds")
                 return False
         return True
-
-    def action_to_steps(self, action):
-        steps = action
-        max_action = 1
-        min_action = -1
-        for i in range(0, len(steps)):
-            max = self.servos[i].max
-            min = self.servos[i].min
-            #steps[i] = steps[i] * (max - min) + min
-            steps[i] = int((steps[i] - min_action) * (max - min) / (max_action - min_action)  + min)
-        return steps

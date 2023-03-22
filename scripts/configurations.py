@@ -13,8 +13,14 @@ class LearningConfig(BaseModel):
 
 class EnvironmentConfig(BaseModel):
     camera_id: int
-    marker_id: int
-    marker_size: int
+    object_type: int
+    observation_type: int
+    goal_selection_method: int
+    object_marker_id: int
+
+    noise_tolerance: Optional[int] = 5
+    marker_size: Optional[int] = 18
+
     camera_matrix: Optional[str] = f"{file_path}/config/camera_matrix.txt"
     camera_distortion: Optional[str] = f"{file_path}/config/camera_distortion.txt"
 

@@ -1,5 +1,5 @@
 {
-    "gripper_type": 0,
+    "gripper_type": 1,
     "gripper_id": 0,
     "device_name": "/dev/ttyUSB0",
     "baudrate": 1000000,

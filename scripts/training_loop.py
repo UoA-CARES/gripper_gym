@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 import pydantic
 from argparse import ArgumentParser
@@ -49,7 +49,8 @@ def main():
 
     environment = RotationEnvironment(env_config, gripper_config)
 
-
+    environment.reset()
+    environment.step([500, 510, 580, 510])
     # read out all the learning configurations that are required
     
     # num_actions = learning_config.num_actions
