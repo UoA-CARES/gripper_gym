@@ -59,6 +59,7 @@ class Environment(ABC):
             exit()
 
         state = self.get_state()
+        logging.info(state)
 
         self.goal_pose = self.choose_goal()
 
@@ -78,6 +79,7 @@ class Environment(ABC):
             exit()
 
         state = self.get_state()
+        logging.info(state)
 
         object_pose_after = self.get_object_pose()
         
@@ -99,7 +101,6 @@ class Environment(ABC):
 
         return state
 
-    # TODO fix the state size...
     def marker_state(self):
         # X-Y positions of servos + X-Y-Yaw of target
         state = []
