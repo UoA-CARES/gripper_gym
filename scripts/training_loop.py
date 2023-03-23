@@ -50,20 +50,24 @@ def main():
     elif env_config.env_type == 1:
         environment = TranslationEnvironment(env_config, gripper_config)
     
+    logging.info("Resetting Environment")
     state = environment.reset()
+    
     observation_size = len(state)
     num_actions = gripper_config.num_motors
-    
     logging.info(f"Observaton Space: {observation_size} Action Space: {num_actions}")
 
     torch.manual_seed(learning_config.seed)
     np.random.seed(learning_config.seed)
     random.seed(learning_config.seed)
 
-    memory = MemoryBuffer(learning_config.buffer_capacity)    
-    
+    logging.info("Setting up Network")
     # network = None
-    
+
+    logging.info("Setting up Memory")
+    memory = MemoryBuffer(learning_config.buffer_capacity)
+
+    logging.info("Starting Training Loop")
     # train(environment, network, memory)
 
 if __name__ == '__main__':
