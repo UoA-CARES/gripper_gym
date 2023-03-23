@@ -1,12 +1,11 @@
 {
     "camera_id": 0,
     "object_type": 0,
-    "observation_type": 0,
+    "observation_type": 1,
 
     "goal_selection_method": 0,
-    
-    "object_marker_id": 6,
+
     "marker_size": 18,
-    
+
     "noise_tolerance": 5
 }

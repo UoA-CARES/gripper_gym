@@ -45,7 +45,7 @@ class RotationEnvironment(Environment):
         if self.goal_selection_method == 0:# TODO Turn into enum
             return fixed_goals()
         elif self.goal_selection_method == 1:
-            return relative_goal(self.get_object_pose())
+            return relative_goal(self.get_object_state())
         
         raise ValueError(f"Goal selection method unkown: {self.goal_selection_method}")
 

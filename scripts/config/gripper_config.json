@@ -1,6 +1,6 @@
 {
-    "gripper_type": 1,
-    "gripper_id": 0,
+    "gripper_type": 0,
+    "gripper_id": 1,
     "device_name": "/dev/ttyUSB0",
     "baudrate": 1000000,
     "torque_limit": 280,

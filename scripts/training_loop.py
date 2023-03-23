@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 import pydantic
 from argparse import ArgumentParser
@@ -51,6 +51,8 @@ def main():
 
     environment.reset()
     environment.step([500, 510, 580, 510])
+    environment.step([480, 480, 550, 530])
+    environment.step([490, 490, 565, 550])
     # read out all the learning configurations that are required
     
     # num_actions = learning_config.num_actions

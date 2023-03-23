@@ -16,7 +16,6 @@ class EnvironmentConfig(BaseModel):
     object_type: int
     observation_type: int
     goal_selection_method: int
-    object_marker_id: int
 
     noise_tolerance: Optional[int] = 5
     marker_size: Optional[int] = 18

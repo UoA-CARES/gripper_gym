@@ -151,6 +151,7 @@ class U2D2Gripper(object):
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read its position") from error
 
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def home(self):
         try:
             current_pose = self.move(self.home_pose)
@@ -160,6 +161,7 @@ class U2D2Gripper(object):
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to Home") from error
         
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def ping(self):
         try:
             for _, servo in self.servos.items():
@@ -183,6 +185,6 @@ class U2D2Gripper(object):
         for id, servo in self.servos.items():
             step = steps[id-1]
             if not servo.verify_step(step):
-                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id} is out of bounds")
+                logging.warn(f"Gripper#{self.gripper_id}: step for servo {id} is out of bounds: {servo.min} to {servo.max}")
                 return False
         return True
