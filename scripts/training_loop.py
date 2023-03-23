@@ -1,5 +1,5 @@
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 import pydantic
 from argparse import ArgumentParser
@@ -11,15 +11,13 @@ import random
 import matplotlib.pyplot as plt
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
 
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig
+from envrionments.RotationEnvironment import RotationEnvironment
+from envrionments.TranslationEnvironment import TranslationEnvironment
 
 from cares_reinforcement_learning.networks import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
-
-from envrionments.RotationEnvironment import RotationEnvironment
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
@@ -36,8 +34,8 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_config.json")
-    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_config.json")
+    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_4DOF_config.json")
+    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_4DOF_config.json")
     
     return parser.parse_args()
 
@@ -47,22 +45,23 @@ def main():
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
 
-    environment = RotationEnvironment(env_config, gripper_config)
-
-    environment.reset()
-    environment.step([500, 510, 580, 510])
-    environment.step([480, 480, 550, 530])
-    environment.step([490, 490, 565, 550])
-    # read out all the learning configurations that are required
+    if env_config.env_type == 0:
+        environment = RotationEnvironment(env_config, gripper_config)
+    elif env_config.env_type == 1:
+        environment = TranslationEnvironment(env_config, gripper_config)
     
-    # num_actions = learning_config.num_actions
-    # observation_size = learning_config.observation_space
+    state = environment.reset()
+    observation_size = len(state)
+    num_actions = gripper_config.num_motors
+    
+    logging.info(f"Observaton Space: {observation_size} Action Space: {num_actions}")
 
-    # memory = MemoryBuffer(args.buffer_capacity)
-    # torch.manual_seed(args.seed)
-    # np.random.seed(args.seed)
-    # random.seed(args.seed)
+    torch.manual_seed(learning_config.seed)
+    np.random.seed(learning_config.seed)
+    random.seed(learning_config.seed)
 
+    memory = MemoryBuffer(learning_config.buffer_capacity)    
+    
     # network = None
     
     # train(environment, network, memory)

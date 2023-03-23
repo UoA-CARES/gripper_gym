@@ -60,11 +60,11 @@ class Environment(ABC):
             exit()
 
         state = self.get_state()
-        logging.info(state)
+        logging.debug(state)
 
         self.goal_state = self.choose_goal()
 
-        logging.info(f"New Goal Generated: {self.goal_state}")
+        logging.debug(f"New Goal Generated: {self.goal_state}")
         return state
 
     def step(self, action):

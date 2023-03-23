@@ -9,9 +9,10 @@ class LearningConfig(BaseModel):
     batch_size: int
     buffer_capacity: int
     episode_num: int
-    action_num: int
 
 class EnvironmentConfig(BaseModel):
+    env_type: int
+
     camera_id: int
     object_type: int
     observation_type: int

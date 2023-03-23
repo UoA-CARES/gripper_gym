@@ -1,0 +1,13 @@
+{
+    "env_type": 0,
+
+    "camera_id": 0,
+    "object_type": 1,
+    "observation_type": 0,
+
+    "goal_selection_method": 0,
+
+    "marker_size": 18,
+
+    "noise_tolerance": 5
+}
