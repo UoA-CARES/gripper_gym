@@ -31,7 +31,7 @@ def get_aruco_target_pose(marker_id, camera, aruco_detector, blindable=False, de
 
 def get_servo_target_pose(gripper, marker_id, camera, aruco_detector, blindable=False, detection_attempts=4):
     object_pose = get_aruco_target_pose(marker_id, camera, aruco_detector, blindable, detection_attempts)
-    object_pose["orientation"][2] = gripper.target_servo.current_position()
+    object_pose["orientation"][2] = gripper.current_object_position()
     return object_pose
 #####
 
@@ -154,7 +154,7 @@ class Environment(ABC):
         elif self.object_type == 1:
             return get_aruco_target_pose(self.object_marker_id, self.camera, self.aruco_detector, True, 4)
         elif self.object_type == 2:
-            return get_servo_target_pose(self.gripper)
+            return get_servo_target_pose(self.gripper, self.object_marker_id, self.camera, self.aruco_detector, False)
 
         raise ValueError(f"Unkown object type: {self.object_type}")
 

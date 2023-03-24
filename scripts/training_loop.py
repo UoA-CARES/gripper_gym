@@ -8,7 +8,6 @@ from pathlib import Path
 
 import numpy as np
 import random
-import matplotlib.pyplot as plt
 
 import torch
 
@@ -52,8 +51,9 @@ def main():
     
     logging.info("Resetting Environment")
     state = environment.reset()
+    logging.info(f"State: {state}")
     
-    observation_size = len(state)
+    observation_size = len(state)# This wont work for multi-deminsion arrays
     num_actions = gripper_config.num_motors
     logging.info(f"Observaton Space: {observation_size} Action Space: {num_actions}")
 

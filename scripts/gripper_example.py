@@ -24,6 +24,6 @@ def main(gripper_config):
     gripper.close()
 
 if __name__ == "__main__":
-    config = pydantic.parse_file_as(path=f"{file_path}/config/gripper_config.json", type_=GripperConfig)
+    config = pydantic.parse_file_as(path=f"{file_path}/config/gripper_4DOF_config.json", type_=GripperConfig)
     logging.info(f"Config: {config}")
     main(config)

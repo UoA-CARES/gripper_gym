@@ -31,7 +31,7 @@ class U2D2Gripper(object):
     
         self.target_servo = None
         if config.actuated_target:
-            self.target_servo = Servo(self.port_handler, self.packet_handler, 0, config.num_motors+1, 0, 1023)
+            self.target_servo = Servo(self.port_handler, self.packet_handler, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 1023, 0)
 
         try:
             for id in range(1, self.num_motors+1):
@@ -76,6 +76,15 @@ class U2D2Gripper(object):
             return current_positions
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read current position") from error
+
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
+    def current_object_position(self):
+        try:
+            if self.target_servo is None:
+                raise ValueError("Object Servo is None")
+            return self.target_servo.current_position()
+        except DynamixelServoError as error:
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read object position") from error
 
     @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=ghlp.handle_gripper_error)
     def current_load(self):
