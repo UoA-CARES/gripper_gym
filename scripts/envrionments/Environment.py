@@ -6,34 +6,12 @@ import numpy as np
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from pydantic import BaseModel
-from typing import List, Optional
-
 from configurations import EnvironmentConfig, GripperConfig
 import grippers.gripper_helper as ghlp
 
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.dynamixel.Servo import DynamixelServoError
-
-##### Find object type pose functions
-def get_aruco_target_pose(marker_id, camera, aruco_detector, blindable=False, detection_attempts=4):
-    attempt = 0
-    while not blindable or attempt < detection_attempts:
-        msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-        logging.debug(f"Attempting to detect aruco target: {msg}")
-        frame = camera.get_frame()
-        marker_poses = aruco_detector.get_marker_poses(frame, camera.camera_matrix, camera.camera_distortion)
-        if marker_id in marker_poses:
-            return marker_poses[marker_id]
-        attempt += 1
-    return None
-
-def get_servo_target_pose(gripper, marker_id, camera, aruco_detector, blindable=False, detection_attempts=4):
-    object_pose = get_aruco_target_pose(marker_id, camera, aruco_detector, blindable, detection_attempts)
-    object_pose["orientation"][2] = gripper.current_object_position()
-    return object_pose
-#####
 
 class Environment(ABC):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig):
@@ -47,7 +25,7 @@ class Environment(ABC):
         self.noise_tolerance = env_config.noise_tolerance
         
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-        self.object_marker_id = self.gripper.num_motors + 1
+        self.object_marker_id = self.gripper.num_motors + 3# Num Servos + Finger Tips (2) + 1
 
         self.goal_state = self.get_object_state()
 
@@ -67,9 +45,8 @@ class Environment(ABC):
         logging.debug(f"New Goal Generated: {self.goal_state}")
         return state
 
-    def step(self, action):
-        
-        # Get initial pose of the marker before moving to help calculate reward after moving
+    def step(self, action): 
+        # Get initial pose of the object before moving to help calculate reward after moving
         object_state_before = self.get_object_state()
         
         try:
@@ -90,11 +67,11 @@ class Environment(ABC):
         truncated = False #never truncate the episode but here for completion sake
         return state, reward, done, truncated
 
-    def gripper_state(self):
-        state = self.gripper.current_positions()
+    def servo_state_space(self):
+        # Angle Servo + X-Y-Yaw Object
+        state = self.gripper.current_positions()# TODO convert from steps to angle
         object_state = self.get_object_state()
         
-        # if target is not visible then append -1 to the state (norm 0-360)
         if object_state is not None:
             position    = object_state["position"]
             orientation = object_state["orientation"]
@@ -102,17 +79,18 @@ class Environment(ABC):
             state.append(position[1])#Y
             state.append(orientation[2])#Yaw
         else:
+            # if target is not visible then append -1 to the state (norm 0-360)
+            # TODO this needs further consideration...
             state.append(-1)
 
         return state
 
-    def marker_state(self):
-        # This all presumes the Aruco IDs match the servo IDs and the object is number of servos plus one
-
-        # X-Y positions of servos + X-Y-Yaw of target
+    # The aruco state presumes the Aruco IDs match the servo IDs + 2 Markers for finger tips + 1 Marker for Object
+    def aruco_state_space(self):
+        # X-Y Servo + X-Y Finger-tips + X-Y-Yaw Object
         state = []
         
-        num_markers = self.gripper.num_motors + 1 # Plus the target object
+        num_markers = self.gripper.num_motors + 3 # Servos + Finger Tips (2) + Object (1)
         marker_ids = [id for id in range(1, num_markers+1)]# maker_ids match servo ids (counting from 1)
         while True:
             logging.debug(f"Attempting to Detect State")
@@ -120,41 +98,84 @@ class Environment(ABC):
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
 
             # This will check that all the markers are detected correctly
-            if len(marker_poses) >= len(marker_ids) and all(ids in marker_poses for ids in marker_ids):
+            if all(ids in marker_poses for ids in marker_ids):
                 break
 
         # Add the XY poses for each of the markers into the state
         state = [0 for _ in range(num_markers*2+1)]
-        
         for id in marker_ids:
             marker_pose = marker_poses[id]
             position    = marker_pose["position"]
-            orientation = marker_pose["orientation"]
+            #orientation = marker_pose["orientation"]
 
             i = id - 1
-            state[i*2]   = position[0]#X
-            state[i*2+1] = position[1]#Y
+            state[i*2]   = position[0] # X
+            state[i*2+1] = position[1] # Y
         
-        # Add the additional yaw information from the object marker
-        i = self.object_marker_id - 1
-        state[i*2+2] = marker_poses[self.object_marker_id]["orientation"][2]#Yaw
+        # Add the additional yaw information from the object marker (adds to the end)
+        state[-1:] = marker_poses[self.object_marker_id]["orientation"][2]#Yaw
+
         return state
+
+    def servo_aruco_state_space(self):
+        # X-Y-Agnle Servo + X-Y Finger Tips + X-Y-Yaw Object
+        state_size = self.gripper.num_motors * 3 + 7 # Num Servos * 3 + Finger Tips * 2 (4) + Object (3)
+
+        state = [0 for _ in range(state_size)]
+        servo_state_space = self.servo_state_space()
+        aruco_state_space = self.aruco_state_space()
+
+        # Add servo state space X-Y-Angle
+        for i in range(0, self.gripper.num_motors):
+            s_i = i * 3
+            a_i = i * 2
+            state[s_i]   = aruco_state_space[a_i]   # X
+            state[s_i+1] = aruco_state_space[a_i+1] # Y
+            state[s_i+2] = servo_state_space[i]     # Angle
+
+        # Add Finger Tips
+        m_i = self.gripper.num_motors * 3
+        a_i = self.gripper.num_motors * 2 
+        state[m_i:m_i+5] = aruco_state_space[a_i:a_i+5]# (4+1) one extra to get full range
+
+        # Add Object Target
+        state[-3:] = aruco_state_space[-3:]
+
+        return state
+
+    #TODO implement function
+    def image_state_space(self):
+        # Note should store the stacked frame somewhere...
+        raise NotImplementedError("Requires implementation")
 
     def get_state(self):
         if self.observation_type == 0:# TODO Turn into enum
-            return self.gripper_state()
+            return self.servo_state_space()
         elif self.observation_type == 1:
-            return self.marker_state()
+            return self.aruco_state_space()
+        elif self.observation_type == 2:
+            return self.servo_aruco_state_space()
         
         raise ValueError(f"Observation Type unkown: {self.observation_type}")
 
+    def get_aruco_target_pose(self, blindable=False, detection_attempts=4):
+        attempt = 0
+        while not blindable or attempt < detection_attempts:
+            attempt += 1
+            msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
+            logging.debug(f"Attempting to detect aruco target: {msg}")
+
+            frame = self.camera.get_frame()
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
+            if self.object_marker_id in marker_poses:
+                return marker_poses[self.object_marker_id]
+        return None
+
     def get_object_state(self):
         if self.object_type == 0:
-            return get_aruco_target_pose(self.object_marker_id, self.camera, self.aruco_detector, False)
+            return self.get_aruco_target_pose(blindable=False)
         elif self.object_type == 1:
-            return get_aruco_target_pose(self.object_marker_id, self.camera, self.aruco_detector, True, 4)
-        elif self.object_type == 2:
-            return get_servo_target_pose(self.gripper, self.object_marker_id, self.camera, self.aruco_detector, False)
+            return self.get_aruco_target_pose(blindable=True)
 
         raise ValueError(f"Unkown object type: {self.object_type}")
 
