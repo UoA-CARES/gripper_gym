@@ -32,7 +32,7 @@ class GripperConfig(BaseModel):
     torque_limit: int
     speed_limit: int
     num_motors: int
-    min_value: List[int]
-    max_value: List[int]
+    min_values: List[int]
+    max_values: List[int]
     home_pose: List[int]
     actuated_target: bool

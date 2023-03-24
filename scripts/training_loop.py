@@ -70,5 +70,8 @@ def main():
     logging.info("Starting Training Loop")
     # train(environment, network, memory)
 
+    action = environment.sample_action()
+    logging.info(action)
+
 if __name__ == '__main__':
     main()

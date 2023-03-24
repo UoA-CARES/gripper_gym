@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import logging
 import numpy as np
+import random
 
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
@@ -44,6 +45,14 @@ class Environment(ABC):
 
         logging.debug(f"New Goal Generated: {self.goal_state}")
         return state
+
+    def sample_action(self):
+        action = []
+        for i in range(0, self.gripper.num_motors):
+            min_value = self.gripper.min_values[i]
+            max_value = self.gripper.max_values[i]
+            action.append(random.randint(min_value, max_value))
+        return action
 
     def step(self, action): 
         # Get initial pose of the object before moving to help calculate reward after moving
@@ -113,7 +122,7 @@ class Environment(ABC):
             state[i*2+1] = position[1] # Y
         
         # Add the additional yaw information from the object marker (adds to the end)
-        state[-1:] = marker_poses[self.object_marker_id]["orientation"][2]#Yaw
+        state[-1:] = [marker_poses[self.object_marker_id]["orientation"][2]]#Yaw
 
         return state
 

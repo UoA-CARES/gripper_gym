@@ -25,15 +25,18 @@ class Response(Enum):
 class ArduinoGripper(object):
     def __init__(self, config : GripperConfig):
         # Setup Servor handlers
-        self.gripper_id = config.gripper_id
-        
-        self.num_motors = config.num_motors
+        self.gripper_id  = config.gripper_id
 
-        self.device_name = config.device_name
-        self.baudrate = config.baudrate
-        self.arduino = serial.Serial(config.device_name, config.baudrate)
+        self.num_motors = config.num_motors
+        self.min_values = config.min_values
+        self.max_values = config.max_values
 
         self.home_pose = config.home_pose
+        
+        self.device_name = config.device_name
+        self.baudrate = config.baudrate
+
+        self.arduino = serial.Serial(self.device_name, self.baudrate)
 
     def process_response(self, response):
       if '\n' not in response:

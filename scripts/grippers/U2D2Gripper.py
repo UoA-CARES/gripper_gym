@@ -12,9 +12,16 @@ class U2D2Gripper(object):
 
         # Setup Servor handlers
         self.gripper_id  = config.gripper_id
+
+        self.num_motors = config.num_motors
+        self.min_values = config.min_values
+        self.max_values = config.max_values
+
+        self.home_pose = config.home_pose
         
         self.device_name = config.device_name
         self.baudrate = config.baudrate
+
         self.protocol = 2 # NOTE: XL-320 uses protocol 2, update if we ever use other servos
 
         self.port_handler   = dxl.PortHandler(self.device_name)
@@ -24,18 +31,14 @@ class U2D2Gripper(object):
         self.group_sync_write = dxl.GroupSyncWrite(self.port_handler, self.packet_handler, Servo.addresses["goal_position"], 2)
         self.group_sync_read  = dxl.GroupSyncRead(self.port_handler, self.packet_handler, Servo.addresses["current_position"], 2)
 
-        self.home_pose = config.home_pose
-
         self.servos = {}
-        self.num_motors = config.num_motors
-    
         self.target_servo = None
         if config.actuated_target:
             self.target_servo = Servo(self.port_handler, self.packet_handler, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 1023, 0)
 
         try:
             for id in range(1, self.num_motors+1):
-                self.servos[id] = Servo(self.port_handler, self.packet_handler, id, id, config.torque_limit, config.speed_limit, config.max_value[id-1], config.min_value[id-1])
+                self.servos[id] = Servo(self.port_handler, self.packet_handler, id, id, config.torque_limit, config.speed_limit, self.max_values[id-1], self.min_values[id-1])
             self.setup_servos()
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
