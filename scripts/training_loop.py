@@ -73,5 +73,8 @@ def main():
     action = environment.sample_action()
     logging.info(action)
 
+    state, reward, done, truncated = environment.step(action)
+    logging.info(state)
+
 if __name__ == '__main__':
     main()
