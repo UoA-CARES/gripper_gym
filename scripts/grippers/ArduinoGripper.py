@@ -15,6 +15,7 @@ class Command(Enum):
     MOVE_SERVO = 3
     GET_STATE  = 4
     LED        = 5
+    GET_OBJECT_STATE = 6
 
 class Response(Enum):
     SUCCEEDED   = 0
@@ -24,13 +25,18 @@ class Response(Enum):
 class ArduinoGripper(object):
     def __init__(self, config : GripperConfig):
         # Setup Servor handlers
-        self.gripper_id = config.gripper_id
+        self.gripper_id  = config.gripper_id
+
+        self.num_motors = config.num_motors
+        self.min_values = config.min_values
+        self.max_values = config.max_values
+
+        self.home_pose = config.home_pose
         
         self.device_name = config.device_name
         self.baudrate = config.baudrate
-        self.arduino = serial.Serial(config.device_name, config.baudrate)
 
-        self.home_pose = config.home_pose
+        self.arduino = serial.Serial(self.device_name, self.baudrate)
 
     def process_response(self, response):
       if '\n' not in response:
@@ -76,6 +82,15 @@ class ArduinoGripper(object):
             return self.send_command(command, timeout)
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read current position") from error
+
+    def current_object_position(self,timeout=5):
+        command = f"{Command.GET_OBJECT_STATE.value}\n"
+        logging.debug(f"Command: {command}")
+
+        try:
+            return self.send_command(command, timeout)
+        except DynamixelServoError as error:
+            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to read object position") from error
 
     # TODO Implement GET_LOAD as a function
     # def current_load(self):

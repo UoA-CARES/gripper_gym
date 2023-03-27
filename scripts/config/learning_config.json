@@ -1,27 +1,16 @@
 {
-    "seed": 69,
-    "batch_size": 32,
-    "buffer_capacity": 100,
-    "episode_num": 100,
-    "action_num": 15,
+    "seed": 571,
+    "batch_size": 100,
+    "buffer_capacity": 1000000,
+    "episode_horizont": 30,
 
-    "env_config": {
-        "camera_id": 0,
-        "marker_id": 0,
-        "marker_size": 18,
+    "G": 10,
+    "plot_freq": 2,
+    "max_steps_exploration": 5000,
+    "max_steps_training": 50000,
 
-        "gripper_config": {
-            "gripper_type": 0,
-            "gripper_id": 0,
-            "device_name": "/dev/ttyUSB0",
-            "baudrate": 1000000,
-            "torque_limit": 280,
-            "speed_limit": 280,
-            "num_motors": 4,
-            "min_value": [440, 260, 500, 510],
-            "max_value": [500, 510, 580, 760],
-            "home_pose": [440, 510, 580, 510],
-            "actuated_target": false
-        }
-    }
+    "actor_lr": 1e-4,
+    "critic_lr": 1e-3,
+    "gamma": 0.99,
+    "tau": 0.005   
 }
