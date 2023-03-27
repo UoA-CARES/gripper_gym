@@ -8,7 +8,18 @@ class LearningConfig(BaseModel):
     seed: int
     batch_size: int
     buffer_capacity: int
-    episode_num: int
+    episode_horizont: int
+
+    G: int
+    plot_freq: Optional[int] = 10
+
+    max_steps_exploration: int
+    max_steps_training: int
+
+    actor_lr: Optional[float]
+    critic_lr: float
+    gamma: float
+    tau: float
 
 class EnvironmentConfig(BaseModel):
     env_type: int

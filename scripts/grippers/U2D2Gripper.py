@@ -169,6 +169,7 @@ class U2D2Gripper(object):
             current_pose = self.move(self.home_pose)
             if self.target_servo is not None:
                 self.target_servo.move(400)#TODO abstract home position for the target servo
+                self.target_servo.disable_torque()  # Need this to be target servo
             return current_pose
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to Home") from error

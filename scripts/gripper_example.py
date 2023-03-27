@@ -23,6 +23,7 @@ def main(gripper_config):
     logging.info("Closing the Gripper")
     gripper.close()
 
+
 if __name__ == "__main__":
     config = pydantic.parse_file_as(path=f"{file_path}/config/gripper_4DOF_config.json", type_=GripperConfig)
     logging.info(f"Config: {config}")

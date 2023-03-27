@@ -1,4 +1,4 @@
-from envrionments.Environment import Environment
+from environments.Environment import Environment
 
 import logging
 import numpy as np
@@ -14,8 +14,8 @@ from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
 ##### Set goal functions
-def fixed_goals():
-    target_angle = np.random.randint(1,5)
+def fixed_goal():
+    target_angle = np.random.randint(1, 5)
     if target_angle == 1:
         return 90
     elif target_angle == 2:
@@ -24,8 +24,14 @@ def fixed_goals():
         return 270
     elif target_angle == 4:
         return 0
-    
+
     raise ValueError(f"Target angle unknown: {target_angle}")
+def fixed_goals(object_current_pose, noise_tolerance):
+    current_yaw = object_current_pose['orientation'][2]# Yaw
+    target_angle = fixed_goal()
+    while abs(current_yaw - target_angle) < noise_tolerance:
+        target_angle = fixed_goal()
+    return target_angle
 
 def relative_goal(current_target):
     return current_target + 90 #TODO redo this
@@ -39,11 +45,11 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         if self.goal_selection_method == 0:# TODO Turn into enum
-            return fixed_goals()
+            return fixed_goals(self.get_object_state(), self.noise_tolerance)
         elif self.goal_selection_method == 1:
             return relative_goal(self.get_object_state())
         
-        raise ValueError(f"Goal selection method unkown: {self.goal_selection_method}")
+        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
 
     # overriding method 
     def reward_function(self, target_goal, goal_before, goal_after):

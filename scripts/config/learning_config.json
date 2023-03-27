@@ -1,12 +1,16 @@
 {
-    "seed": 69,
-    "batch_size": 32,
-    "buffer_capacity": 100,
-    "episode_num": 100,
-    "action_num": 15,
-    
+    "seed": 571,
+    "batch_size": 100,
+    "buffer_capacity": 1000000,
+    "episode_horizont": 30,
+
     "G": 10,
-    "plot_freq": 25,
-    "max_steps_exploration": 3000,
-    "max_steps_training": 50000   
+    "plot_freq": 2,
+    "max_steps_exploration": 5000,
+    "max_steps_training": 50000,
+
+    "actor_lr": 1e-4,
+    "critic_lr": 1e-3,
+    "gamma": 0.99,
+    "tau": 0.005   
 }

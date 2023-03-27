@@ -1,7 +1,8 @@
 {
     "env_type": 0,
 
-    "camera_id": 0,
+    "camera_id": 2,
+
     "object_type": 0,
     "observation_type": 2,
 

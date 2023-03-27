@@ -1,4 +1,4 @@
-from envrionments.Environment import Environment
+from environments.Environment import Environment
 
 import logging
 import numpy as np
