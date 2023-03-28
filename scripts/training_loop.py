@@ -17,6 +17,10 @@ from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig
 
+# from cares_reinforcement_learning.algorithm import SAC
+# from cares_reinforcement_learning.networks.SAC import Actor
+# from cares_reinforcement_learning.networks.SAC import Critic
+
 from cares_reinforcement_learning.algorithm import TD3
 from cares_reinforcement_learning.networks.TD3 import Actor
 from cares_reinforcement_learning.networks.TD3 import Critic
@@ -102,8 +106,8 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_4DOF_config.json")
-    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_4DOF_config.json")
+    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_4DOF_config_ID2.json")
+    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_4DOF_config_ID2.json")
     
     return parser.parse_args()
 
@@ -135,10 +139,13 @@ def main():
     actor  = Actor(observation_size, action_num, learning_config.actor_lr)
     critic = Critic(observation_size, action_num, learning_config.critic_lr)
 
+
+
     logging.info("Setting up Memory")
     memory = MemoryBuffer(learning_config.buffer_capacity)
 
     logging.info("Setting RL Algorithm")
+
     agent = TD3(
         actor_network=actor,
         critic_network=critic,
@@ -148,7 +155,7 @@ def main():
         device=DEVICE,
     )
 
-    file_name = f"Robot_Id_{gripper_config.gripper_id}_Env_type_{env_config.env_type}_Obs_type_{env_config.object_type}_Seed_{learning_config.seed}"
+    file_name = f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
     create_directories()
 
     logging.info("Starting Training Loop")
