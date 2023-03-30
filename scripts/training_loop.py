@@ -157,7 +157,7 @@ def main():
     create_directories()
 
     logging.info("Starting Training Loop")
-    #train(environment, agent, memory, learning_config, file_name)
+    train(environment, agent, memory, learning_config, file_name)
 
 
 if __name__ == '__main__':
