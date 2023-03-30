@@ -139,8 +139,6 @@ def main():
     actor  = Actor(observation_size, action_num, learning_config.actor_lr)
     critic = Critic(observation_size, action_num, learning_config.critic_lr)
 
-
-
     logging.info("Setting up Memory")
     memory = MemoryBuffer(learning_config.buffer_capacity)
 
