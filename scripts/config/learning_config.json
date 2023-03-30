@@ -9,7 +9,7 @@
     "max_steps_exploration": 3000,
     "max_steps_training": 50000,
 
-    "actor_lr": 1e-4,
+    "actor_lr": 1e-3,
     "critic_lr": 1e-3,
     "gamma": 0.98,
     "tau": 0.005   

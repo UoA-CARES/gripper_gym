@@ -7,7 +7,7 @@ from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
 from configurations import EnvironmentConfig, GripperConfig
-import grippers.gripper_helper as ghlp
+#import grippers.gripper_helper as ghlp
 
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
