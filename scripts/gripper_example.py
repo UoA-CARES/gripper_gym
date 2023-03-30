@@ -1,21 +1,51 @@
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 import pydantic
 
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
+import time
+
+from Gripper import Gripper
 from configurations import GripperConfig
-import grippers.gripper_helper as ghlp
 
 # Example of how to use Gripper
 def main(gripper_config):
     logging.info(f"Running gripper {gripper_config.gripper_type}")
 
-    gripper = ghlp.create_gripper(gripper_config)
+    gripper = Gripper(gripper_config)
 
     logging.info("Pinging Gripper to find all servos")
     gripper.ping()
+
+    logging.info("Moving the Gripper to a home position")
+    gripper.home()
+
+    velocities = [-30,0,0,-30,0,0,-30,0,0]
+    logging.info(f"Set Velocity: {velocities}")
+    gripper.move_velocity(velocities) 
+
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 3:
+        gripper.step()
+        time.sleep(0.1)
+
+    velocities = [30,0,0,50,0,0,70,0,0]
+    logging.info(f"Set Velocity: {velocities}")
+    gripper.move_velocity(velocities) 
+
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 3:
+        gripper.step()
+        time.sleep(0.1)
+
+    gripper.move_velocity([0,0,0,0,0,0,0,0,0])
+        
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 1:
+        gripper.step()
+        time.sleep(0.1)
 
     logging.info("Moving the Gripper to a home position")
     gripper.home()
@@ -25,6 +55,6 @@ def main(gripper_config):
 
 
 if __name__ == "__main__":
-    config = pydantic.parse_file_as(path=f"{file_path}/config/gripper_4DOF_config.json", type_=GripperConfig)
+    config = pydantic.parse_file_as(path=f"{file_path}/config/gripper_9DOF_config.json", type_=GripperConfig)
     logging.info(f"Config: {config}")
     main(config)

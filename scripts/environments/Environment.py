@@ -7,8 +7,8 @@ import random
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
+from Gripper import Gripper
 from configurations import EnvironmentConfig, GripperConfig
-import grippers.gripper_helper as ghlp
 
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
@@ -16,7 +16,7 @@ from cares_lib.dynamixel.Servo import DynamixelServoError
 
 class Environment(ABC):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig):
-        self.gripper = ghlp.create_gripper(gripper_config)
+        self.gripper = Gripper(gripper_config)
         self.camera = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
         
         self.observation_type = env_config.observation_type
@@ -59,7 +59,9 @@ class Environment(ABC):
         object_state_before = self.get_object_state()
         
         try:
+            # TODO extend to handle velocity commands
             self.gripper.move(action)
+            self.gripper.step()
         except DynamixelServoError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)

@@ -77,7 +77,8 @@ class RotationEnvironment(Environment):
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward = reward + 100
+            #reward = reward + 100
+            reward = reward
             done = True
         
         return reward, done
