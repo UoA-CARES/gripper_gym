@@ -80,9 +80,11 @@ class Environment(ABC):
 
     def servo_state_space(self):
         # Angle Servo + X-Y-Yaw Object
-        state = self.gripper.current_positions()# TODO convert from steps to angle
+        state = []
+        gripper_state = self.gripper.state()
+        state += gripper_state["positions"]
+
         object_state = self.get_object_state()
-        
         if object_state is not None:
             position    = object_state["position"]
             orientation = object_state["orientation"]

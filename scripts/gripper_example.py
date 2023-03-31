@@ -22,7 +22,20 @@ def main(gripper_config):
     logging.info("Moving the Gripper to a home position")
     gripper.home()
 
-    velocities = [-30,0,0,-30,0,0,-30,0,0]
+    logging.info("Gripper State")
+    gripper_state = gripper.state()
+    logging.info(gripper_state)
+
+    velocities = [-30,0,0,-50,0,0,-30,0,0]
+    logging.info(f"Set Velocity: {velocities}")
+    gripper.move_velocity(velocities) 
+
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 10:
+        gripper.step()
+        time.sleep(0.1)
+
+    velocities = [30,0,0,50,0,0,30,0,0]
     logging.info(f"Set Velocity: {velocities}")
     gripper.move_velocity(velocities) 
 
@@ -31,24 +44,22 @@ def main(gripper_config):
         gripper.step()
         time.sleep(0.1)
 
-    velocities = [30,0,0,50,0,0,70,0,0]
-    logging.info(f"Set Velocity: {velocities}")
-    gripper.move_velocity(velocities) 
-
-    start_time = time.perf_counter()
-    while time.perf_counter() < start_time + 3:
-        gripper.step()
-        time.sleep(0.1)
-
+    logging.info(f"Setting velocity to zero")
     gripper.move_velocity([0,0,0,0,0,0,0,0,0])
         
     start_time = time.perf_counter()
-    while time.perf_counter() < start_time + 1:
+    while time.perf_counter() < start_time + 2:
         gripper.step()
         time.sleep(0.1)
 
     logging.info("Moving the Gripper to a home position")
     gripper.home()
+
+    time.sleep(1.0)
+
+    logging.info("Gripper State")
+    gripper_state = gripper.state()
+    logging.info(gripper_state)
 
     logging.info("Closing the Gripper")
     gripper.close()
