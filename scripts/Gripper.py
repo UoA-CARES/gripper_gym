@@ -4,7 +4,7 @@ import dynamixel_sdk as dxl
 import time
 
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
-from cares_lib.slack_bot import SlackBot
+from cares_lib.slack_bot.SlackBot import SlackBot
 
 from configurations import GripperConfig
 
