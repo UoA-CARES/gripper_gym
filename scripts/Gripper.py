@@ -24,9 +24,13 @@ def message_slack(message):
 # TODO extend these out to do more useful stuff
 def handle_gripper_error(error):
     logging.warning(error)
+    logging.info("Trying to home the gripper to resolve the issue")
+    gripper = error.gripper
+    gripper.home()
+
     logging.info("Please fix the gripper and press enter to try again or x to quit: ")
     message_slack(f"{error}, please fix before the programme continues")
-    value  = input()
+    value = input()
     if value == 'x':
         logging.info("Giving up correcting gripper")
         return True 
@@ -117,7 +121,12 @@ class Gripper(object):
         except (GripperError, DynamixelServoError) as error:
             self.close()
             raise GripperError(self, f"Failed to step Gripper#{self.gripper_id}") from error
-            
+
+    # TODO delete this in the future...
+    @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
+    def error(self):
+        raise GripperError(self, f"Gripper#{self.gripper_id}: error handling test")
+
     @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
     def current_positions(self):
         try:
