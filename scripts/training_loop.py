@@ -47,7 +47,7 @@ def train(environment, agent, memory, learning_config, file_name):
 
         if total_step_counter < learning_config.max_steps_exploration:
             logging.info(f"Running Exploration Steps {total_step_counter}/{learning_config.max_steps_exploration}")
-            action_env = environment.sample_action() # gripper range
+            action_env = environment.sample_action_velocity() # gripper range
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
             logging.info(f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n")
@@ -106,8 +106,8 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_4DOF_config_ID2.json")
-    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_4DOF_config_ID2.json")
+    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_9DOF_config.json")
+    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_9DOF_config.json")
     
     return parser.parse_args()
 
@@ -123,6 +123,7 @@ def main():
         environment = TranslationEnvironment(env_config, gripper_config)
 
 
+    
     logging.info("Resetting Environment")
     state = environment.reset()
     logging.info(f"State: {state}")

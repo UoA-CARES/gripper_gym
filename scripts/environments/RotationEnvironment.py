@@ -23,8 +23,8 @@ def fixed_goal():
         return 270
     elif target_angle == 4:
         return 0
-
     raise ValueError(f"Target angle unknown: {target_angle}")
+
 def fixed_goals(object_current_pose, noise_tolerance):
     current_yaw = object_current_pose['orientation'][2]# Yaw
     target_angle = fixed_goal()
@@ -44,7 +44,14 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         if self.goal_selection_method == 0:# TODO Turn into enum
-            return fixed_goals(self.get_object_state(), self.noise_tolerance)
+            # Note: added this because even if object is present before calling this function, errors are still created when it returns None while calling the function in here.
+            object_state = self.get_object_state()
+            while object_state == None:
+                if not self.gripper.is_home():
+                    self.gripper.home()
+                object_state = self.get_object_state()
+
+            return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == 1:
             return relative_goal(self.get_object_state())
         

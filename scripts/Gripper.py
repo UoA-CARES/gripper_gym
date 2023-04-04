@@ -2,11 +2,14 @@ import logging
 import backoff
 import dynamixel_sdk as dxl
 import time
-
+import numpy as np
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
-from cares_lib.slack_bot import SlackBot
+#from cares_lib.slack_bot import SlackBot
+from cares_lib.slack_bot.SlackBot import SlackBot
 
 from configurations import GripperConfig
+
+MOVING_STATUS_THRESHOLD = 20
 
 def message_slack(message):
     with open('slack_token.txt') as file: 
@@ -36,8 +39,10 @@ class Gripper(object):
         self.num_motors = config.num_motors
         self.min_values = config.min_values
         self.max_values = config.max_values
+        self.velocity_min = config.velocity_min
+        self.velocity_max = config.velocity_max
 
-        self.home_pose = config.home_pose
+        self.home_sequence = config.home_sequence
         
         self.device_name = config.device_name
         self.baudrate = config.baudrate
@@ -256,17 +261,71 @@ class Gripper(object):
 
         logging.debug(f"Gripper#{self.gripper_id}: Sending move velocity command succeeded")
         self.group_bulk_write.clearParam()
+ 
+    @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=handle_gripper_error)
+    def set_velocity(self, velocities):        
+        if not self.verify_velocity(velocities):
+            error_message = f"Gripper#{self.gripper_id}: The move velocity command provided is out of bounds velocities {velocities}"
+            logging.error(error_message)
+            raise DynamixelServoError(error_message)
+        
+
+        for servo_id, servo in self.servos.items():            
+            target_velocity = velocities[servo_id-1]
+            target_velocity_b = Servo.velocity_to_bytes(target_velocity)
+
+            if not servo.validate_movement(target_velocity):
+                continue
+
+            param_goal_velocity = [dxl.DXL_LOBYTE(target_velocity_b), dxl.DXL_HIBYTE(target_velocity_b)]
+            dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["moving_speed"], 2, param_goal_velocity)
+
+            if not dxl_result:
+                error_message = f"Gripper#{self.gripper_id}: Failed to setup move velocity command for Dynamixel#{servo_id}"
+                logging.error(error_message)
+
+        dxl_comm_result = self.group_bulk_write.txPacket()
+        if dxl_comm_result != dxl.COMM_SUCCESS:
+            error_message = f"Gripper#{self.gripper_id}: Failed to send move velocity command to gripper"
+            logging.error(error_message)
+            raise DynamixelServoError(error_message)
+
+        logging.debug(f"Gripper#{self.gripper_id}: Sending move velocity command succeeded")
+        self.group_bulk_write.clearParam()
+
+
 
     @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=handle_gripper_error)
     def home(self):
         try:
-            self.move(self.home_pose)
+            # self.set_velocity(np.full(self.num_motors,250))
+            # self.move(self.home_pose)
+            self.wiggle_home()
+
             if self.target_servo is not None:
                 self.target_servo.move(400)#TODO abstract home position for the target servo
                 self.target_servo.disable_torque()  # Need this to be target servo
+
+            if not self.is_home():
+                logging.info("wiggling home")
+                self.wiggle_home()
+                if not self.is_home():
+                    error_message = f"Gripper#{self.gripper_id}: Failed home after wiggle"
+                    logging.error(error_message)
+                    raise DynamixelServoError(error_message)
+
         except DynamixelServoError as error:
             raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to Home") from error
         
+    def is_home(self):
+        return np.all(np.abs(self.home_sequence[0] - np.array(self.current_positions()))<= MOVING_STATUS_THRESHOLD)
+        
+    def wiggle_home(self): # or home_sequence
+        self.set_velocity(np.full(self.num_motors,250))
+        #TODO LATER parameterlize wiggle sequence
+        for pose in self.home_sequence:
+            self.move(pose) 
+
     @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=handle_gripper_error)
     def ping(self):
         try:

@@ -13,7 +13,7 @@
     "num_motors": 4,
     "min_values": [440, 260, 500, 510],
     "max_values": [500, 510, 580, 760],
-    "home_pose": [440, 510, 580, 510],
+    "home_pose": [[440, 510, 580, 510]],
 
     "actuated_target": false
 }

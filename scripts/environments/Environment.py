@@ -38,7 +38,13 @@ class Environment(ABC):
             logging.error(error)
             exit()
 
+        
         state = self.get_state()
+        while state[-1] == -1:
+            if not self.gripper.is_home():
+                self.gripper.home()
+            state = self.get_state()
+
         logging.debug(state)
 
         self.goal_state = self.choose_goal()
@@ -53,14 +59,22 @@ class Environment(ABC):
             max_value = self.gripper.max_values[i]
             action.append(random.randint(min_value, max_value))
         return action
+    
+    def sample_action_velocity(self):
+        action = []
+        for i in range(0, self.gripper.num_motors):
+            action.append(random.randint(self.gripper.velocity_min, self.gripper.velocity_max))
+        return action
 
     def step(self, action): 
         # Get initial pose of the object before moving to help calculate reward after moving
         object_state_before = self.get_object_state()
         
-        try:
-            # TODO extend to handle velocity commands
-            self.gripper.move(action)
+        try:#TODO change?
+            if self.observation_type == 3:
+                self.gripper.move_velocity(action)
+            else:
+                self.gripper.move(action)
             self.gripper.step()
         except DynamixelServoError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
@@ -131,6 +145,23 @@ class Environment(ABC):
         return state
 
     def servo_aruco_state_space(self):
+        # Angle Servo + X-Y-Yaw Object
+        state = []
+        gripper_state = self.gripper.state()
+        state += gripper_state["positions"]
+
+        object_state = self.get_object_state()
+        if object_state is not None:
+            position    = object_state["position"]
+            orientation = object_state["orientation"]
+            state.append(position[0])#X
+            state.append(position[1])#Y
+            state.append(orientation[2])#Yaw
+        else:
+            # if target is not visible then append -1 to the state (norm 0-360)
+            # TODO this needs further consideration...
+            state.append(-1)
+
         # X-Y-Agnle Servo + X-Y Finger Tips + X-Y-Yaw Object
         state_size = self.gripper.num_motors * 3 + 7 # Num Servos * 3 + Finger Tips * 2 (4) + Object (3)
 
@@ -155,7 +186,31 @@ class Environment(ABC):
         state[-3:] = aruco_state_space[-3:]
 
         return state
+    
+    def servo_velocity_state_space(self):
+        # Angle Servo + X-Y-Yaw Object
+        state = []
+        self.object_marker_id = 1
+        gripper_state = self.gripper.state()
+        state += gripper_state["positions"]
+        state += gripper_state["velocities"]
+        state += gripper_state["loads"]
 
+        object_state = self.get_object_state()
+        if object_state is not None:
+            position    = object_state["position"]
+            orientation = object_state["orientation"]
+            state.append(position[0])#X
+            state.append(position[1])#Y
+            state.append(orientation[2])#Yaw
+        else:
+            # if target is not visible then append -1 to the state (norm 0-360)
+            # TODO this needs further consideration...
+            state.append(-1)
+
+        return state
+
+        
     #TODO implement function
     def image_state_space(self):
         # Note should store the stacked frame somewhere...
@@ -168,15 +223,18 @@ class Environment(ABC):
             return self.aruco_state_space()
         elif self.observation_type == 2:
             return self.servo_aruco_state_space()
+        elif self.observation_type == 3:
+            return self.servo_velocity_state_space()
         
         raise ValueError(f"Observation Type unknown: {self.observation_type}")
 
     def get_aruco_target_pose(self, blindable=False, detection_attempts=4):
         attempt = 0
-        while not blindable or attempt < detection_attempts:
+        while not blindable or attempt < detection_attempts: 
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
             logging.debug(f"Attempting to detect aruco target: {msg}")
+            logging.info(f"Attempting to detect aruco target: {msg}")
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion)
