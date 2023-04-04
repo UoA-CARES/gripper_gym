@@ -1,4 +1,5 @@
 import logging
+
 logging.basicConfig(level=logging.INFO)
 
 import os
@@ -17,13 +18,10 @@ from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig
 
-# from cares_reinforcement_learning.algorithm import SAC
-# from cares_reinforcement_learning.networks.SAC import Actor
-# from cares_reinforcement_learning.networks.SAC import Critic
-
 from cares_reinforcement_learning.algorithm import TD3
-from cares_reinforcement_learning.networks.TD3 import Actor
-from cares_reinforcement_learning.networks.TD3 import Critic
+from networks import Actor
+from networks import Critic
+
 
 from cares_reinforcement_learning.util import MemoryBuffer
 
@@ -40,11 +38,12 @@ def train(environment, agent, memory, learning_config, file_name):
     episode_num       = 0
 
     state = environment.reset()
+    state = scaling_symlog(state)
+
     historical_reward = {"step": [], "episode_reward": []}
 
     for total_step_counter in range(int(learning_config.max_steps_training)):
         episode_timesteps += 1
-
         if total_step_counter < learning_config.max_steps_exploration:
             logging.info(f"Running Exploration Steps {total_step_counter}/{learning_config.max_steps_exploration}")
             action_env = environment.sample_action_velocity() # gripper range
@@ -55,6 +54,8 @@ def train(environment, agent, memory, learning_config, file_name):
             action_env = environment.denormalize(action) # gripper range
 
         next_state, reward, done, truncated = environment.step(action_env)
+        next_state = scaling_symlog(next_state)
+
         memory.add(state, action, reward, next_state, done)
         state = next_state
 
@@ -73,6 +74,8 @@ def train(environment, agent, memory, learning_config, file_name):
 
             # Reset environment
             state =  environment.reset()
+            state = scaling_symlog(state)
+
             episode_reward    = 0
             episode_timesteps = 0
             episode_num += 1
@@ -101,6 +104,11 @@ def plot_reward_curve(data_reward, filename):
     plt.close()
 
 
+def scaling_symlog(state):
+    state_symlog = np.sign(state) * np.log(np.abs(state)  + 1)
+    return state_symlog
+
+
 def parse_args():
     parser = ArgumentParser()
     file_path = Path(__file__).parent.resolve()
@@ -127,7 +135,13 @@ def main():
     logging.info("Resetting Environment")
     state = environment.reset()
     logging.info(f"State: {state}")
-    
+
+    # default_x_ticks = range(len(state))
+    # plt.scatter(default_x_ticks, state)
+    # state_symlog = np.sign(state) * np.log(np.abs(state)  + 1)
+    # plt.scatter(default_x_ticks, state_symlog)
+    # plt.show()
+
     observation_size = len(state)# This wont work for multi-dimension arrays
     action_num       = gripper_config.num_motors
     logging.info(f"Observation Space: {observation_size} Action Space: {action_num}")

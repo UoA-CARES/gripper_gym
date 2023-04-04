@@ -47,5 +47,5 @@ class GripperConfig(BaseModel):
     num_motors: int
     min_values: List[int]
     max_values: List[int]
-    home_sequence: List[int]
+    home_sequence: List[List[int]]
     actuated_target: bool

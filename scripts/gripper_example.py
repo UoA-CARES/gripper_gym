@@ -7,7 +7,7 @@ file_path = Path(__file__).parent.resolve()
 
 import time
 
-from Gripper import Gripper
+from Gripper import Gripper, GripperError
 from configurations import GripperConfig
 
 # Example of how to use Gripper
@@ -42,6 +42,14 @@ def main(gripper_config):
     # velocities = [30,0,0,50,0,0,30,0,0]
     # logging.info(f"Set Velocity: {velocities}")
     # gripper.move_velocity(velocities) 
+    try:
+        gripper.error()
+    except GripperError as error:
+        logging.info("Error Handled")
+
+    velocities = [30,0,0,50,0,0,30,0,0]
+    logging.info(f"Set Velocity: {velocities}")
+    gripper.move_velocity(velocities) 
 
     # start_time = time.perf_counter()
     # while time.perf_counter() < start_time + 3:

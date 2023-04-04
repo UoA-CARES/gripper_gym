@@ -14,15 +14,16 @@ from cares_lib.dynamixel.Servo import DynamixelServoError
 
 ##### Set goal functions
 def fixed_goal():
-    target_angle = np.random.randint(1, 5)
+    target_angle = np.random.randint(1, 4)
     if target_angle == 1:
         return 90
     elif target_angle == 2:
         return 180
     elif target_angle == 3:
         return 270
-    elif target_angle == 4:
-        return 0
+    #elif target_angle == 4:
+        #return 0
+
     raise ValueError(f"Target angle unknown: {target_angle}")
 
 def fixed_goals(object_current_pose, noise_tolerance):

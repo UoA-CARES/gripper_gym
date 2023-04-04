@@ -1,6 +1,6 @@
 {
     "seed": 456,
-    "batch_size": 32,
+    "batch_size": 100,
     "buffer_capacity": 1000000,
     "episode_horizont": 20,
 
