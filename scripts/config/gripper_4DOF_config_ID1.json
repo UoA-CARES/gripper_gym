@@ -2,18 +2,17 @@
 {
     "gripper_type": 0,
     "gripper_id": 1,
-
     "device_name": "/dev/ttyUSB1",
-
     "baudrate": 1000000,
 
     "torque_limit": 300,
     "speed_limit":  300,
 
     "num_motors": 4,
-    "min_values": [440, 260, 500, 510],
-    "max_values": [500, 510, 580, 760],
-    "home_pose": [440, 510, 580, 510],
+    "min_values": [412, 212, 512, 512],
+    "max_values": [512, 512, 612, 812],
+
+    "home_pose": [412, 512, 612, 512],
 
     "actuated_target": true
 }
