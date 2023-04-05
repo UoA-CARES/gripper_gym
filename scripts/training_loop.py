@@ -38,7 +38,8 @@ def train(environment, agent, memory, learning_config, file_name):
     episode_num       = 0
 
     state = environment.reset()
-    state = scaling_symlog(state)
+    # state = scaling_symlog(state)
+    
 
     historical_reward = {"step": [], "episode_reward": []}
 
@@ -54,7 +55,7 @@ def train(environment, agent, memory, learning_config, file_name):
             action_env = environment.denormalize(action) # gripper range
 
         next_state, reward, done, truncated = environment.step(action_env)
-        next_state = scaling_symlog(next_state)
+        # next_state = scaling_symlog(next_state)
 
         memory.add(state, action, reward, next_state, done)
         state = next_state
@@ -74,7 +75,7 @@ def train(environment, agent, memory, learning_config, file_name):
 
             # Reset environment
             state =  environment.reset()
-            state = scaling_symlog(state)
+            # state = scaling_symlog(state)
 
             episode_reward    = 0
             episode_timesteps = 0

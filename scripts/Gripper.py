@@ -3,6 +3,7 @@ import backoff
 import dynamixel_sdk as dxl
 import time
 import numpy as np
+from pytimedinput import timedInput
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
 from cares_lib.slack_bot.SlackBot import SlackBot
 
@@ -11,6 +12,7 @@ from configurations import GripperConfig
 
 MOVING_STATUS_THRESHOLD = 20
 
+# TODO extend to also take in the last action that was given to help determine how to "fix" the error
 class GripperError(IOError):
     def __init__(self, gripper, message):
         self.gripper = gripper
@@ -24,21 +26,53 @@ def message_slack(message):
 
     slack_bot.post_message(channel="#cares-chat-bot", message=message)
 
+def read_slack(gripper):
+    with open('slack_token.txt') as file: 
+        slack_token = file.read()
+
+    slack_bot = SlackBot(slack_token=slack_token)
+    
+    message = slack_bot.get_message("cares-chat-bot")
+    
+    if message is not None:
+        message = message.split(",") 
+    else:
+        return None
+
+    if message[0] == str(gripper.gripper_id):
+        return message[1]
+    return None
+
+# TODO different handlers for the different methods - there is not one size fits all response
 # TODO extend these out to do more useful stuff
 def handle_gripper_error(error):
-    logging.warning(error)
-    logging.info("Trying to home the gripper to resolve the issue")
+    logging.warning(f"Error handling has been initiated because of: {error}")
+    
+    # Try auto resolve
     gripper = error.gripper
-    if not gripper.is_home():
-        gripper.home()
-        return False
+    try:    
+        for i in range (3):
+            logging.info(f"Try {i} to wiggle the gripper home to resolve the issue")
+            gripper.wiggle_home()
+            if gripper.is_home():
+                return False
+    except GripperError as err:
+        logging.error("Failed to wiggle home")
 
+    # manual fix is required
     logging.info("Please fix the gripper and press enter to try again or x to quit: ")
-    message_slack(f"{error}, please fix before the programme continues")
-    value = input()
+    value, timedOut = timedInput(timeout=10)
+    
+    if timedOut is True:
+        message_slack(f"{error}, please fix before the programme continues")
+        value = read_slack(gripper)
+        while value is None:
+            value = read_slack(gripper)
+            time.sleep(5)
+
     if value == 'x':
         logging.info("Giving up correcting gripper")
-        return True 
+        return True
     return False
 
 class Gripper(object):
@@ -207,7 +241,7 @@ class Gripper(object):
         try:
             servo_pose = self.servos[servo_id].move_velocity(target_velocity)
         except (GripperError, DynamixelServoError) as error:
-            self.servos[servo_id].disable_torque()
+            # self.servos[servo_id].disable_torque()
             raise GripperError(self, f"Gripper#{self.gripper_id} failed while velocity moving Dynamixel#{servo_id}") from error
 
     @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
@@ -218,7 +252,11 @@ class Gripper(object):
             raise GripperError(self, error_message)
 
         for servo_id, servo in self.servos.items():
-            servo.set_control_mode(ControlMode.JOINT.value)
+            try:
+                servo.set_control_mode(ControlMode.JOINT.value)
+            except GripperError as error:
+                raise GripperError(self, f"Gripper#{self.gripper_id}: Failed while moving") from error
+            
             target_position = steps[servo_id-1]
             
             param_goal_position = [dxl.DXL_LOBYTE(target_position), dxl.DXL_HIBYTE(target_position)]
@@ -254,7 +292,10 @@ class Gripper(object):
         
 
         for servo_id, servo in self.servos.items():            
-            servo.set_control_mode(ControlMode.WHEEL.value)
+            try:
+                servo.set_control_mode(ControlMode.WHEEL.value)
+            except GripperError as error:
+                raise GripperError(self, f"Gripper#{self.gripper_id}: Failed while moving") from error
 
             target_velocity = velocities[servo_id-1]
             target_velocity_b = Servo.velocity_to_bytes(target_velocity)
@@ -283,8 +324,7 @@ class Gripper(object):
         if not self.verify_velocity(velocities):
             error_message = f"Gripper#{self.gripper_id}: The move velocity command provided is out of bounds velocities {velocities}"
             logging.error(error_message)
-            raise GripperError(error_message)
-        
+            raise GripperError(error_message)        
 
         for servo_id, servo in self.servos.items():            
             target_velocity = velocities[servo_id-1]
@@ -305,6 +345,7 @@ class Gripper(object):
             error_message = f"Gripper#{self.gripper_id}: Failed to send move velocity command to gripper"
             logging.error(error_message)
             raise GripperError(self, error_message)
+        logging.info(self.current_velocity())
 
         logging.debug(f"Gripper#{self.gripper_id}: Sending move velocity command succeeded")
         self.group_bulk_write.clearParam()
@@ -313,33 +354,49 @@ class Gripper(object):
     @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
     def home(self):
         try:
-            # self.set_velocity(np.full(self.num_motors,250))
-            # self.move(self.home_pose)
-            self.wiggle_home()
+            self.set_velocity(np.full(self.num_motors,250))
+
+            pose = self.home_sequence[-1]
+            self.move(pose)
 
             if self.target_servo is not None:
                 self.target_servo.move(400)#TODO abstract home position for the target servo
                 self.target_servo.disable_torque()  # Need this to be target servo
 
             if not self.is_home():
-                self.wiggle_home()
-                if not self.is_home():
-                    logging.info(self.current_positions())
-                    error_message = f"Gripper#{self.gripper_id}: Failed home after wiggle"
-                    logging.error(error_message)
-                    raise GripperError(self, error_message)
+                error_message = f"Gripper#{self.gripper_id}: failed to Home"
+                logging.error(error_message)
+                raise GripperError(self, error_message)
 
-        except GripperError as error:
+            logging.debug(f"Gripper#{self.gripper_id}: in home position")
+        except (GripperError, DynamixelServoError) as error:
+            raise GripperError(self, f"Gripper#{self.gripper_id}: failed to Home") from error
+
+    # remove the back off calls to prevent stacking up on exception handling
+    # @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
+    def wiggle_home(self):
+        try:
+            self.set_velocity(np.full(self.num_motors,250))
+
+            for pose in self.home_sequence:
+                self.move(pose)
+
+            if self.target_servo is not None:
+                self.target_servo.move(400)#TODO abstract home position for the target servo
+                self.target_servo.disable_torque()  # Need this to be target servo
+
+            if not self.is_home():
+                error_message = f"Gripper#{self.gripper_id}: failed to Home"
+                logging.error(error_message)
+                raise GripperError(self, error_message)
+
+            logging.debug(f"Gripper#{self.gripper_id}: in home position")
+        except (GripperError, DynamixelServoError) as error:
             raise GripperError(self, f"Gripper#{self.gripper_id}: failed to Home") from error
         
     def is_home(self):
-        return np.all(np.abs(self.home_sequence[-1] - np.array(self.current_positions()))<= MOVING_STATUS_THRESHOLD)
+        return np.all(np.abs(self.home_sequence[-1] - np.array(self.current_positions())) <= MOVING_STATUS_THRESHOLD)
         
-    def wiggle_home(self): # or home_sequence
-        self.set_velocity(np.full(self.num_motors,250))
-        for pose in self.home_sequence:
-            self.move(pose) 
-
     @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
     def ping(self):
         try:

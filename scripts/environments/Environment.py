@@ -34,7 +34,7 @@ class Environment(ABC):
             self.gripper.home()
         except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
-            logging.error(error)
+            logging.error(f"Failed to Reset with message: {error}")
             exit()
 
         
@@ -255,8 +255,12 @@ class Environment(ABC):
         min_value_in = -1
         max_value_in = 1
         for i in range(0, self.gripper.num_motors):
-            servo_min_value = self.gripper.min_values[i]
-            servo_max_value = self.gripper.max_values[i]
+            if self.observation_type == 3:
+                servo_min_value = self.gripper.velocity_min
+                servo_max_value = self.gripper.velocity_max
+            else:
+                servo_min_value = self.gripper.min_values[i]
+                servo_max_value = self.gripper.max_values[i]
             action_gripper[i] = int((action_norm[i] - min_value_in) * (servo_max_value - servo_min_value) / ( max_value_in - min_value_in) + servo_min_value)
         return action_gripper
 
@@ -266,8 +270,12 @@ class Environment(ABC):
         min_range_value = -1
         action_norm = [0 for _ in range(0, len(action_gripper))]
         for i in range(0, self.gripper.num_motors):
-            servo_min_value = self.gripper.min_values[i]
-            servo_max_value = self.gripper.max_values[i]
+            if self.observation_type == 3:
+                servo_min_value = self.gripper.velocity_min
+                servo_max_value = self.gripper.velocity_max
+            else:
+                servo_min_value = self.gripper.min_values[i]
+                servo_max_value = self.gripper.max_values[i]
             action_norm[i]  = (action_gripper[i] - servo_min_value) * (max_range_value - min_range_value) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
 
