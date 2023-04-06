@@ -1,5 +1,4 @@
 import logging
-
 logging.basicConfig(level=logging.INFO)
 
 import os
@@ -18,12 +17,12 @@ from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig
 
-from cares_reinforcement_learning.algorithm import TD3
+
 from networks import Actor
 from networks import Critic
-
-
+from cares_reinforcement_learning.algorithm import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
+
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
@@ -33,30 +32,39 @@ else:
     logging.info("Working with CPU")
 
 def train(environment, agent, memory, learning_config, file_name):
+
     episode_timesteps = 0
     episode_reward    = 0
     episode_num       = 0
-
-    state = environment.reset()
-    state = scaling_symlog(state)
-
     historical_reward = {"step": [], "episode_reward": []}
 
+    min_noise    = 0.05
+    noise_decay  = 0.9999
+    noise_scale  = 0.6
+
+    state = environment.reset()
     for total_step_counter in range(int(learning_config.max_steps_training)):
         episode_timesteps += 1
+
         if total_step_counter < learning_config.max_steps_exploration:
             logging.info(f"Running Exploration Steps {total_step_counter}/{learning_config.max_steps_exploration}")
             action_env = environment.sample_action() # gripper range
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
+            # noise_scale *= noise_decay
+            # noise_scale = max(min_noise, noise_scale)
+            # logging.info(f"Noise Scale:{noise_scale}")
+
             logging.info(f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n")
-            action = agent.select_action_from_policy(state)  # algorithm range [-1, 1]
+            action = agent.select_action_from_policy(state, noise_scale=0.10)  # algorithm range [-1, 1]
             action_env = environment.denormalize(action) # gripper range
 
         next_state, reward, done, truncated = environment.step(action_env)
-        next_state = scaling_symlog(next_state)
+        logging.info(f"Reward of this step:{reward}")
 
-        memory.add(state, action, reward, next_state, done)
+        #memory.add(state, action, reward, next_state, done)
+        memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
+
         state = next_state
 
         episode_reward += reward
@@ -74,7 +82,6 @@ def train(environment, agent, memory, learning_config, file_name):
 
             # Reset environment
             state =  environment.reset()
-            state = scaling_symlog(state)
 
             episode_reward    = 0
             episode_timesteps = 0
@@ -85,6 +92,7 @@ def train(environment, agent, memory, learning_config, file_name):
 
     plot_reward_curve(historical_reward, file_name)
     agent.save_models(file_name)
+
 
 # todo move this function to better place
 def create_directories():
@@ -114,12 +122,12 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_4DOF_config_ID1.json")
-    parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_4DOF_config_ID1.json")
-    
+    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID1.json")  # id 2 for robot left
+    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID1.json")
     return parser.parse_args()
 
 def main():
+
     args = parse_args()
     env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
@@ -135,16 +143,11 @@ def main():
     state = environment.reset()
     logging.info(f"State: {state}")
 
-    # default_x_ticks = range(len(state))
-    # plt.scatter(default_x_ticks, state)
-    # state_symlog = np.sign(state) * np.log(np.abs(state)  + 1)
-    # plt.scatter(default_x_ticks, state_symlog)
-    # plt.show()
-
     observation_size = len(state)# This wont work for multi-dimension arrays
     action_num       = gripper_config.num_motors
     logging.info(f"Observation Space: {observation_size} Action Space: {action_num}")
 
+    logging.info("Setting up Seeds")
     torch.manual_seed(learning_config.seed)
     np.random.seed(learning_config.seed)
     random.seed(learning_config.seed)
@@ -153,11 +156,11 @@ def main():
     actor  = Actor(observation_size, action_num, learning_config.actor_lr)
     critic = Critic(observation_size, action_num, learning_config.critic_lr)
 
+
     logging.info("Setting up Memory")
     memory = MemoryBuffer(learning_config.buffer_capacity)
 
     logging.info("Setting RL Algorithm")
-
     agent = TD3(
         actor_network=actor,
         critic_network=critic,

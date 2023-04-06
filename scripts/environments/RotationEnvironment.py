@@ -12,15 +12,15 @@ from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.dynamixel.Servo import DynamixelServoError
 
-##### Set goal functions
+
 def fixed_goal():
-    target_angle = np.random.randint(1, 4)
+    target_angle = np.random.randint(1, 3)
     if target_angle == 1:
         return 90
     elif target_angle == 2:
-        return 180
-    elif target_angle == 3:
         return 270
+    #elif target_angle == 3:
+        #return 270
     #elif target_angle == 4:
         #return 0
 
@@ -68,17 +68,16 @@ class RotationEnvironment(Environment):
         goal_difference = np.abs(target_goal - yaw_after)
         delta_changes   = np.abs(target_goal - yaw_before) - np.abs(target_goal - yaw_after)
 
-        reward = 0
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-            reward = 0
+            reward = -1
         else:
-            reward = delta_changes
+            reward = delta_changes / (np.abs(yaw_before - target_goal))
+            reward = reward if reward > 0 else -1
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            #reward = reward + 100
-            reward = reward
             done = True
-        
+
         return reward, done
+
     
