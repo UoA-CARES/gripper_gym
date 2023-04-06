@@ -61,7 +61,10 @@ def train(environment, agent, memory, learning_config, file_name):
 
         next_state, reward, done, truncated = environment.step(action_env)
         logging.info(f"Reward of this step:{reward}")
-        memory.add(state, action, reward, next_state, done)  # todo marge this to the new memory buffer
+
+        #memory.add(state, action, reward, next_state, done)
+        memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
+
         state = next_state
 
         episode_reward += reward
