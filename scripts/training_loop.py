@@ -66,6 +66,7 @@ def train(environment, agent, memory, learning_config, file_name):
             for _ in range(learning_config.G):
                 experiences = memory.sample(learning_config.batch_size)
                 agent.train_policy(experiences)
+                environment.gripper_step()
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
             logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")

@@ -3,7 +3,7 @@
     "gripper_id": 9,
     "device_name": "/dev/ttyUSB0",
     "baudrate": 1000000,
-    "torque_limit": 300,
+    "torque_limit": 350,
     "speed_limit": 280,
     "velocity_min": -50,
     "velocity_max": 50,

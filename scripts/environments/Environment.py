@@ -91,6 +91,14 @@ class Environment(ABC):
         truncated = False #never truncate the episode but here for completion sake
         return state, reward, done, truncated
 
+    def gripper_step(self):
+        try:#TODO change?
+            self.gripper.step()
+        except GripperError as error:
+            # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
+            logging.error(error)
+            exit()
+
     def servo_state_space(self):
         # Angle Servo + X-Y-Yaw Object
         state = []
@@ -205,7 +213,8 @@ class Environment(ABC):
         else:
             # if target is not visible then append -1 to the state (norm 0-360)
             # TODO this needs further consideration...
-            state.append(-1)
+            for i in range (3):
+                state.append(-1)
 
         return state
 
