@@ -14,13 +14,13 @@ from cares_lib.dynamixel.Servo import DynamixelServoError
 
 
 def fixed_goal():
-    target_angle = np.random.randint(1, 3)
+    target_angle = np.random.randint(1, 4)
     if target_angle == 1:
         return 90
     elif target_angle == 2:
         return 270
-    #elif target_angle == 3:
-        #return 270
+    elif target_angle == 3:
+        return 0
     #elif target_angle == 4:
         #return 0
 
@@ -72,7 +72,7 @@ class RotationEnvironment(Environment):
             reward = -1
         else:
             reward = delta_changes / (np.abs(yaw_before - target_goal))
-            reward = reward if reward > 0 else -1
+            reward = reward if reward > 0 else 0
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")

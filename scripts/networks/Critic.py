@@ -25,7 +25,7 @@ class Critic(nn.Module):
 
         self.bn_2 = nn.BatchNorm1d(self.hidden_size[0])
 
-        #self.apply(weight_init)
+        self.apply(weight_init)
         self.optimiser = optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward(self, state, action):
@@ -42,4 +42,3 @@ class Critic(nn.Module):
         q2 = self.h_linear_32(q2)
 
         return q1, q2
-
