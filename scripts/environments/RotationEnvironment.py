@@ -72,11 +72,12 @@ class RotationEnvironment(Environment):
             reward = 0
         else:
             reward = delta_changes
-            #reward = delta_changes / (np.abs(yaw_before - target_goal))
+            reward = delta_changes / (np.abs(yaw_before - target_goal))
             #reward = reward if reward > 0 else 0
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
+            reward = reward + 10
             done = True
 
         return reward, done
