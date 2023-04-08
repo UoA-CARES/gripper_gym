@@ -20,7 +20,7 @@ def message_slack(message):
 def handle_gripper_error(error):
     logging.warning(error)
     logging.info("Please fix the gripper and press enter to try again or x to quit: ")
-    message_slack(f"{error}, please fix before the programme continues")
+    # message_slack(f"{error}, please fix before the programme continues")
     value  = input()
     if value == 'x':
         logging.info("Giving up correcting gripper")
@@ -56,17 +56,17 @@ class Gripper(object):
 
         if config.actuated_target:
             try:
-                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 1023, 0)
+                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors, 0, config.torque_limit, config.speed_limit, 1023, 0)
             except DynamixelServoError as error:
-                raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
+                raise DynamixelServoError(self, f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
 
         try:
-            for id in range(1, self.num_motors+1):
+            for id in range(1, self.num_motors):
                 led = id % 7 + 1
                 self.servos[id] = Servo(self.port_handler, self.packet_handler, self.protocol, id, led, config.torque_limit, config.speed_limit, self.max_values[id-1], self.min_values[id-1])
             self.setup_servos()
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
+            raise DynamixelServoError(self, f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
     
     def setup_handlers(self):
         if not self.port_handler.openPort():
@@ -91,7 +91,7 @@ class Gripper(object):
                 self.target_servo.enable()
 
         except DynamixelServoError as error:
-            raise DynamixelServoError(f"Gripper#{self.gripper_id}: failed to setup servos") from error
+            raise DynamixelServoError(self, f"Gripper#{self.gripper_id}: failed to setup servos") from error
 
     def state(self):
         current_state = {}

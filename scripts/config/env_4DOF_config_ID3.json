@@ -1,0 +1,9 @@
+{
+    "env_type": 1,
+    "camera_id": 0,
+    "object_type": 0,
+    "observation_type": 1,
+    "goal_selection_method": 0,
+    "marker_size": 18,
+    "noise_tolerance": 5
+}
