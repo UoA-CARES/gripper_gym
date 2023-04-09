@@ -9,8 +9,8 @@
     "speed_limit":  300,
 
     "num_motors": 4,
-    "min_values": [412, 212, 512, 512],
-    "max_values": [512, 512, 612, 812],
+    "min_values": [412, 200, 512, 512],
+    "max_values": [512, 512, 612, 800],
 
     "home_pose": [412, 512, 612, 512],
 
