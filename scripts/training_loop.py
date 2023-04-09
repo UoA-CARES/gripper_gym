@@ -122,8 +122,8 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID1.json")  # id 2 for robot left
-    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID1.json")
+    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID2.json")  # id 2 for robot left
+    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID2.json")
     return parser.parse_args()
 
 def main():
@@ -170,7 +170,7 @@ def main():
         device=DEVICE,
     )
 
-    file_name = f"Frid_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
+    file_name = f"Monday_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
     create_directories()
 
     logging.info("Starting Training Loop")

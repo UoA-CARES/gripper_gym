@@ -71,7 +71,6 @@ class RotationEnvironment(Environment):
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
             reward = 0
         else:
-            reward = delta_changes
             reward = delta_changes / (np.abs(yaw_before - target_goal))
             #reward = reward if reward > 0 else 0
 

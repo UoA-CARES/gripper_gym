@@ -1,7 +1,7 @@
 {
     "env_type": 0,
     "camera_id": 2,
-    "object_type": 0,
+    "object_type": 2,
     "observation_type": 1,
     "goal_selection_method": 0,
     "marker_size": 18,
