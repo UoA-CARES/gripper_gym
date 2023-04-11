@@ -69,11 +69,11 @@ def handle_gripper_error_home(gripper, error_message):
 def handle_gripper_error(gripper, error_message):
     logging.warning(f"Error handling has been initiated because of: {error_message}")
     logging.info("Please fix the gripper and press c to try again or x to quit: ")
+    message_slack(f"{error_message}, Please fix before the programme continues.")
     
     while True:
         value, timed_out = timedInput(timeout=10)
         if timed_out:
-            message_slack(f"{error_message}, Please fix before the programme continues.")
             value = read_slack(gripper.gripper_id)
 
         if value == 'c':
@@ -84,7 +84,6 @@ def handle_gripper_error(gripper, error_message):
             return False
         elif value  == "wiggle" or value  == "w":
             gripper.wiggle_home()
-            continue
 
     return True
 
@@ -97,6 +96,7 @@ class Gripper(object):
         self.num_motors = config.num_motors
         self.min_values = config.min_values
         self.max_values = config.max_values
+        self.speed_limit = config.speed_limit
         self.velocity_min = config.velocity_min
         self.velocity_max = config.velocity_max
 
@@ -285,9 +285,10 @@ class Gripper(object):
             raise ValueError(error_message)
 
         try:
+            self.set_velocity(np.full(self.num_motors,self.speed_limit))
             for servo_id, servo in self.servos.items():
                 
-                servo.set_control_mode(ControlMode.JOINT.value)
+                self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
                 
                 target_position = steps[servo_id-1]
                 
@@ -328,7 +329,7 @@ class Gripper(object):
         try:
             for servo_id, servo in self.servos.items():            
                 
-                servo.set_control_mode(ControlMode.WHEEL.value)
+                self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
                 
                 target_velocity = velocities[servo_id-1]
                 target_velocity_b = Servo.velocity_to_bytes(target_velocity)
@@ -361,7 +362,7 @@ class Gripper(object):
     
     def home(self):
         try:
-            self.set_velocity(np.full(self.num_motors,250))
+            # self.set_velocity(np.full(self.num_motors,250))
 
             pose = self.home_sequence[-1]
             self.move(pose)
@@ -387,7 +388,7 @@ class Gripper(object):
     # @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
     def wiggle_home(self):
         try:
-            self.set_velocity(np.full(self.num_motors,250))
+            # self.set_velocity(np.full(self.num_motors,250))
 
             for pose in self.home_sequence:
                 self.move(pose)
@@ -451,7 +452,6 @@ class Gripper(object):
             logging.error(error_message)
             raise GripperError(error_message) from error
     
-    # TODO WIP
     def set_control_mode(self, new_mode):
         if (new_mode != self.current_control_mode()).all():
             try:
