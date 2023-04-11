@@ -24,6 +24,7 @@ from networks import Critic
 
 
 from cares_reinforcement_learning.util import MemoryBuffer
+from cares_lib.slack_bot.SlackBot import SlackBot
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
@@ -31,6 +32,15 @@ if torch.cuda.is_available():
 else:
     DEVICE = torch.device('cpu')
     logging.info("Working with CPU")
+
+def slack_terminal(message):
+    with open('slack_token.txt') as file: 
+        slack_token = file.read()
+
+    slack_bot = SlackBot(slack_token=slack_token)
+
+    slack_bot.post_message(channel="#bot_terminal", message=message)
+    
 
 def train(environment, agent, memory, learning_config, file_name):
     episode_timesteps = 0
@@ -46,11 +56,16 @@ def train(environment, agent, memory, learning_config, file_name):
     for total_step_counter in range(int(learning_config.max_steps_training)):
         episode_timesteps += 1
         if total_step_counter < learning_config.max_steps_exploration:
-            logging.info(f"Running Exploration Steps {total_step_counter}/{learning_config.max_steps_exploration}")
+            message = f"Running Exploration Steps {total_step_counter}/{learning_config.max_steps_exploration}"
+            logging.info(message)
+            if total_step_counter%50 == 0:
+                slack_terminal(message)
             action_env = environment.sample_action_velocity() # gripper range
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
-            logging.info(f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n")
+            message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
+            logging.info(message)
+            slack_terminal(message)
             action = agent.select_action_from_policy(state)  # algorithm range [-1, 1]
             action_env = environment.denormalize(action) # gripper range
 
@@ -69,7 +84,9 @@ def train(environment, agent, memory, learning_config, file_name):
                 environment.gripper_step()
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
-            logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
+            message = f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
+            logging.info(message)
+            slack_terminal(message)
 
             historical_reward["step"].append(total_step_counter)
             historical_reward["episode_reward"].append(episode_reward)
@@ -137,6 +154,7 @@ def main():
     logging.info("Resetting Environment")
     state = environment.reset()
     logging.info(f"State: {state}")
+    slack_terminal(f"Reset Terminal. \nState: {state}")
 
     # default_x_ticks = range(len(state))
     # plt.scatter(default_x_ticks, state)
@@ -146,7 +164,9 @@ def main():
 
     observation_size = len(state)# This wont work for multi-dimension arrays
     action_num       = gripper_config.num_motors
-    logging.info(f"Observation Space: {observation_size} Action Space: {action_num}")
+    message = f"Observation Space: {observation_size} Action Space: {action_num}"
+    logging.info(message)
+    slack_terminal(message)
 
     torch.manual_seed(learning_config.seed)
     np.random.seed(learning_config.seed)

@@ -16,13 +16,14 @@ MOVING_STATUS_THRESHOLD = 20
 class GripperError(IOError):
     pass
 
-def message_slack(message):
+def message_slack(channel, message):
     with open('slack_token.txt') as file: 
         slack_token = file.read()
 
     slack_bot = SlackBot(slack_token=slack_token)
 
-    slack_bot.post_message(channel="#cares-chat-bot", message=message)
+    slack_bot.post_message(channel=channel, message=message)
+
 
 def read_slack(gripper_id):
     with open('slack_token.txt') as file: 
@@ -47,11 +48,11 @@ def wiggle_home(gripper):
     except GripperError as error:
         message = f"{error}"
         logging.error(message)
-        message_slack(message)
+        message_slack("#cares-chat-bot", message)
         return
     message = f"Wiggle home result: {gripper.is_Home()}"
     logging.error(message)
-    message_slack(message)
+    message_slack("#cares-chat-bot", message)
 
 # TODO different handlers for the different methods - there is not one size fits all response
 # TODO extend these out to do more useful stuff
@@ -69,7 +70,7 @@ def handle_gripper_error_home(gripper, error_message):
 def handle_gripper_error(gripper, error_message):
     logging.warning(f"Error handling has been initiated because of: {error_message}")
     logging.info("Please fix the gripper and press c to try again or x to quit: ")
-    message_slack(f"{error_message}, Please fix before the programme continues.")
+    message_slack("#cares-chat-bot", f"{error_message}, Please fix before the programme continues.")
     
     while True:
         value, timed_out = timedInput(timeout=10)
@@ -362,8 +363,6 @@ class Gripper(object):
     
     def home(self):
         try:
-            # self.set_velocity(np.full(self.num_motors,250))
-
             pose = self.home_sequence[-1]
             self.move(pose)
 
@@ -388,8 +387,6 @@ class Gripper(object):
     # @backoff.on_exception(backoff.expo, GripperError, jitter=None, giveup=handle_gripper_error)
     def wiggle_home(self):
         try:
-            # self.set_velocity(np.full(self.num_motors,250))
-
             for pose in self.home_sequence:
                 self.move(pose)
 
