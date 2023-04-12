@@ -51,18 +51,17 @@ def train(environment, agent, memory, learning_config, file_name):
             action_env = environment.sample_action() # gripper range
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
-            noise_scale *= noise_decay
-            noise_scale = max(min_noise, noise_scale)
-            logging.info(f"Noise Scale:{noise_scale}")
+            # noise_scale *= noise_decay
+            # noise_scale = max(min_noise, noise_scale)
+            # logging.info(f"Noise Scale:{noise_scale}")
 
             logging.info(f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n")
-            action = agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
+            action = agent.select_action_from_policy(state, noise_scale=0.10)  # algorithm range [-1, 1]
             action_env = environment.denormalize(action)  # gripper range
 
         next_state, reward, done, truncated = environment.step(action_env)
         logging.info(f"Reward of this step:{reward}")
 
-        #memory.add(state, action, reward, next_state, done)
         memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
 
         state = next_state
@@ -122,8 +121,8 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID2.json")  # id 2 for robot left
-    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID2.json")
+    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID1.json")  # id 2 for robot left
+    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID1.json")
     return parser.parse_args()
 
 def main():
@@ -170,7 +169,7 @@ def main():
         device=DEVICE,
     )
 
-    file_name = f"Monday_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
+    file_name = f"Thursday_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
     create_directories()
 
     logging.info("Starting Training Loop")

@@ -7,7 +7,7 @@ import random
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from Gripper import Gripper
+from Gripper import Gripper, GripperError
 from configurations import EnvironmentConfig, GripperConfig
 
 from cares_lib.vision.Camera import Camera
@@ -33,7 +33,7 @@ class Environment(ABC):
     def reset(self):
         try:
             self.gripper.home()
-        except DynamixelServoError as error:
+        except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)
             exit()
@@ -62,7 +62,7 @@ class Environment(ABC):
             # TODO extend to handle velocity commands
             self.gripper.move(action)
             self.gripper.step()
-        except DynamixelServoError as error:
+        except GripperError as error:
             # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
             logging.error(error)
             exit()
