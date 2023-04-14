@@ -1,4 +1,6 @@
 import logging
+import random
+
 import backoff
 import dynamixel_sdk as dxl
 import time
@@ -61,7 +63,8 @@ class Gripper(object):
             try:
                 self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 1023, 0)
             except (GripperError, DynamixelServoError) as error:
-                raise Gripper(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
+                #raise Gripper(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
+                raise GripperError(f"Failed to initialise target servo {self.gripper_id}") from error
 
         try:
             for id in range(1, self.num_motors+1):
@@ -265,7 +268,8 @@ class Gripper(object):
         try:
             self.move(self.home_pose)
             if self.target_servo is not None:
-                self.target_servo.move(470)#TODO abstract home position for the target servo
+                reset_home_position = random.randint(0, 1023)
+                self.target_servo.move(reset_home_position)
                 self.target_servo.disable_torque()  # Need this to be target servo
         except (GripperError, DynamixelServoError) as error:
             raise GripperError(f"Gripper#{self.gripper_id}: failed to Home") from error
