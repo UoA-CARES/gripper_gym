@@ -120,9 +120,9 @@ def parse_args():
     parser = ArgumentParser()
     file_path = Path(__file__).parent.resolve()
     
-    parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config_ID2.json")
-    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID2.json")  # id 2 for robot left
-    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID2.json")
+    parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config_ID1.json")
+    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_4DOF_config_ID1.json")  # id 2 for robot left
+    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_4DOF_config_ID1.json")
     return parser.parse_args()
 
 def main():

@@ -102,8 +102,8 @@ class Gripper(object):
     def state(self):
         current_state = {}
         current_state["positions"]  = self.current_positions()
-        current_state["velocities"] = self.current_velocity()
-        current_state["loads"]      = self.current_load()
+        # current_state["velocities"] = self.current_velocity()
+        # current_state["loads"]      = self.current_load()
         
         current_state["object"] = None
         if self.target_servo is not None:
@@ -229,6 +229,7 @@ class Gripper(object):
                 pass
         except (GripperError, DynamixelServoError) as error:
             raise GripperError(f"Gripper#{self.gripper_id}: Failed while moving") from error
+
 
     @backoff.on_exception(backoff.expo, DynamixelServoError, jitter=None, giveup=handle_gripper_error)
     def move_velocity(self, velocities):        
