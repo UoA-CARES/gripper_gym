@@ -31,6 +31,41 @@ else:
     DEVICE = torch.device('cpu')
     logging.info("Working with CPU")
 
+
+def evaluation(environment, agent, file_name):
+    agent.load_models(filename=file_name)
+
+    episode_timesteps = 0
+    episode_reward    = 0
+    episode_num       = 0
+
+    max_steps_evaluation        = 100
+    episode_horizont_evaluation = 20
+
+    state = environment.reset()
+
+    for total_step_counter in range(max_steps_evaluation):
+        episode_timesteps += 1
+
+        action = agent.select_action_from_policy(state, evaluation=True)  # algorithm range [-1, 1]
+        action_env = environment.denormalize(action)  # gripper range
+        next_state, reward, done, truncated = environment.step(action_env)
+        logging.info(f"Reward of this step:{reward}")
+        state = next_state
+        episode_reward += reward
+
+        if done is True or episode_timesteps >= episode_horizont_evaluation:
+            logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
+
+            # Reset environment
+            state =  environment.reset()
+
+            episode_reward    = 0
+            episode_timesteps = 0
+            episode_num += 1
+
+
+
 def train(environment, agent, memory, learning_config, file_name):
 
     episode_timesteps = 0
@@ -174,6 +209,9 @@ def main():
 
     logging.info("Starting Training Loop")
     train(environment, agent, memory, learning_config, file_name)
+
+    logging.info("Starting Evaluation Loop")
+    #evaluation(environment, agent, file_name)
 
 
 if __name__ == '__main__':
