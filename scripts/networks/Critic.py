@@ -9,7 +9,7 @@ class Critic(nn.Module):
     def __init__(self, observation_size, num_actions, learning_rate):
         super(Critic, self).__init__()
 
-        self.hidden_size = [32, 32]
+        self.hidden_size = [1024, 1024]
 
         # Q1 architecture
         self.h_linear_1 = nn.Linear(observation_size + num_actions, self.hidden_size[0])
@@ -25,7 +25,7 @@ class Critic(nn.Module):
 
         self.bn_2 = nn.BatchNorm1d(self.hidden_size[0])
 
-        #self.apply(weight_init)
+        self.apply(weight_init)
         self.optimiser = optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward(self, state, action):
