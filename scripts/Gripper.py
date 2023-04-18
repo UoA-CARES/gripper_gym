@@ -22,7 +22,7 @@ def exception_handler(error_message):
             try:
                 return function(self, *args, **kwargs)
             except (GripperError, DynamixelServoError) as error:
-                logging.error(error_message)
+                logging.error(f"Gripper#{self.gripper_id}: {error_message}")
                 raise GripperError(f"Gripper#{self.gripper_id}: {error_message}") from error
         return wrapper
     return decorator
@@ -88,19 +88,19 @@ class Gripper(object):
             raise IOError(error_message)
         logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
 
-    @exception_handler(f"Failed to setup servos")
+    @exception_handler("Failed to setup servos")
     def setup_servos(self):
         for _, servo in self.servos.items():
             servo.enable()
         if self.target_servo is not None:
             self.target_servo.enable()
 
-    @exception_handler(f"Failed to ping")
+    @exception_handler("Failed to ping")
     def ping(self):
         for _, servo in self.servos.items():
             servo.ping()
 
-    @exception_handler(f"Failed to read state")
+    @exception_handler("Failed to read state")
     def state(self):
         current_state = {}
         current_state["positions"] = self.current_positions()
@@ -113,46 +113,46 @@ class Gripper(object):
 
         return current_state        
 
-    @exception_handler(f"Failed to step")
+    @exception_handler("Failed to step")
     def step(self):
         for _, servo in self.servos.items():
             servo.step()
 
-    @exception_handler(f"Failed to read current position")
+    @exception_handler("Failed to read current position")
     def current_positions(self):
         return self.bulk_read("current_position", 2)
 
-    @exception_handler(f"Failed to read object position")
+    @exception_handler("Failed to read object position")
     def current_object_position(self):
         if self.target_servo is None:
             raise ValueError("Object Servo is None")
         return self.target_servo.current_position()
 
-    @exception_handler(f"Failed to read current velocity")
+    @exception_handler("Failed to read current velocity")
     def current_velocity(self):
         return self.bulk_read("current_velocity", 2)
 
-    @exception_handler(f"Failed to read current current load")
+    @exception_handler("Failed to read current current load")
     def current_load(self):
         return self.bulk_read("current_load", 2)
 
-    @exception_handler(f"Failed to read current current control mode")
+    @exception_handler("Failed to read current current control mode")
     def current_control_mode(self):
         return self.bulk_read("control_mode", 1)
     
-    @exception_handler(f"Failed to check if moving")
+    @exception_handler("Failed to check if moving")
     def is_moving(self):
         gripper_moving = False
         for _, servo in self.servos.items():
             gripper_moving |= servo.is_moving()
         return gripper_moving
 
-    @exception_handler(f"Failed to stop moving")
+    @exception_handler("Failed to stop moving")
     def stop_moving(self):
         for _, servo in self.servos.items():
             servo.stop_moving()
 
-    @exception_handler(f"Failed while moving servo")
+    @exception_handler("Failed while moving servo")
     def move_servo(self, servo_id, target_step, wait=True, timeout=5):
         if servo_id not in self.servos:
             error_message = f"Dynamixel#{servo_id} is not associated to Gripper#{self.gripper_id}"
@@ -161,7 +161,7 @@ class Gripper(object):
 
         self.servos[servo_id].move(target_step, wait=wait, timeout=timeout)
 
-    @exception_handler(f"Failed while moving servo by velocity")
+    @exception_handler("Failed while moving servo by velocity")
     def move_servo_velocity(self, servo_id, target_velocity):
         if servo_id not in self.servos:
             error_message = (f"Dynamixel#{servo_id} is not associated to Gripper#{self.gripper_id}")
@@ -170,7 +170,7 @@ class Gripper(object):
         
         self.servos[servo_id].move_velocity(target_velocity)
 
-    @exception_handler(f"Failed while trying to move by steps")
+    @exception_handler("Failed while trying to move by steps")
     def move(self, steps, wait=True, timeout=5):
         if not self.verify_steps(steps):
             error_message = f"Gripper#{self.gripper_id}: The move command provided is out of bounds: Step {steps}"
@@ -206,7 +206,7 @@ class Gripper(object):
 
         self.group_bulk_write.clearParam()
 
-    @exception_handler(f"Failed while trying to move by velocity")
+    @exception_handler("Failed while trying to move by velocity")
     def move_velocity(self, velocities, set_only):
         if not self.verify_velocity(velocities):
             error_message = f"Gripper#{self.gripper_id}: The move velocity command provided is out of bounds velocities {velocities}"
@@ -243,7 +243,7 @@ class Gripper(object):
         logging.debug(f"Gripper#{self.gripper_id}: Sending move velocity command succeeded")
         self.group_bulk_write.clearParam()
     
-    @exception_handler(f"Failed to home")
+    @exception_handler("Failed to home")
     def home(self):
         pose = self.home_sequence[-1]
         self.move(pose)
@@ -260,7 +260,7 @@ class Gripper(object):
 
         logging.debug(f"Gripper#{self.gripper_id}: in home position")
 
-    @exception_handler(f"Failed to wiggle home")
+    @exception_handler("Failed to wiggle home")
     def wiggle_home(self):
         for pose in self.home_sequence:
             self.move(pose)
@@ -277,11 +277,11 @@ class Gripper(object):
         logging.debug(f"Gripper#{self.gripper_id}: in home position")
         return True
         
-    @exception_handler(f"Failed to read if home")
+    @exception_handler("Failed to read if home")
     def is_home(self):
         return np.all(np.abs(self.home_sequence[-1] - np.array(self.current_positions())) <= MOVING_STATUS_THRESHOLD)
     
-    @exception_handler(f"Failed to set control mode")
+    @exception_handler("Failed to set control mode")
     def set_control_mode(self, new_mode):
         if (new_mode != self.current_control_mode()).all():
             self.disable_torque()#disable to set servo parameters
@@ -305,7 +305,7 @@ class Gripper(object):
 
             self.enable_torque()
 
-    @exception_handler(f"Failed to enable tourque")
+    @exception_handler("Failed to enable tourque")
     def enable_torque(self):
         for servo_id, servo in self.servos.items():   
             dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["torque_enable"], 1, [1])
@@ -322,7 +322,7 @@ class Gripper(object):
 
         self.group_bulk_write.clearParam()
         
-    @exception_handler(f"Failed to disable tourque")
+    @exception_handler("Failed to disable tourque")
     def disable_torque(self):
         for servo_id, servo in self.servos.items():            
             dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["torque_enable"], 1, [0])    
@@ -338,6 +338,11 @@ class Gripper(object):
             raise GripperError(error_message)
 
         self.group_bulk_write.clearParam()
+
+    @exception_handler("Failed to reboot servos")
+    def reboot(self):
+        for _, servo in self.servos.items():
+            servo.reboot()
 
     def verify_steps(self, steps):
         for servo_id, servo in self.servos.items():
@@ -356,7 +361,7 @@ class Gripper(object):
                 return False
         return True
     
-    @exception_handler(f"Failed to bulk read")
+    @exception_handler("Failed to bulk read")
     def bulk_read(self, address, length):
         readings = []
         for id, _ in self.servos.items():

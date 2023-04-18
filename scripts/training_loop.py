@@ -64,7 +64,17 @@ def evaluation(environment, agent, file_name):
 
         action = agent.select_action_from_policy(state, evaluation=True)  # algorithm range [-1, 1]
         action_env = environment.denormalize(action)  # gripper range
-        next_state, reward, done, truncated = environment.step(action_env)
+
+        try:
+            next_state, reward, done, truncated = environment.step(action_env)
+        except (EnvironmentError , GripperError) as error:
+            error_message = f"Failed to step with message: {error}"
+            logging.error(error_message)
+            if handle_gripper_error_home(environment, error_message):
+                continue
+            else:
+                environment.gripper.close() # can do more if we want to save states and all
+
         logging.info(f"Reward of this step:{reward}")
         state = next_state
         episode_reward += reward
@@ -73,7 +83,7 @@ def evaluation(environment, agent, file_name):
             logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
             # Reset environment
-            state =  environment.reset()
+            state =  environment_reset(environment)
 
             episode_reward    = 0
             episode_timesteps = 0
@@ -92,7 +102,7 @@ def train(environment, agent, memory, learning_config, file_name):
     noise_decay  = 0.9999
     noise_scale  = 0.10
 
-    state = environment.reset()
+    state = environment_reset(environment)
     for total_step_counter in range(int(learning_config.max_steps_training)):
         episode_timesteps += 1
 
@@ -106,12 +116,16 @@ def train(environment, agent, memory, learning_config, file_name):
             action_env = environment.sample_action() # gripper range #or sample_action_velocity
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
+            noise_scale *= noise_decay
+            noise_scale = max(min_noise, noise_scale)
+            logging.info(f"Noise Scale:{noise_scale}")
+
             message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
 
-            action = agent.select_action_from_policy(state)  # algorithm range [-1, 1]
-            action_env = environment.denormalize(action) # gripper range
+            action = agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
+            action_env = environment.denormalize(action)  # gripper range
 
         try:
             next_state, reward, done, truncated = environment.step(action_env)
@@ -122,20 +136,9 @@ def train(environment, agent, memory, learning_config, file_name):
                 continue
             else:
                 environment.gripper.close() # can do more if we want to save states and all
+        logging.info(f"Reward of this step:{reward}")
 
         # next_state = scaling_symlog(next_state)
-
-        memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
-        noise_scale *= noise_decay
-        noise_scale = max(min_noise, noise_scale)
-        logging.info(f"Noise Scale:{noise_scale}")
-
-        logging.info(f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n")
-        action = agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
-        action_env = environment.denormalize(action)  # gripper range
-
-        next_state, reward, done, truncated = environment.step(action_env)
-        logging.info(f"Reward of this step:{reward}")
 
         memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
 
@@ -204,7 +207,7 @@ def environment_reset(environment):
         error_message = f"Failed to reset with message: {error}"
         logging.error(error_message)
         if handle_gripper_error_home(environment, error_message):
-            return environment.reset()  # might keep looping if it keep having issues
+            return environment_reset(environment)  # might keep looping if it keep having issues
         else:
             environment.gripper.close()
     
@@ -254,6 +257,16 @@ def handle_gripper_error(environment, error_message):
         elif value == 'x':
             logging.info("Giving up correcting gripper")
             return False
+        elif value == "reboot" or value == "r":
+            try:
+                logging.info("Rebooting servos")
+                environment.gripper.reboot()
+                continue
+            except (EnvironmentError , GripperError):
+                warning_message = "Your commanded reboot failed, aborting"
+                logging.warning(warning_message)
+                slack_bot.post_message("#bot_terminal", warning_message)
+                return False
         elif value  == "wiggle" or value  == "w":
             try:
                 environment.gripper.wiggle_home()

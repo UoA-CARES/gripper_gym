@@ -22,8 +22,8 @@ def exception_handler(error_message):
             try:
                 return function(self, *args, **kwargs)
             except EnvironmentError as error:
-                logging.error(error_message)
-                raise EnvironmentError(error.gripper, f"Gripper#{error.gripper.gripper_id}: {error_message}") from error
+                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
+                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
                 # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
         return wrapper
     return decorator
@@ -50,7 +50,7 @@ class Environment(ABC):
 
         self.goal_state = self.get_object_state()
 
-    @exception_handler(f"Environment failed to reset")
+    @exception_handler("Environment failed to reset")
     def reset(self):
         self.gripper.home()       
         state = self.get_state()
@@ -78,7 +78,7 @@ class Environment(ABC):
             action.append(random.randint(self.gripper.velocity_min, self.gripper.velocity_max))
         return action
 
-    @exception_handler(f"Failed to step")
+    @exception_handler("Failed to step")
     def step(self, action):
         # Get initial pose of the object before moving to help calculate reward after moving
         object_state_before = self.get_object_state()
@@ -100,11 +100,11 @@ class Environment(ABC):
         reward, done = self.reward_function(self.goal_state, object_state_before, object_state_after)
 
         # TODO use truncated to indicate the gripper had a fault and needs to aborted
-        truncated = False #never truncate the episode but here for completion sake
+        truncated = False
         return state, reward, done, truncated
 
 
-    @exception_handler(f"Failed to get servo states")
+    @exception_handler("Failed to get servo states")
     def servo_state_space(self):
         # Angle Servo + X-Y-Yaw Object
         state = []
@@ -128,7 +128,7 @@ class Environment(ABC):
         return state
 
     # The aruco state presumes the Aruco IDs match the servo IDs + 2 Markers for finger tips + 1 Marker for Object
-    @exception_handler(f"Failed to get aruco states")
+    @exception_handler("Failed to get aruco states")
     def aruco_state_space(self):
         # X-Y Servo + X-Y Finger-tips + X-Y-Yaw Object
         state = []
@@ -162,7 +162,7 @@ class Environment(ABC):
         return state
 
 
-    @exception_handler(f"Failed to get servo and aruco states states")
+    @exception_handler("Failed to get servo and aruco states states")
     def servo_aruco_state_space(self):
         # Angle Servo + X-Y-Yaw Object
         state = []
@@ -207,7 +207,7 @@ class Environment(ABC):
 
         return state
     
-    @exception_handler(f"Failed to get servo velocity states")
+    @exception_handler("Failed to get servo velocity states")
     def servo_velocity_state_space(self): 
         # Angle Servo + X-Y-Yaw Object
         state = []
@@ -237,7 +237,7 @@ class Environment(ABC):
         # Note should store the stacked frame somewhere...
         raise NotImplementedError("Requires implementation")
 
-    @exception_handler(f"Failed to get state")
+    @exception_handler("Failed to get state")
     def get_state(self): 
         if self.observation_type == 0:# TODO Turn into enum
             return self.servo_state_space()
@@ -265,7 +265,7 @@ class Environment(ABC):
                 return marker_poses[self.object_marker_id]
         return None
 
-    @exception_handler(f"Failed to get object states")
+    @exception_handler("Failed to get object states")
     def get_object_state(self): 
         if self.object_type == 0:
             return self.get_aruco_target_pose(blindable=False)
