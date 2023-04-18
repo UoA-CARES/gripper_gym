@@ -18,9 +18,13 @@ from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig
 
+from environments.Environment import EnvironmentError
+from Gripper import GripperError
+
 from cares_reinforcement_learning.algorithm import TD3
 from networks import Actor
 from networks import Critic
+from pytimedinput import timedInput
 
 
 from cares_reinforcement_learning.util import MemoryBuffer
@@ -32,24 +36,18 @@ if torch.cuda.is_available():
 else:
     DEVICE = torch.device('cpu')
     logging.info("Working with CPU")
-
-def slack_terminal(message):
-    with open('slack_token.txt') as file: 
-        slack_token = file.read()
-
-    slack_bot = SlackBot(slack_token=slack_token)
-
-    slack_bot.post_message(channel="#bot_terminal", message=message)
-    
+ 
+with open('slack_token.txt') as file: 
+    slack_token = file.read()
+slack_bot = SlackBot(slack_token=slack_token)
 
 def train(environment, agent, memory, learning_config, file_name):
     episode_timesteps = 0
     episode_reward    = 0
     episode_num       = 0
 
-    state = environment.reset()
+    state = environment_reset(environment) 
     # state = scaling_symlog(state)
-    
 
     historical_reward = {"step": [], "episode_reward": []}
 
@@ -58,41 +56,56 @@ def train(environment, agent, memory, learning_config, file_name):
         if total_step_counter < learning_config.max_steps_exploration:
             message = f"Running Exploration Steps {total_step_counter}/{learning_config.max_steps_exploration}"
             logging.info(message)
+
             if total_step_counter%50 == 0:
-                slack_terminal(message)
-            action_env = environment.sample_action_velocity() # gripper range
+                slack_bot.post_message("#bot_terminal", message)
+
+            action_env = environment.sample_action() # gripper range #or sample_action_velocity
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
             message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
             logging.info(message)
-            slack_terminal(message)
+            slack_bot.post_message("#bot_terminal", message)
+
             action = agent.select_action_from_policy(state)  # algorithm range [-1, 1]
             action_env = environment.denormalize(action) # gripper range
 
-        next_state, reward, done, truncated = environment.step(action_env)
+        try:
+            next_state, reward, done, truncated = environment.step(action_env)
+        except (EnvironmentError , GripperError) as error:
+            error_message = f"Failed to step with message: {error}"
+            logging.error(error_message)
+            if handle_gripper_error_home(environment, error_message):
+                continue
+            else:
+                environment.gripper.close() # can do more if we want to save states and all
+
         # next_state = scaling_symlog(next_state)
 
-        memory.add(state, action, reward, next_state, done)
+        memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
         state = next_state
 
         episode_reward += reward
 
+        # IF velocity based do after each episode
         if total_step_counter >= learning_config.max_steps_exploration:
+            # pause the environment
             for _ in range(learning_config.G):
                 experiences = memory.sample(learning_config.batch_size)
                 agent.train_policy(experiences)
-                environment.gripper_step()
+
+                # 3
+                # TODO if returns False repond...
+                # try:
+                    # environment.gripper.step()
+                # except ...
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
             message = f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
             logging.info(message)
-            slack_terminal(message)
+            slack_bot.post_message("#bot_terminal", message)
 
-            historical_reward["step"].append(total_step_counter)
-            historical_reward["episode_reward"].append(episode_reward)
-
-            # Reset environment
-            state =  environment.reset()
+            state = environment_reset(environment)
             # state = scaling_symlog(state)
 
             episode_reward    = 0
@@ -127,13 +140,78 @@ def scaling_symlog(state):
     state_symlog = np.sign(state) * np.log(np.abs(state)  + 1)
     return state_symlog
 
+def environment_reset(environment):
+    try:
+        return environment.reset()
+    except (EnvironmentError , GripperError) as error:
+        error_message = f"Failed to reset with message: {error}"
+        logging.error(error_message)
+        if handle_gripper_error_home(environment, error_message):
+            return environment.reset()  # might keep looping if it keep having issues
+        else:
+            environment.gripper.close()
+    
+def read_slack():
+    message = slack_bot.get_message("cares-chat-bot")
+    
+    if message is not None:
+        message = message.split(",") 
+    else:
+        return None
+
+    gripper_id = 9
+    if message[0] == str(gripper_id):
+        return message[1]
+    return None
+
+def handle_gripper_error_home(environment, error_message):
+    warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
+    logging.warning(warning_message)
+    slack_bot.post_message("#bot_terminal", warning_message)
+    
+    try :
+        environment.gripper.wiggle_home()
+        return True
+    except (EnvironmentError , GripperError):
+        warning_message = f"Auto wiggle fix failed, going to final handler"
+        logging.warning(warning_message)
+        slack_bot.post_message("#bot_terminal", warning_message)
+        return handle_gripper_error(environment, error_message)
+    
+    
+
+def handle_gripper_error(environment, error_message):
+    logging.error(f"Error handling has been initiated because of: {error_message}")
+    help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle: "
+    logging.error(help_message)
+    slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}.")
+    
+    while True:
+        value, timed_out = timedInput(timeout=10)
+        if timed_out:
+            value = read_slack()
+
+        if value == 'c':
+            logging.info("Gripper Fixed continuing onwards")
+            return True
+        elif value == 'x':
+            logging.info("Giving up correcting gripper")
+            return False
+        elif value  == "wiggle" or value  == "w":
+            try:
+                environment.gripper.wiggle_home()
+            except (EnvironmentError , GripperError):
+                warning_message = "Your commanded wiggle home failed, aborting"
+                logging.warning(warning_message)
+                slack_bot.post_message("#bot_terminal", warning_message)
+                return False
 
 def parse_args():
     parser = ArgumentParser()
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_9DOF_config.json")
+    parser.add_argument("--env_config", type=str, default=f"{file_path}/config/env_9DOF_position_config.json")
     parser.add_argument("--gripper_config", type=str, default=f"{file_path}/config/gripper_9DOF_config.json")
     
     return parser.parse_args()
@@ -149,12 +227,11 @@ def main():
     elif env_config.env_type == 1:
         environment = TranslationEnvironment(env_config, gripper_config)
 
-
-    
     logging.info("Resetting Environment")
-    state = environment.reset()
+    #wrap
+    state = environment_reset(environment)
     logging.info(f"State: {state}")
-    slack_terminal(f"Reset Terminal. \nState: {state}")
+    slack_bot.post_message("#bot_terminal", f"Reset Terminal. \nState: {state}")
 
     # default_x_ticks = range(len(state))
     # plt.scatter(default_x_ticks, state)
@@ -166,7 +243,7 @@ def main():
     action_num       = gripper_config.num_motors
     message = f"Observation Space: {observation_size} Action Space: {action_num}"
     logging.info(message)
-    slack_terminal(message)
+    slack_bot.post_message("#bot_terminal", message)
 
     torch.manual_seed(learning_config.seed)
     np.random.seed(learning_config.seed)

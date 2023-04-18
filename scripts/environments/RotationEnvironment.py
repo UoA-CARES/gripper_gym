@@ -45,7 +45,6 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         if self.goal_selection_method == 0:# TODO Turn into enum
-            # Note: added this because even if object is present before calling this function, errors are still created when it returns None while calling the function in here.
             object_state = self.get_object_state()
             while object_state == None:
                 if not self.gripper.is_home():
