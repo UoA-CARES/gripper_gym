@@ -9,7 +9,7 @@
     "min_values": [412, 212, 512, 512],
     "max_values": [512, 512, 612, 812],
 
-    "home_pose": [412, 512, 612, 512],
+    "home_sequence": [[412, 512, 612, 512]],
 
     "actuated_target": false
 }

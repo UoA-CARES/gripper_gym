@@ -42,8 +42,10 @@ class GripperConfig(BaseModel):
     baudrate: int
     torque_limit: int
     speed_limit: int
+    velocity_min: int
+    velocity_max: int
     num_motors: int
     min_values: List[int]
     max_values: List[int]
-    home_pose: List[int]
+    home_sequence: List[List[int]]
     actuated_target: bool

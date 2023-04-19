@@ -18,7 +18,7 @@ class Actor(nn.Module):
         self.bn1 = nn.BatchNorm1d(self.hidden_size[0])
         self.bn2 = nn.BatchNorm1d(self.hidden_size[1])
 
-        # self.apply(weight_init)
+        self.apply(weight_init)
         self.optimiser = optim.Adam(self.parameters(), lr=learning_rate)
 
 

@@ -1,14 +1,19 @@
 import logging
 logging.basicConfig(level=logging.INFO)
 import pydantic
+import numpy as np
+import time
 
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
 import time
 
-from Gripper import Gripper
+from Gripper import Gripper, GripperError
 from configurations import GripperConfig
+from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
+
+import dynamixel_sdk as dxl
 
 # Example of how to use Gripper
 def main(gripper_config):
@@ -20,7 +25,7 @@ def main(gripper_config):
     gripper.ping()
 
     logging.info("Moving the Gripper to a home position")
-    gripper.home()
+    gripper.home()    
 
     logging.info("Gripper State")
     gripper_state = gripper.state()
@@ -35,7 +40,7 @@ def main(gripper_config):
         gripper.step()
         time.sleep(0.1)
 
-    velocities = [30,0,0,50,0,0,30,0,0]
+    velocities = [30,30,30,50,30,30,30,30,30]
     logging.info(f"Set Velocity: {velocities}")
     gripper.move_velocity(velocities) 
 
@@ -54,8 +59,6 @@ def main(gripper_config):
 
     logging.info("Moving the Gripper to a home position")
     gripper.home()
-
-    time.sleep(1.0)
 
     logging.info("Gripper State")
     gripper_state = gripper.state()

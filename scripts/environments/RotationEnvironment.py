@@ -8,23 +8,18 @@ file_path = Path(__file__).parent.resolve()
 
 from configurations import EnvironmentConfig, GripperConfig
 
-from cares_lib.vision.Camera import Camera
-from cares_lib.vision.ArucoDetector import ArucoDetector
-from cares_lib.dynamixel.Servo import DynamixelServoError
-
-
 def fixed_goal():
-    target_angle = np.random.randint(1, 3)
+    target_angle = np.random.randint(1, 5)
     if target_angle == 1:
         return 90
     elif target_angle == 2:
+        return 180
+    elif target_angle == 3:
         return 270
-    #elif target_angle == 3:
-        #return 270
-    #elif target_angle == 4:
-        #return 0
-
+    elif target_angle == 4:
+        return 0
     raise ValueError(f"Target angle unknown: {target_angle}")
+
 def fixed_goals(object_current_pose, noise_tolerance):
     current_yaw = object_current_pose['orientation'][2]# Yaw
     target_angle = fixed_goal()
@@ -44,7 +39,13 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         if self.goal_selection_method == 0:# TODO Turn into enum
-            return fixed_goals(self.get_object_state(), self.noise_tolerance)
+            object_state = self.get_object_state()
+            while object_state == None:
+                if not self.gripper.is_home():
+                    self.gripper.home()
+                object_state = self.get_object_state()
+
+            return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == 1:
             return relative_goal(self.get_object_state())
         
@@ -68,16 +69,17 @@ class RotationEnvironment(Environment):
         goal_difference = np.abs(target_goal - yaw_after)
         delta_changes   = np.abs(target_goal - yaw_before) - np.abs(target_goal - yaw_after)
 
+        logging.info(f"Yaw = {yaw_after}")
+
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-            reward = -1
+            reward = -10
         else:
-            reward = delta_changes / (np.abs(yaw_before - target_goal))
-            reward = reward if reward > 0 else -1
+            reward = np.sign(delta_changes) * np.log(np.abs(delta_changes) + 1)
+            #reward = delta_changes / (np.abs(yaw_before - target_goal))
+            #reward = reward if reward > 0 else 0
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
             done = True
 
         return reward, done
-
-    
