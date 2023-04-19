@@ -8,12 +8,12 @@ from pathlib import Path
 
 file_path = Path(__file__).parent.resolve()
 
+from configurations import EnvironmentConfig, GripperConfig
 from Gripper import Gripper
 
-from configurations import EnvironmentConfig, GripperConfig
-
-from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
+from cares_lib.vision.Camera import Camera
+
 
 def exception_handler(error_message):
     def decorator(function):

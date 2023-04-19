@@ -67,17 +67,18 @@ def evaluation(environment, agent, file_name):
 
         try:
             next_state, reward, done, truncated = environment.step(action_env)
+
+            logging.info(f"Reward of this step:{reward}")
+            state = next_state
+            episode_reward += reward
+
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
             logging.error(error_message)
             if handle_gripper_error_home(environment, error_message):
-                continue
+                done = True
             else:
                 environment.gripper.close() # can do more if we want to save states and all
-
-        logging.info(f"Reward of this step:{reward}")
-        state = next_state
-        episode_reward += reward
 
         if done is True or episode_timesteps >= episode_horizont_evaluation:
             logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
@@ -129,35 +130,37 @@ def train(environment, agent, memory, learning_config, file_name):
 
         try:
             next_state, reward, done, truncated = environment.step(action_env)
+
+            logging.info(f"Reward of this step:{reward}")
+
+            # next_state = scaling_symlog(next_state)
+
+            memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
+
+            state = next_state
+
+            episode_reward += reward
+
+            # IF velocity based do after each episode
+            if total_step_counter >= learning_config.max_steps_exploration:
+                # pause the environment
+                for _ in range(learning_config.G):
+                    experiences = memory.sample(learning_config.batch_size)
+                    agent.train_policy(experiences)
+
+                    # TODO if returns False repond...
+                    # try:
+                        # environment.gripper.step()
+                    # except ...
+                    
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
             logging.error(error_message)
             if handle_gripper_error_home(environment, error_message):
-                continue
+                done = True
             else:
                 environment.gripper.close() # can do more if we want to save states and all
-        logging.info(f"Reward of this step:{reward}")
 
-        # next_state = scaling_symlog(next_state)
-
-        memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
-
-        state = next_state
-
-        episode_reward += reward
-
-        # IF velocity based do after each episode
-        if total_step_counter >= learning_config.max_steps_exploration:
-            # pause the environment
-            for _ in range(learning_config.G):
-                experiences = memory.sample(learning_config.batch_size)
-                agent.train_policy(experiences)
-
-                # 3
-                # TODO if returns False repond...
-                # try:
-                    # environment.gripper.step()
-                # except ...
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
             message = f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
@@ -261,21 +264,21 @@ def handle_gripper_error(environment, error_message):
             try:
                 logging.info("Rebooting servos")
                 environment.gripper.reboot()
-                continue
             except (EnvironmentError , GripperError):
                 warning_message = "Your commanded reboot failed, aborting"
                 logging.warning(warning_message)
                 slack_bot.post_message("#bot_terminal", warning_message)
                 return False
+            return True
         elif value  == "wiggle" or value  == "w":
             try:
                 environment.gripper.wiggle_home()
-                return True
             except (EnvironmentError , GripperError):
                 warning_message = "Your commanded wiggle home failed, aborting"
                 logging.warning(warning_message)
                 slack_bot.post_message("#bot_terminal", warning_message)
                 return False
+            return True
 
 def parse_args():
     parser = ArgumentParser()

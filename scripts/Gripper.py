@@ -343,6 +343,11 @@ class Gripper(object):
     def reboot(self):
         for _, servo in self.servos.items():
             servo.reboot()
+            start_time = time.perf_counter()
+            while time.perf_counter() < start_time + 0.5:
+                pass
+        self.setup_servos()
+        logging.info(f"Gripper#{self.gripper_id}: reboot completed")
 
     def verify_steps(self, steps):
         for servo_id, servo in self.servos.items():
