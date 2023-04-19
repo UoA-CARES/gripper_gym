@@ -177,7 +177,7 @@ class Gripper(object):
             logging.error(error_message)
             raise ValueError(error_message)
 
-        # self.move_velocity(np.full(self.num_motors,self.speed_limit),True) # only for velocity
+        self.move_velocity(np.full(self.num_motors,self.speed_limit),True) # only for velocity
         for servo_id, servo in self.servos.items():
             # self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
             servo.set_control_mode(ControlMode.JOINT.value)

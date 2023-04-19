@@ -113,8 +113,11 @@ def train(environment, agent, memory, learning_config, file_name):
 
             if total_step_counter%50 == 0:
                 slack_bot.post_message("#bot_terminal", message)
-
-            action_env = environment.sample_action() # gripper range #or sample_action_velocity
+            
+            if environment.observation_type == 3:
+                action_env = environment.sample_action_velocity() # gripper range #or sample_action_velocity
+            else:
+                action_env = environment.sample_action()
             action     = environment.normalize(action_env) # algorithm range [-1, 1]
         else:
             noise_scale *= noise_decay
@@ -146,12 +149,8 @@ def train(environment, agent, memory, learning_config, file_name):
                 # pause the environment
                 for _ in range(learning_config.G):
                     experiences = memory.sample(learning_config.batch_size)
-                    agent.train_policy(experiences)
-
-                    # TODO if returns False repond...
-                    # try:
-                        # environment.gripper.step()
-                    # except ...
+                    if environment.observation_type != 3: # if not velocity based, train every step
+                        agent.train_policy(experiences)
                     
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
@@ -168,6 +167,9 @@ def train(environment, agent, memory, learning_config, file_name):
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
 
+            if environment.observation_type == 3: # if velocity based, train every episode
+                agent.train_policy(experiences)
+
             state = environment_reset(environment)
             # state = scaling_symlog(state)
 
@@ -180,6 +182,7 @@ def train(environment, agent, memory, learning_config, file_name):
 
     plot_reward_curve(historical_reward, file_name)
     agent.save_models(file_name)
+    
 
 
 # todo move this function to better place
@@ -269,16 +272,25 @@ def handle_gripper_error(environment, error_message):
                 warning_message = "Your commanded reboot failed, try again"
                 logging.warning(warning_message)
                 slack_bot.post_message("#bot_terminal", warning_message)
-                return True # stay in loop to try again
+                return True # stay in loop and try again
             return True
-        elif value  == "wiggle" or value  == "w":
+        elif value  == "w":
             try:
                 environment.gripper.wiggle_home()
             except (EnvironmentError , GripperError):
                 warning_message = "Your commanded wiggle home failed, try again"
                 logging.warning(warning_message)
                 slack_bot.post_message("#bot_terminal", warning_message)
-                return True  # stay in loop to try again
+                return True
+            return True
+        elif value  == "w2":
+            try:
+                environment.gripper.move(environment.gripper.max_values)
+            except (EnvironmentError , GripperError):
+                warning_message = "Your commanded wiggle home 2 failed, try again"
+                logging.warning(warning_message)
+                slack_bot.post_message("#bot_terminal", warning_message)
+                return True
             return True
 
 def parse_args():
@@ -286,7 +298,7 @@ def parse_args():
     file_path = Path(__file__).parent.resolve()
     
     parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_9DOF_position_config.json")  # id 2 for robot left
+    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_9DOF_velocity_config.json")  # id 2 for robot left
     parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_9DOF_config.json")
     return parser.parse_args()
 

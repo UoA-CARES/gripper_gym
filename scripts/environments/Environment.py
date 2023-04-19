@@ -108,7 +108,7 @@ class Environment(ABC):
     def servo_state_space(self):
         # Angle Servo + X-Y-Yaw Object
         state = []
-        self.object_marker_id = 1
+        self.object_marker_id = 1 # hardcoded for 3 finger gripper for now
         gripper_state = self.gripper.state()
         state += gripper_state["positions"]
 
@@ -211,7 +211,7 @@ class Environment(ABC):
     def servo_velocity_state_space(self): 
         # Angle Servo + X-Y-Yaw Object
         state = []
-        self.object_marker_id = 1
+        self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
         gripper_state = self.gripper.state()
         state += gripper_state["positions"]
         state += gripper_state["velocities"]
