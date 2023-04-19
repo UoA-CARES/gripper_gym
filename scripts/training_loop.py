@@ -126,7 +126,6 @@ def train(environment, agent, memory, learning_config, file_name):
 
             message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
             logging.info(message)
-            slack_bot.post_message("#bot_terminal", message)
 
             action = agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
             action_env = environment.denormalize(action)  # gripper range
