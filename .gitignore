@@ -7,3 +7,4 @@ slack_token.txt
 config/camera_distortion.txt
 config/camera_matrix.txt
 data_plots
+gripper_example_local.py

@@ -1,6 +1,8 @@
 import logging
 logging.basicConfig(level=logging.INFO)
 import pydantic
+import numpy as np
+import time
 
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
@@ -9,6 +11,9 @@ import time
 
 from Gripper import Gripper, GripperError
 from configurations import GripperConfig
+from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
+
+import dynamixel_sdk as dxl
 
 # Example of how to use Gripper
 def main(gripper_config):
@@ -20,54 +25,40 @@ def main(gripper_config):
     gripper.ping()
 
     logging.info("Moving the Gripper to a home position")
-    gripper.home()
-    gripper.move([100, 512, 820, 100, 512, 820, 100, 512, 820])
-    gripper.move([512, 512, 820, 512, 512, 820, 512, 512, 820])
-    gripper.move([100, 512, 820, 100, 512, 820, 100, 512, 820])
-    gripper.home()
+    gripper.home()    
 
     logging.info("Gripper State")
     gripper_state = gripper.state()
     logging.info(gripper_state)
 
-    # velocities = [-30,0,0,-50,0,0,-30,0,0]
-    # logging.info(f"Set Velocity: {velocities}")
-    # gripper.move_velocity(velocities) 
-
-    # start_time = time.perf_counter()
-    # while time.perf_counter() < start_time + 10:
-    #     gripper.step()
-    #     time.sleep(0.1)
-
-    # velocities = [30,0,0,50,0,0,30,0,0]
-    # logging.info(f"Set Velocity: {velocities}")
-    # gripper.move_velocity(velocities) 
-    try:
-        gripper.error()
-    except GripperError as error:
-        logging.info("Error Handled")
-
-    velocities = [30,0,0,50,0,0,30,0,0]
+    velocities = [-30,0,0,-50,0,0,-30,0,0]
     logging.info(f"Set Velocity: {velocities}")
     gripper.move_velocity(velocities) 
 
-    # start_time = time.perf_counter()
-    # while time.perf_counter() < start_time + 3:
-    #     gripper.step()
-    #     time.sleep(0.1)
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 10:
+        gripper.step()
+        time.sleep(0.1)
 
-    # logging.info(f"Setting velocity to zero")
-    # gripper.move_velocity([0,0,0,0,0,0,0,0,0])
+    velocities = [30,30,30,50,30,30,30,30,30]
+    logging.info(f"Set Velocity: {velocities}")
+    gripper.move_velocity(velocities) 
+
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 3:
+        gripper.step()
+        time.sleep(0.1)
+
+    logging.info(f"Setting velocity to zero")
+    gripper.move_velocity([0,0,0,0,0,0,0,0,0])
         
-    # start_time = time.perf_counter()
-    # while time.perf_counter() < start_time + 2:
-    #     gripper.step()
-    #     time.sleep(0.1)
+    start_time = time.perf_counter()
+    while time.perf_counter() < start_time + 2:
+        gripper.step()
+        time.sleep(0.1)
 
     logging.info("Moving the Gripper to a home position")
     gripper.home()
-
-    time.sleep(1.0)
 
     logging.info("Gripper State")
     gripper_state = gripper.state()

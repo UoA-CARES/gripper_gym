@@ -160,6 +160,7 @@ def train(environment, agent, memory, learning_config, file_name):
                 done = True
             else:
                 environment.gripper.close() # can do more if we want to save states and all
+                break
 
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
@@ -265,19 +266,19 @@ def handle_gripper_error(environment, error_message):
                 logging.info("Rebooting servos")
                 environment.gripper.reboot()
             except (EnvironmentError , GripperError):
-                warning_message = "Your commanded reboot failed, aborting"
+                warning_message = "Your commanded reboot failed, try again"
                 logging.warning(warning_message)
                 slack_bot.post_message("#bot_terminal", warning_message)
-                return False
+                return True # stay in loop to try again
             return True
         elif value  == "wiggle" or value  == "w":
             try:
                 environment.gripper.wiggle_home()
             except (EnvironmentError , GripperError):
-                warning_message = "Your commanded wiggle home failed, aborting"
+                warning_message = "Your commanded wiggle home failed, try again"
                 logging.warning(warning_message)
                 slack_bot.post_message("#bot_terminal", warning_message)
-                return False
+                return True  # stay in loop to try again
             return True
 
 def parse_args():
