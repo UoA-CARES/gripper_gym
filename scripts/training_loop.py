@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 from argparse import ArgumentParser
+from pytimedinput import timedInput
+from datetime import datetime
 
 import torch
 import random
@@ -23,13 +25,6 @@ from Gripper import GripperError
 from cares_reinforcement_learning.algorithm import TD3
 from networks import Actor
 from networks import Critic
-from pytimedinput import timedInput
-
-
-
-from networks import Actor
-from networks import Critic
-from cares_reinforcement_learning.algorithm import TD3
 from cares_reinforcement_learning.util import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 
@@ -143,12 +138,10 @@ def train(environment, agent, memory, learning_config, file_name):
 
             episode_reward += reward
 
-            # IF velocity based do after each episode
             if total_step_counter >= learning_config.max_steps_exploration:
-                # pause the environment
-                for _ in range(learning_config.G):
-                    experiences = memory.sample(learning_config.batch_size)
-                    if environment.observation_type != 3: # if not velocity based, train every step
+                if environment.observation_type != 3: # if not velocity based, train every step
+                    for _ in range(learning_config.G):
+                        experiences = memory.sample(learning_config.batch_size)
                         agent.train_policy(experiences)
                     
         except (EnvironmentError , GripperError) as error:
@@ -160,14 +153,16 @@ def train(environment, agent, memory, learning_config, file_name):
                 environment.gripper.close() # can do more if we want to save states and all
                 break
 
-
         if done is True or episode_timesteps >= learning_config.episode_horizont:
             message = f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
 
-            if environment.observation_type == 3: # if velocity based, train every episode
-                agent.train_policy(experiences)
+            if total_step_counter >= learning_config.max_steps_exploration:
+                if environment.observation_type == 3: # if velocity based, train every episode
+                    for _ in range(learning_config.G):
+                        experiences = memory.sample(learning_config.batch_size)
+                        agent.train_policy(experiences)
 
             state = environment_reset(environment)
             # state = scaling_symlog(state)
@@ -181,8 +176,6 @@ def train(environment, agent, memory, learning_config, file_name):
 
     plot_reward_curve(historical_reward, file_name)
     agent.save_models(file_name)
-    
-
 
 # todo move this function to better place
 def create_directories():
@@ -348,7 +341,8 @@ def main():
         device=DEVICE,
     )
 
-    file_name = f"Friday_14_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
+    date_time_str = datetime.now().strftime("%m_%d_%H_%M")
+    file_name = f"{date_time_str}_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
     create_directories()
 
     logging.info("Starting Training Loop")
