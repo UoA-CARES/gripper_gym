@@ -178,9 +178,8 @@ class Gripper(object):
             raise ValueError(error_message)
 
         self.move_velocity(np.full(self.num_motors,self.speed_limit),True) # only for velocity
+        self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
         for servo_id, servo in self.servos.items():
-            # self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
-            servo.set_control_mode(ControlMode.JOINT.value)
             target_position = steps[servo_id - 1]
 
             param_goal_position = [dxl.DXL_LOBYTE(target_position), dxl.DXL_HIBYTE(target_position)]

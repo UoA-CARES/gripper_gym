@@ -188,6 +188,8 @@ def create_directories():
         os.makedirs("./models")
     if not os.path.exists("./data_plots"):
         os.makedirs("./data_plots")
+    if not os.path.exists("./servo_errors"):
+        os.makedirs("./servo_errors")
 
 # todo move this function to better place
 def plot_reward_curve(data_reward, filename):
@@ -244,9 +246,9 @@ def handle_gripper_error_home(environment, error_message):
 
 def handle_gripper_error(environment, error_message):
     logging.error(f"Error handling has been initiated because of: {error_message}")
-    help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle: "
+    help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle:"
     logging.error(help_message)
-    slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}.")
+    slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
     
     while True:
         value, timed_out = timedInput(timeout=10)
@@ -303,6 +305,7 @@ def main():
     env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
+    create_directories()
 
     if env_config.env_type == 0:
         environment = RotationEnvironment(env_config, gripper_config)
@@ -346,7 +349,6 @@ def main():
 
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_name = f"{date_time_str}_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
-    create_directories()
 
     logging.info("Starting Training Loop")
     train(environment, agent, memory, learning_config, file_name)
