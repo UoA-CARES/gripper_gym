@@ -158,6 +158,9 @@ def train(environment, agent, memory, learning_config, file_name):
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
 
+            historical_reward["step"].append(total_step_counter)
+            historical_reward["episode_reward"].append(episode_reward)
+
             if total_step_counter >= learning_config.max_steps_exploration:
                 if environment.observation_type == 3: # if velocity based, train every episode
                     for _ in range(learning_config.G):
