@@ -14,6 +14,8 @@ from datetime import datetime
 import torch
 import random
 import numpy as np
+import cv2
+import time
 
 from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
@@ -107,7 +109,7 @@ def train(environment, agent, memory, learning_config, file_name):
             logging.info(message)
 
             if total_step_counter%50 == 0:
-                slack_bot.post_message("#bot_terminal", message)
+                slack_bot.post_message("#bot_terminal", f"{environment.gripper.gripper_id}: message")
             
             if environment.observation_type == 3:
                 action_env = environment.sample_action_velocity() # gripper range #or sample_action_velocity
@@ -154,7 +156,7 @@ def train(environment, agent, memory, learning_config, file_name):
                 break
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
-            message = f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
+            message = f"# {environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
 
@@ -289,6 +291,12 @@ def handle_gripper_error(environment, error_message):
                 slack_bot.post_message("#bot_terminal", warning_message)
                 return True
             return True
+        elif value == "p":
+            slack_bot.upload_file("#cares-chat-bot", "current progress", "results_plots/", result_plot_filename)
+        elif value == "f":
+            cv2.imwrite('current_frame.png', environment.camera.get_frame())
+            slack_bot.upload_file("#cares-chat-bot", "current_frame", "", "current_frame.png")
+
 
 def parse_args():
     parser = ArgumentParser()
@@ -349,6 +357,9 @@ def main():
 
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_name = f"{date_time_str}_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
+    
+    global result_plot_filename
+    result_plot_filename = f"{file_name}.png"
 
     logging.info("Starting Training Loop")
     train(environment, agent, memory, learning_config, file_name)
