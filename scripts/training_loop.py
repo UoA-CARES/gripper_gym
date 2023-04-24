@@ -8,14 +8,11 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 from argparse import ArgumentParser
-from pytimedinput import timedInput
 from datetime import datetime
 
 import torch
 import random
 import numpy as np
-import cv2
-import time
 
 from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
@@ -23,6 +20,7 @@ from configurations import LearningConfig, EnvironmentConfig, GripperConfig
 
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
+from error_handlers import handle_gripper_error_home
 
 from cares_reinforcement_learning.algorithm import TD3
 from networks import Actor
@@ -50,7 +48,7 @@ def evaluation(environment, agent, file_name):
     episode_reward    = 0
     episode_num       = 0
 
-    state = environment_reset(environment) 
+    state = environment_reset(environment, file_name) 
     # state = scaling_symlog(state)
 
     max_steps_evaluation        = 100
@@ -72,7 +70,7 @@ def evaluation(environment, agent, file_name):
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
             logging.error(error_message)
-            if handle_gripper_error_home(environment, error_message):
+            if handle_gripper_error_home(environment, error_message, slack_bot, file_name):
                 done = True
             else:
                 environment.gripper.close() # can do more if we want to save states and all
@@ -81,7 +79,7 @@ def evaluation(environment, agent, file_name):
             logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
             # Reset environment
-            state =  environment_reset(environment)
+            state =  environment_reset(environment, file_name)
 
             episode_reward    = 0
             episode_timesteps = 0
@@ -100,7 +98,7 @@ def train(environment, agent, memory, learning_config, file_name):
     noise_decay  = 0.9999
     noise_scale  = 0.10
 
-    state = environment_reset(environment)
+    state = environment_reset(environment, file_name)
     for total_step_counter in range(int(learning_config.max_steps_training)):
         episode_timesteps += 1
 
@@ -109,7 +107,7 @@ def train(environment, agent, memory, learning_config, file_name):
             logging.info(message)
 
             if total_step_counter%50 == 0:
-                slack_bot.post_message("#bot_terminal", f"{environment.gripper.gripper_id}: message")
+                slack_bot.post_message("#bot_terminal", f"#{environment.gripper.gripper_id}: message")
             
             if environment.observation_type == 3:
                 action_env = environment.sample_action_velocity() # gripper range #or sample_action_velocity
@@ -149,7 +147,7 @@ def train(environment, agent, memory, learning_config, file_name):
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
             logging.error(error_message)
-            if handle_gripper_error_home(environment, error_message):
+            if handle_gripper_error_home(environment, error_message, slack_bot, file_name):
                 done = True
             else:
                 environment.gripper.close() # can do more if we want to save states and all
@@ -169,7 +167,7 @@ def train(environment, agent, memory, learning_config, file_name):
                         experiences = memory.sample(learning_config.batch_size)
                         agent.train_policy(experiences)
 
-            state = environment_reset(environment)
+            state = environment_reset(environment, file_name)
             # state = scaling_symlog(state)
 
             episode_reward    = 0
@@ -206,97 +204,16 @@ def scaling_symlog(state):
     state_symlog = np.sign(state) * np.log(np.abs(state)  + 1)
     return state_symlog
 
-def environment_reset(environment):
+def environment_reset(environment, file_name):
     try:
         return environment.reset()
     except (EnvironmentError , GripperError) as error:
         error_message = f"Failed to reset with message: {error}"
         logging.error(error_message)
-        if handle_gripper_error_home(environment, error_message):
-            return environment_reset(environment)  # might keep looping if it keep having issues
+        if handle_gripper_error_home(environment, error_message, slack_bot, file_name):
+            return environment_reset(environment, file_name)  # might keep looping if it keep having issues
         else:
             environment.gripper.close()
-    
-def read_slack():
-    message = slack_bot.get_message("cares-chat-bot")
-    
-    if message is not None:
-        message = message.split(",") 
-    else:
-        return None
-
-    gripper_id = 9
-    if message[0] == str(gripper_id):
-        return message[1]
-    return None
-
-def handle_gripper_error_home(environment, error_message):
-    warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
-    logging.warning(warning_message)
-    slack_bot.post_message("#bot_terminal", warning_message)
-    
-    try :
-        environment.gripper.wiggle_home()
-        return True
-    except (EnvironmentError , GripperError):
-        warning_message = f"Auto wiggle fix failed, going to final handler"
-        logging.warning(warning_message)
-        slack_bot.post_message("#bot_terminal", warning_message)
-        return handle_gripper_error(environment, error_message)
-    
-    
-
-def handle_gripper_error(environment, error_message):
-    logging.error(f"Error handling has been initiated because of: {error_message}")
-    help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle:"
-    logging.error(help_message)
-    slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
-    
-    while True:
-        value, timed_out = timedInput(timeout=10)
-        if timed_out:
-            value = read_slack()
-
-        if value == 'c':
-            logging.info("Gripper Fixed continuing onwards")
-            return True
-        elif value == 'x':
-            logging.info("Giving up correcting gripper")
-            return False
-        elif value == "reboot" or value == "r":
-            try:
-                logging.info("Rebooting servos")
-                environment.gripper.reboot()
-            except (EnvironmentError , GripperError):
-                warning_message = "Your commanded reboot failed, try again"
-                logging.warning(warning_message)
-                slack_bot.post_message("#bot_terminal", warning_message)
-                return True # stay in loop and try again
-            return True
-        elif value  == "w":
-            try:
-                environment.gripper.wiggle_home()
-            except (EnvironmentError , GripperError):
-                warning_message = "Your commanded wiggle home failed, try again"
-                logging.warning(warning_message)
-                slack_bot.post_message("#bot_terminal", warning_message)
-                return True
-            return True
-        elif value  == "w2":
-            try:
-                environment.gripper.move(environment.gripper.max_values)
-            except (EnvironmentError , GripperError):
-                warning_message = "Your commanded wiggle home 2 failed, try again"
-                logging.warning(warning_message)
-                slack_bot.post_message("#bot_terminal", warning_message)
-                return True
-            return True
-        elif value == "p":
-            slack_bot.upload_file("#cares-chat-bot", "current progress", "results_plots/", result_plot_filename)
-        elif value == "f":
-            cv2.imwrite('current_frame.png', environment.camera.get_frame())
-            slack_bot.upload_file("#cares-chat-bot", "current_frame", "", "current_frame.png")
-
 
 def parse_args():
     parser = ArgumentParser()
@@ -321,8 +238,8 @@ def main():
         environment = TranslationEnvironment(env_config, gripper_config)
 
     logging.info("Resetting Environment")
-    #wrap
-    state = environment_reset(environment)
+
+    state = environment_reset(environment, "")
     logging.info(f"State: {state}")
     slack_bot.post_message("#bot_terminal", f"Reset Terminal. \nState: {state}")
 
@@ -357,14 +274,13 @@ def main():
 
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_name = f"{date_time_str}_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
-    
-    global result_plot_filename
-    result_plot_filename = f"{file_name}.png"
+
+
 
     logging.info("Starting Training Loop")
     train(environment, agent, memory, learning_config, file_name)
 
-    logging.info("Starting Evaluation Loop")
+    # logging.info("Starting Evaluation Loop")
     #evaluation(environment, agent, file_name)
 
 
