@@ -95,6 +95,7 @@ def train(environment, agent, memory, learning_config, file_name):
     episode_reward    = 0
     episode_num       = 0
     historical_reward = {"step": [], "episode_reward": []}
+    best_episode_reward = -np.inf
 
     min_noise    = 0.01
     noise_decay  = 0.9999
@@ -111,7 +112,7 @@ def train(environment, agent, memory, learning_config, file_name):
             if total_step_counter%50 == 0:
                 slack_bot.post_message("#bot_terminal", f"#{environment.gripper.gripper_id}: {message}")
             
-            if environment.observation_type == 3:
+            if environment.action_type == "velocity":
                 action_env = environment.sample_action_velocity() # gripper range #or sample_action_velocity
             else:
                 action_env = environment.sample_action()
@@ -141,7 +142,7 @@ def train(environment, agent, memory, learning_config, file_name):
             episode_reward += reward
 
             if total_step_counter >= learning_config.max_steps_exploration:
-                if environment.observation_type != 3: # if not velocity based, train every step
+                if environment.action_type == "position": # if not velocity based, train every step
                     for _ in range(learning_config.G):
                         experiences = memory.sample(learning_config.batch_size)
                         agent.train_policy(experiences)
@@ -165,10 +166,14 @@ def train(environment, agent, memory, learning_config, file_name):
             historical_reward["episode_reward"].append(episode_reward)
 
             if total_step_counter >= learning_config.max_steps_exploration:
-                if environment.observation_type == 3: # if velocity based, train every episode
+                if environment.action_type == "velocity": # if velocity based, train every episode
                     for _ in range(learning_config.G):
                         experiences = memory.sample(learning_config.batch_size)
                         agent.train_policy(experiences)
+
+            if episode_reward > best_episode_reward:
+                best_episode_reward = episode_reward
+                agent.save_models(gripper_local_storage_result, f"best_{file_name}")
 
             state = environment_reset(environment, file_name)
             # state = scaling_symlog(state)
@@ -194,7 +199,7 @@ def create_directories(gripper_local_storage, file_name):
     
     if not os.path.exists(gripper_local_storage_result):
         os.makedirs(gripper_local_storage_result)
-    if not os.path.exists("servo_errors"):
+    if not os.path.exists("servo_errors"): #servo error still here because it's used by servo.py which shouldn't know the local storage
         os.makedirs("servo_errors")
 
 # todo move this function to better place

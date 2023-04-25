@@ -27,6 +27,7 @@ class EnvironmentConfig(BaseModel):
     camera_id: int
     object_type: int
     observation_type: int
+    action_type: str
     goal_selection_method: int
 
     noise_tolerance: Optional[int] = 5

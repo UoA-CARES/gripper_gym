@@ -41,6 +41,7 @@ class Environment(ABC):
 
         self.observation_type = env_config.observation_type
         self.object_type = env_config.object_type
+        self.action_type = env_config.action_type
 
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
@@ -83,7 +84,7 @@ class Environment(ABC):
         # Get initial pose of the object before moving to help calculate reward after moving
         object_state_before = self.get_object_state()
         
-        if self.observation_type == 3:
+        if self.action_type == "velocity":
             self.gripper.move_velocity(action, False)
         else:
             self.gripper.move(action)
@@ -108,9 +109,12 @@ class Environment(ABC):
     def servo_state_space(self):
         # Angle Servo + X-Y-Yaw Object
         state = []
-        self.object_marker_id = 1 # hardcoded for 3 finger gripper for now
         gripper_state = self.gripper.state()
         state += gripper_state["positions"]
+        if self.action_type == "velocity":
+            self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
+            state += gripper_state["velocities"]
+            state += gripper_state["loads"]
 
         object_state = self.get_object_state()
         if object_state is not None:
@@ -125,7 +129,7 @@ class Environment(ABC):
             for i in range (3):
                 state.append(-1)
 
-        return state
+        return state 
 
     # The aruco state presumes the Aruco IDs match the servo IDs + 2 Markers for finger tips + 1 Marker for Object
     @exception_handler("Failed to get aruco states")
@@ -206,31 +210,6 @@ class Environment(ABC):
         state[-3:] = aruco_state_space[-3:]
 
         return state
-    
-    @exception_handler("Failed to get servo velocity states")
-    def servo_velocity_state_space(self): 
-        # Angle Servo + X-Y-Yaw Object
-        state = []
-        self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
-        gripper_state = self.gripper.state()
-        state += gripper_state["positions"]
-        state += gripper_state["velocities"]
-        state += gripper_state["loads"]
-
-        object_state = self.get_object_state()
-        if object_state is not None:
-            position    = object_state["position"]
-            orientation = object_state["orientation"]
-            state.append(position[0])#X
-            state.append(position[1])#Y
-            state.append(orientation[2])#Yaw
-        else:
-            # if target is not visible then append -1 to the state (norm 0-360)
-            # TODO this needs further consideration...
-            for i in range (3):
-                state.append(-1)
-
-        return state 
 
     # TODO implement function
     def image_state_space(self):
@@ -245,8 +224,6 @@ class Environment(ABC):
             return self.aruco_state_space()
         elif self.observation_type == 2:
             return self.servo_aruco_state_space()
-        elif self.observation_type == 3:
-            return self.servo_velocity_state_space()
         
         raise ValueError(f"Observation Type unknown: {self.observation_type}") 
 
@@ -280,7 +257,7 @@ class Environment(ABC):
         min_value_in = -1
         max_value_in = 1
         for i in range(0, self.gripper.num_motors):
-            if self.observation_type == 3:
+            if self.action_type == "velocity":
                 servo_min_value = self.gripper.velocity_min
                 servo_max_value = self.gripper.velocity_max
             else:
@@ -295,7 +272,7 @@ class Environment(ABC):
         min_range_value = -1
         action_norm = [0 for _ in range(0, len(action_gripper))]
         for i in range(0, self.gripper.num_motors):
-            if self.observation_type == 3:
+            if self.action_type == "velocity":
                 servo_min_value = self.gripper.velocity_min
                 servo_max_value = self.gripper.velocity_max
             else:
