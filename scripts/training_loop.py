@@ -40,6 +40,8 @@ with open('slack_token.txt') as file:
     slack_token = file.read()
 slack_bot = SlackBot(slack_token=slack_token)
 
+gripper_local_storage_result = ""
+
 
 def evaluation(environment, agent, file_name):
     agent.load_models(filename=file_name)
@@ -70,7 +72,7 @@ def evaluation(environment, agent, file_name):
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
             logging.error(error_message)
-            if handle_gripper_error_home(environment, error_message, slack_bot, file_name):
+            if handle_gripper_error_home(environment, error_message, slack_bot, gripper_local_storage_result, file_name):
                 done = True
             else:
                 environment.gripper.close() # can do more if we want to save states and all
@@ -107,7 +109,7 @@ def train(environment, agent, memory, learning_config, file_name):
             logging.info(message)
 
             if total_step_counter%50 == 0:
-                slack_bot.post_message("#bot_terminal", f"#{environment.gripper.gripper_id}: message")
+                slack_bot.post_message("#bot_terminal", f"#{environment.gripper.gripper_id}: {message}")
             
             if environment.observation_type == 3:
                 action_env = environment.sample_action_velocity() # gripper range #or sample_action_velocity
@@ -147,14 +149,15 @@ def train(environment, agent, memory, learning_config, file_name):
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to step with message: {error}"
             logging.error(error_message)
-            if handle_gripper_error_home(environment, error_message, slack_bot, file_name):
+            if handle_gripper_error_home(environment, error_message, slack_bot, gripper_local_storage_result, file_name):
                 done = True
             else:
+                agent.save_models(gripper_local_storage_result, file_name)
                 environment.gripper.close() # can do more if we want to save states and all
                 break
 
         if done is True or episode_timesteps >= learning_config.episode_horizont:
-            message = f"# {environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
+            message = f"#{environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
 
@@ -178,25 +181,28 @@ def train(environment, agent, memory, learning_config, file_name):
                 plot_reward_curve(historical_reward, file_name)
 
     plot_reward_curve(historical_reward, file_name)
-    agent.save_models(file_name)
+    agent.save_models(gripper_local_storage_result, file_name)
+    environment.gripper.close()
 
 # todo move this function to better place
-def create_directories():
-    if not os.path.exists("./results_plots"):
-        os.makedirs("./results_plots")
-    if not os.path.exists("./models"):
-        os.makedirs("./models")
-    if not os.path.exists("./data_plots"):
-        os.makedirs("./data_plots")
-    if not os.path.exists("./servo_errors"):
-        os.makedirs("./servo_errors")
+def create_directories(gripper_local_storage, file_name):
+    if not os.path.exists(gripper_local_storage):
+        os.makedirs(gripper_local_storage)
+
+    global gripper_local_storage_result
+    gripper_local_storage_result = f"{gripper_local_storage}/results/{file_name}"
+    
+    if not os.path.exists(gripper_local_storage_result):
+        os.makedirs(gripper_local_storage_result)
+    if not os.path.exists("servo_errors"):
+        os.makedirs("servo_errors")
 
 # todo move this function to better place
 def plot_reward_curve(data_reward, filename):
     data = pd.DataFrame.from_dict(data_reward)
-    data.to_csv(f"data_plots/{filename}", index=False)
+    data.to_csv(f"{gripper_local_storage_result}/{filename}", index=False)
     data.plot(x='step', y='episode_reward', title=filename)
-    plt.savefig(f"results_plots/{filename}")
+    plt.savefig(f"{gripper_local_storage_result}/{filename}")
     plt.close()
 
 
@@ -210,18 +216,29 @@ def environment_reset(environment, file_name):
     except (EnvironmentError , GripperError) as error:
         error_message = f"Failed to reset with message: {error}"
         logging.error(error_message)
-        if handle_gripper_error_home(environment, error_message, slack_bot, file_name):
+        if handle_gripper_error_home(environment, error_message, slack_bot, gripper_local_storage_result, file_name):
             return environment_reset(environment, file_name)  # might keep looping if it keep having issues
         else:
             environment.gripper.close()
 
+def store_configs(env_config, gripper_config, learning_config):
+    with open(f"{gripper_local_storage_result}/configs.txt", "w") as f:
+        f.write(f"Environment Config:\n{env_config.json()}\n")
+        f.write(f"Gripper Config:\n{gripper_config.json()}\n")
+        f.write(f"Learning Config:\n{learning_config.json()}\n")
+        with open(Path(env_config.camera_matrix)) as cm:
+            f.write(f"\nCamera Matrix:\n{cm.read()}\n")
+        with open(Path(env_config.camera_distortion)) as cd:
+            f.write(f"Camera Distortion:\n{cd.read()}\n")
+        
+
 def parse_args():
     parser = ArgumentParser()
-    file_path = Path(__file__).parent.resolve()
     
-    parser.add_argument("--learning_config", type=str, default=f"{file_path}/config/learning_config.json")
-    parser.add_argument("--env_config",      type=str, default=f"{file_path}/config/env_9DOF_velocity_config.json")  # id 2 for robot left
-    parser.add_argument("--gripper_config",  type=str, default=f"{file_path}/config/gripper_9DOF_config.json")
+    parser.add_argument("--learning_config", type=str)
+    parser.add_argument("--env_config",      type=str)
+    parser.add_argument("--gripper_config",  type=str)
+    parser.add_argument("--gripper_local_storage",  type=str, default="/home/anyone/gripper_local_storage")
     return parser.parse_args()
 
 def main():
@@ -230,7 +247,8 @@ def main():
     env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
-    create_directories()
+
+    gripper_local_storage = args.gripper_local_storage 
 
     if env_config.env_type == 0:
         environment = RotationEnvironment(env_config, gripper_config)
@@ -238,16 +256,16 @@ def main():
         environment = TranslationEnvironment(env_config, gripper_config)
 
     logging.info("Resetting Environment")
-
     state = environment_reset(environment, "")
+    
     logging.info(f"State: {state}")
-    slack_bot.post_message("#bot_terminal", f"Reset Terminal. \nState: {state}")
+    slack_bot.post_message("#bot_terminal", f"#{environment.gripper.gripper_id}: Reset Terminal. \nState: {state}")
 
     observation_size = len(state)# This wont work for multi-dimension arrays
     action_num       = gripper_config.num_motors
     message = f"Observation Space: {observation_size} Action Space: {action_num}"
     logging.info(message)
-    slack_bot.post_message("#bot_terminal", message)
+    slack_bot.post_message("#bot_terminal", f"#{environment.gripper.gripper_id}: {message}")
 
     logging.info("Setting up Seeds")
     torch.manual_seed(learning_config.seed)
@@ -274,8 +292,9 @@ def main():
 
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_name = f"{date_time_str}_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
+    create_directories(gripper_local_storage, file_name)
 
-
+    store_configs(env_config, gripper_config, learning_config)
 
     logging.info("Starting Training Loop")
     train(environment, agent, memory, learning_config, file_name)

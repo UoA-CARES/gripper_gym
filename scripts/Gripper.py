@@ -33,6 +33,9 @@ class GripperError(IOError):
 class Gripper(object):
     def __init__(self, config: GripperConfig):
 
+        global glob_config
+        glob_config = config
+
         # Setup Servor handlers
         self.gripper_id = config.gripper_id
 
@@ -178,8 +181,10 @@ class Gripper(object):
             raise ValueError(error_message)
 
         self.move_velocity(np.full(self.num_motors,self.speed_limit),True) # only for velocity
-        self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
+        # self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
+        
         for servo_id, servo in self.servos.items():
+            servo.set_control_mode(ControlMode.JOINT.value)
             target_position = steps[servo_id - 1]
 
             param_goal_position = [dxl.DXL_LOBYTE(target_position), dxl.DXL_HIBYTE(target_position)]
@@ -218,6 +223,15 @@ class Gripper(object):
             self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
 
         for servo_id, servo in self.servos.items():
+
+            # if set_only:
+            #     servo.set_control_mode(ControlMode.JOINT.value)
+            # else:
+            #     servo.set_control_mode(ControlMode.WHEEL.value)
+
+            # target_velocity = velocities[servo_id-1]
+            # servo.move_velocity(target_velocity)
+
             target_velocity = velocities[servo_id-1]
             target_velocity_b = Servo.velocity_to_bytes(target_velocity)
 
@@ -345,7 +359,9 @@ class Gripper(object):
             start_time = time.perf_counter()
             while time.perf_counter() < start_time + 0.5:
                 pass
-        self.setup_servos()
+
+        self.close()
+        self.__init__(glob_config)
         logging.info(f"Gripper#{self.gripper_id}: reboot completed")
 
     def verify_steps(self, steps):

@@ -32,8 +32,8 @@ class EnvironmentConfig(BaseModel):
     noise_tolerance: Optional[int] = 5
     marker_size: Optional[int] = 18
 
-    camera_matrix: Optional[str] = f"{file_path}/config/camera_matrix.txt"
-    camera_distortion: Optional[str] = f"{file_path}/config/camera_distortion.txt"
+    camera_matrix: str
+    camera_distortion: str
 
 class GripperConfig(BaseModel):
     gripper_type: int

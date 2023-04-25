@@ -1,11 +1,12 @@
 import logging
+import os
 logging.basicConfig(level=logging.INFO)
 from pytimedinput import timedInput
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
 import cv2
 
-def handle_gripper_error_home(environment, error_message, slack_bot, result_plot_filename):
+def handle_gripper_error_home(environment, error_message, slack_bot, gripper_local_storage_result, result_plot_filename):
     warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
     logging.warning(warning_message)
     
@@ -15,14 +16,14 @@ def handle_gripper_error_home(environment, error_message, slack_bot, result_plot
         environment.gripper.wiggle_home()
         return True
     except (EnvironmentError , GripperError):
-        warning_message = f"Auto wiggle fix failed, going to final handler"
+        warning_message = f"#{environment.gripper.gripper_id}: Auto wiggle fix failed, going to final handler"
         logging.warning(warning_message)
         slack_bot.post_message("#bot_terminal", warning_message)
-        return handle_gripper_error(environment, error_message, slack_bot, result_plot_filename)
+        return handle_gripper_error(environment, error_message, slack_bot, gripper_local_storage_result, result_plot_filename)
     
     
 
-def handle_gripper_error(environment, error_message, slack_bot, file_name):
+def handle_gripper_error(environment, error_message, slack_bot, gripper_local_storage_result, file_name):
     logging.error(f"Error handling has been initiated because of: {error_message}")
     help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle:"
     logging.error(help_message)
@@ -69,10 +70,16 @@ def handle_gripper_error(environment, error_message, slack_bot, file_name):
                 return True
             return True
         elif value == "p":
-            slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", "results_plots/", result_plot_filename)
+            if os.path.exists(f"{gripper_local_storage_result}/{result_plot_filename}"):
+                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{gripper_local_storage_result}/", result_plot_filename)
+            else:
+                slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Result plot not ready yet or doesn't exist")
         elif value == "f":
-            cv2.imwrite('current_frame.png', environment.camera.get_frame())
-            slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current_frame", "", "current_frame.png")
+            cv2.imwrite(f"{gripper_local_storage_result}/current_frame.png", environment.camera.get_frame())
+            if os.path.exists(f"{gripper_local_storage_result}/current_frame.png"):
+                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current_frame", f"{gripper_local_storage_result}/", "current_frame.png")
+            else:
+                slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Having trouble accessing current frame")
 
 def read_slack(slack_bot):
     message = slack_bot.get_message("cares-chat-bot")

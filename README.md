@@ -16,6 +16,8 @@ Run `pip3 install -r requirements.txt` in the **root directory** of the package
 
 This repo also uses two CARES libraries which need to be installed as instructed in [CARES Lib](https://github.com/UoA-CARES/cares_lib) and [CARES Reinforcement Learning Package](https://github.com/UoA-CARES/cares_reinforcement_learning).
 
+Create local directory for gripper local storage, copy and past the config_example folder and modify for your local version. This 
+
 ## Hardware Setup 
 The current setup uses Dynamixel XL-320 servo motors (4 for Two-Finger and 9 for Three-Finger Gripper), which are being controlled using a [U2D2](https://emanual.robotis.com/docs/en/parts/interface/u2d2/). 
 ### BOM
