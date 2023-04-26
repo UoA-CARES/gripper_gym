@@ -51,6 +51,10 @@ class RotationEnvironment(Environment):
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
 
+    def min_difference(self, a, b):
+        # return min(abs(a - b), (360+min(a, b) - max(a, b)))
+        return min((a - b), (360+min(a, b) - max(a, b)))
+    
     # overriding method 
     def reward_function(self, target_goal, goal_before, goal_after):
         if goal_before is None: 
@@ -66,19 +70,27 @@ class RotationEnvironment(Environment):
         yaw_before = goal_before["orientation"][2]
         yaw_after  = goal_after["orientation"][2]
 
-        goal_difference = np.abs(target_goal - yaw_after)
-        delta_changes   = np.abs(target_goal - yaw_before) - np.abs(target_goal - yaw_after)
+        goal_difference = np.abs(self.min_difference(target_goal, yaw_after))
+        # To a goal position
+        delta_changes   = self.min_difference(target_goal, yaw_before) - self.min_difference(target_goal, yaw_after)
+
+        # Reward any change
+        # delta_changes = np.abs(self.min_difference(yaw_before - yaw_after))
+
+        # Reward only changes in the right direction
+        # delta_changes = yaw_after - yaw_before
 
         logging.info(f"Yaw = {yaw_after}")
 
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-            reward = -10
+            reward = -2
         else:
-            reward = delta_changes/abs(target_goal - yaw_before)
-            reward = reward if reward > 0 else -10
+            reward = delta_changes/self.min_difference(target_goal, yaw_before)
+            # reward = reward if reward > 0 else -10
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
+            reward += 10
             done = True
 
         return reward, done
