@@ -33,7 +33,7 @@ def handle_gripper_error(environment, error_message, slack_bot, gripper_local_st
     while True:
         value, timed_out = timedInput(timeout=10)
         if timed_out:
-            value = read_slack(slack_bot)
+            value = read_slack(slack_bot, environment.gripper.gripper_id)
 
         if value == 'c':
             logging.info("Gripper Fixed continuing onwards")
@@ -80,8 +80,10 @@ def handle_gripper_error(environment, error_message, slack_bot, gripper_local_st
                 slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current_frame", f"{gripper_local_storage_result}/", "current_frame.png")
             else:
                 slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Having trouble accessing current frame")
+        # else:
+        #     eval(value)
 
-def read_slack(slack_bot):
+def read_slack(slack_bot, gripper_id):
     message = slack_bot.get_message("cares-chat-bot")
     
     if message is not None:
@@ -89,7 +91,6 @@ def read_slack(slack_bot):
     else:
         return None
 
-    gripper_id = 9
     if message[0] == str(gripper_id):
         return message[1]
     return None

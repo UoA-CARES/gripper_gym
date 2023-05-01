@@ -43,11 +43,11 @@ need to explain and give instructions for:
 ## Package Structure
 
 ```
-cares_reinforcement_learning/
-├─ config/
-│  ├─ env_xDOF_config_ID.json
-│  ├─ gripper_xDOF_config_ID.json
-│  ├─ learning_config_ID.json
+cares_gripper_package/
+├─ config_examples/
+│  ├─ env_xDOF_config_IDx.json
+│  ├─ gripper_xDOF_config_IDx.json
+│  ├─ learning_config_IDx.json
 │  ├─ camera_distortion.txt
 │  ├─ camera_matrix.txt
 ├─ environments/
@@ -56,10 +56,11 @@ cares_reinforcement_learning/
 │  ├─ TranslationEnvironment.py
 │  ├─ ...
 ├─ networks/
-│  ├─ ...
+│  ├─ Actor.py
+│  ├─ Critic.py
 
 ```
-`config/`: various configuration files for environment, gripper, training and camera. Instructions for these configs can be seen in [wiki]().
+`config/`: various configuration file examples for environment, gripper, training and camera. Instructions for these configs can be found in [wiki]().
 
 `environments/`: currently for rotation and translation tasks. Can extend environment class for different tasks by changing choose goal and reward function.
 

@@ -47,9 +47,15 @@ class Environment(ABC):
         self.noise_tolerance = env_config.noise_tolerance
 
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-        self.object_marker_id = self.gripper.num_motors + 3  # Num Servos + Finger Tips (2) + 1
+        if self.gripper.num_motors == 9:
+            self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
+        else: 
+            self.object_marker_id = self.gripper.num_motors + 3  # Num Servos + Finger Tips (2) + 1
 
-        self.goal_state = self.get_object_state()
+        if self.gripper.actuated_target:
+            self.goal_state = self.gripper.current_object_position()#self.get_object_state()
+        else:
+            self.goal_state = self.get_object_state()
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -81,8 +87,11 @@ class Environment(ABC):
 
     @exception_handler("Failed to step")
     def step(self, action):
-        # Get initial pose of the object before moving to help calculate reward after moving
-        object_state_before = self.get_object_state()
+        # Get initial pose of the object before moving to help calculate reward after moving.
+        if self.gripper.actuated_target:
+            object_state_before = self.gripper.current_object_position()#self.get_object_state()
+        else:
+            object_state_before = self.get_object_state()
         
         if self.action_type == "velocity":
             self.gripper.move_velocity(action, False)
@@ -94,7 +103,10 @@ class Environment(ABC):
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        object_state_after = self.get_object_state()
+        if self.gripper.actuated_target:
+            object_state_after = self.gripper.current_object_position()#self.get_object_state()
+        else:
+            object_state_after = self.get_object_state()
 
         logging.debug(f"New Object State: {object_state_after}")
 
@@ -112,7 +124,6 @@ class Environment(ABC):
         gripper_state = self.gripper.state()
         state += gripper_state["positions"]
         if self.action_type == "velocity":
-            self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
             state += gripper_state["velocities"]
             state += gripper_state["loads"]
 
@@ -229,7 +240,6 @@ class Environment(ABC):
 
     def get_aruco_target_pose(self, blindable=False, detection_attempts=4):
         attempt = 0
-        logging.info(f"Attempting to detect aruco target")
         while not blindable or attempt < detection_attempts: 
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
@@ -247,7 +257,7 @@ class Environment(ABC):
         if self.object_type == 0:
             return self.get_aruco_target_pose(blindable=False)
         elif self.object_type == 1:
-            return self.get_aruco_target_pose(blindable=True)
+            return self.get_aruco_target_pose(blindable=True, detection_attempts=15)
 
         raise ValueError(f"Unknown object type: {self.object_type}") 
 

@@ -61,6 +61,7 @@ class Gripper(object):
 
         self.servos = {}
         self.target_servo = None
+        self.actuated_target = config.actuated_target
 
         if config.actuated_target:
             try:
@@ -129,7 +130,10 @@ class Gripper(object):
     def current_object_position(self):
         if self.target_servo is None:
             raise ValueError("Object Servo is None")
-        return self.target_servo.current_position()
+        yaw = Servo.step_to_angle(self.target_servo.current_position())
+        if yaw < 0:
+            yaw += 360
+        return yaw
 
     @exception_handler("Failed to read current velocity")
     def current_velocity(self):
@@ -262,7 +266,7 @@ class Gripper(object):
         self.move(pose)
 
         if self.target_servo is not None:
-            reset_home_position = random.randint(0, 1023)
+            reset_home_position = 512 #random.randint(0, 1023)
             self.target_servo.move(reset_home_position)
             self.target_servo.disable_torque()  # Need this to be target servo
 
