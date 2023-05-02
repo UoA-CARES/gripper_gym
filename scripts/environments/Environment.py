@@ -70,7 +70,6 @@ class Environment(ABC):
         logging.info(f"New Goal Generated: {self.goal_state}")
         return state
             
-        
     def sample_action(self):
         action = []
         for i in range(0, self.gripper.num_motors):
@@ -116,6 +115,9 @@ class Environment(ABC):
         truncated = False
         return state, reward, done, truncated
 
+    @exception_handler("Failed to step gripper")
+    def step_gripper(self):
+        self.gripper.step()
 
     @exception_handler("Failed to get servo states")
     def servo_state_space(self):
