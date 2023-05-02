@@ -69,8 +69,13 @@ class Environment(ABC):
 
         logging.info(f"New Goal Generated: {self.goal_state}")
         return state
-            
+        
     def sample_action(self):
+        if self.action_type == "velocity":
+            return self.sample_action_velocity()
+        return self.sample_action_position()
+
+    def sample_action_position(self):
         action = []
         for i in range(0, self.gripper.num_motors):
             min_value = self.gripper.min_values[i]
