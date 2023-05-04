@@ -21,8 +21,6 @@ def handle_gripper_error_home(environment, error_message, slack_bot, gripper_loc
         slack_bot.post_message("#bot_terminal", warning_message)
         return handle_gripper_error(environment, error_message, slack_bot, gripper_local_storage_result, result_plot_filename)
     
-    
-
 def handle_gripper_error(environment, error_message, slack_bot, gripper_local_storage_result, file_name):
     logging.error(f"Error handling has been initiated because of: {error_message}")
     help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle:"

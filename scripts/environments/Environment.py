@@ -69,9 +69,13 @@ class Environment(ABC):
 
         logging.info(f"New Goal Generated: {self.goal_state}")
         return state
-            
         
     def sample_action(self):
+        if self.action_type == "velocity":
+            return self.sample_action_velocity()
+        return self.sample_action_position()
+
+    def sample_action_position(self):
         action = []
         for i in range(0, self.gripper.num_motors):
             min_value = self.gripper.min_values[i]
@@ -116,6 +120,9 @@ class Environment(ABC):
         truncated = False
         return state, reward, done, truncated
 
+    @exception_handler("Failed to step gripper")
+    def step_gripper(self):
+        self.gripper.step()
 
     @exception_handler("Failed to get servo states")
     def servo_state_space(self):
