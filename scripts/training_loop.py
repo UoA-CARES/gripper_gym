@@ -44,7 +44,7 @@ gripper_local_storage_result = ""
 
 
 def evaluation(environment, agent, file_name):
-    agent.load_models(filename=file_name)
+    agent.load_models("/home/anyone/gripper_local_storage/results/04_26_15_15_RobotId9_EnvType0_ObsType1_Seed517_TD3", file_name)
 
     episode_timesteps = 0
     episode_reward    = 0
@@ -77,7 +77,7 @@ def evaluation(environment, agent, file_name):
             else:
                 environment.gripper.close() # can do more if we want to save states and all
 
-        if done is True or episode_timesteps >= episode_horizont_evaluation:
+        if done or episode_timesteps >= episode_horizont_evaluation:
             logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
             # Reset environment
@@ -128,9 +128,9 @@ def train(environment, agent, memory, learning_config, file_name):
             action = agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
             action_env = environment.denormalize(action)  # gripper range
 
-        try:
+        try:            
             next_state, reward, done, truncated = environment.step(action_env)
-
+     
             logging.info(f"Reward of this step:{reward}")
 
             # next_state = scaling_symlog(next_state)
@@ -157,7 +157,7 @@ def train(environment, agent, memory, learning_config, file_name):
                 environment.gripper.close() # can do more if we want to save states and all
                 break
 
-        if done is True or episode_timesteps >= learning_config.episode_horizont:
+        if done or episode_timesteps >= learning_config.episode_horizont:
             message = f"#{environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
             logging.info(message)
             slack_bot.post_message("#bot_terminal", message)
@@ -295,6 +295,8 @@ def main():
         device=DEVICE,
     )
 
+    # print(environment.gripper.current_object_position())
+
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_name = f"{date_time_str}_RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_{str(agent)[40:43]}"
     create_directories(gripper_local_storage, file_name)
@@ -305,7 +307,7 @@ def main():
     train(environment, agent, memory, learning_config, file_name)
 
     # logging.info("Starting Evaluation Loop")
-    #evaluation(environment, agent, file_name)
+    # evaluation(environment, agent, "best_04_26_15_15_RobotId9_EnvType0_ObsType1_Seed517_TD3")
 
 
 if __name__ == '__main__':

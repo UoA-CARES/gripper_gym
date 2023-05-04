@@ -22,7 +22,11 @@ def fixed_goal():
     raise ValueError(f"Target angle unknown: {target_angle}")
 
 def fixed_goals(object_current_pose, noise_tolerance):
-    current_yaw = object_current_pose#['orientation'][2]# Yaw
+    if type(object_current_pose) == dict:
+        current_yaw = object_current_pose['orientation'][2]# Yaw.
+    else:
+        current_yaw = object_current_pose#['orientation'][2]# Yaw.
+
     target_angle = fixed_goal()
     while abs(current_yaw - target_angle) < noise_tolerance:
         target_angle = fixed_goal()
@@ -40,9 +44,19 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         if self.goal_selection_method == 0:# TODO Turn into enum
-            object_state = self.gripper.current_object_position()   
+            if self.gripper.actuated_target:
+                object_state = self.gripper.current_object_position()#self.get_object_state()
+            else:
+                object_state = self.get_object_state() 
+
+
             return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == 1:
+            if self.gripper.actuated_target:
+                return relative_goal(self.gripper.current_object_position())#self.get_object_state()
+            else:
+                return relative_goal(self.get_object_state())
+
             return relative_goal(self.gripper.current_object_position())
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
@@ -63,8 +77,16 @@ class RotationEnvironment(Environment):
         
         done = False
 
-        yaw_before = goal_before#["orientation"][2]
-        yaw_after  = goal_after#["orientation"][2]
+
+        if type(goal_before) == dict:
+            yaw_before = goal_before["orientation"][2]
+            yaw_after  = goal_after["orientation"][2]
+        else:
+            yaw_before = goal_before
+            yaw_after  = goal_after
+
+        # yaw_before = goal_before#["orientation"][2]
+        # yaw_after  = goal_after#["orientation"][2]
 
         goal_difference = self.min_difference(target_goal, yaw_after)
         # To a goal position
@@ -79,15 +101,15 @@ class RotationEnvironment(Environment):
         logging.info(f"Yaw = {yaw_after}")
 
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-            reward = -2
+            reward = -1
         else:
             reward = delta_changes/self.min_difference(target_goal, yaw_before)
 
-        reward = reward if reward > 0 else -10
+            # reward = reward if reward > 0 else -2
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward += 30
+            reward += 1
             done = True
 
         return reward, done
