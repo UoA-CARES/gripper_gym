@@ -59,6 +59,7 @@ class Environment(ABC):
 
     @exception_handler("Environment failed to reset")
     def reset(self):
+        
         self.gripper.home()       
         state = self.get_state()
 
@@ -134,6 +135,7 @@ class Environment(ABC):
             state += gripper_state["velocities"]
             state += gripper_state["loads"]
 
+
         object_state = self.get_object_state()
         if object_state is not None:
             position = object_state["position"]
@@ -161,7 +163,7 @@ class Environment(ABC):
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion)
+                                                                self.camera.camera_distortion, display=False)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
@@ -254,7 +256,7 @@ class Environment(ABC):
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion)
+                                                                self.camera.camera_distortion, display=False)
             if self.object_marker_id in marker_poses:
                 return marker_poses[self.object_marker_id]
         return None

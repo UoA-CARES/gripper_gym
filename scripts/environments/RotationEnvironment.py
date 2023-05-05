@@ -9,16 +9,16 @@ file_path = Path(__file__).parent.resolve()
 from configurations import EnvironmentConfig, GripperConfig
 
 def fixed_goal():
-    # target_angle = np.random.randint(1, 5)
-    # if target_angle == 1:
-    #     return 90
+    target_angle = np.random.randint(1, 2)
+    if target_angle == 1:
+        return 90
     # elif target_angle == 2:
     #     return 180
-    # elif target_angle == 3:
-    #     return 270
+    elif target_angle == 2:
+        return 270
     # elif target_angle == 4:
     #     return 0
-    return 270
+    return 90
     raise ValueError(f"Target angle unknown: {target_angle}")
 
 def fixed_goals(object_current_pose, noise_tolerance):
@@ -100,11 +100,13 @@ class RotationEnvironment(Environment):
 
         logging.info(f"Yaw = {yaw_after}")
 
-        if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+        no_action_tolerance = 3
+        if -no_action_tolerance <= delta_changes <= no_action_tolerance:
             reward = -1
         else:
             reward = delta_changes/self.min_difference(target_goal, yaw_before)
 
+        # reward = -1 if reward < -1 else reward
             # reward = reward if reward > 0 else -2
 
         if goal_difference <= self.noise_tolerance:

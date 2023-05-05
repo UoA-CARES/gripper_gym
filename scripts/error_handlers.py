@@ -6,7 +6,7 @@ from environments.Environment import EnvironmentError
 from Gripper import GripperError
 import cv2
 
-def handle_gripper_error_home(environment, error_message, slack_bot, gripper_local_storage_result, result_plot_filename):
+def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
     warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
     logging.warning(warning_message)
     
@@ -19,13 +19,14 @@ def handle_gripper_error_home(environment, error_message, slack_bot, gripper_loc
         warning_message = f"#{environment.gripper.gripper_id}: Auto wiggle fix failed, going to final handler"
         logging.warning(warning_message)
         slack_bot.post_message("#bot_terminal", warning_message)
-        return handle_gripper_error(environment, error_message, slack_bot, gripper_local_storage_result, result_plot_filename)
+        return handle_gripper_error(environment, error_message, slack_bot, file_path)
     
-def handle_gripper_error(environment, error_message, slack_bot, gripper_local_storage_result, file_name):
+def handle_gripper_error(environment, error_message, slack_bot, file_path):
     logging.error(f"Error handling has been initiated because of: {error_message}")
     help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle:"
     logging.error(help_message)
     slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
+    file_name = file_path.split("/")[-1]
     result_plot_filename = f"{file_name}.png"
     
     while True:
@@ -68,14 +69,14 @@ def handle_gripper_error(environment, error_message, slack_bot, gripper_local_st
                 return True
             return True
         elif value == "p":
-            if os.path.exists(f"{gripper_local_storage_result}/{result_plot_filename}"):
-                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{gripper_local_storage_result}/", result_plot_filename)
+            if os.path.exists(f"{file_path}/{result_plot_filename}"):
+                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{file_path}/", result_plot_filename)
             else:
                 slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Result plot not ready yet or doesn't exist")
         elif value == "f":
-            cv2.imwrite(f"{gripper_local_storage_result}/current_frame.png", environment.camera.get_frame())
-            if os.path.exists(f"{gripper_local_storage_result}/current_frame.png"):
-                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current_frame", f"{gripper_local_storage_result}/", "current_frame.png")
+            cv2.imwrite(f"{file_path}/current_frame.png", environment.camera.get_frame())
+            if os.path.exists(f"{file_path}/current_frame.png"):
+                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current_frame", f"{file_path}/", "current_frame.png")
             else:
                 slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Having trouble accessing current frame")
         # else:
