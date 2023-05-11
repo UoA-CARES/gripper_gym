@@ -65,7 +65,7 @@ class Gripper(object):
 
         if config.actuated_target:
             try:
-                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 1023, 0, "XL430-W250-T")
+                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 4095, 0, "XL430-W250-T")
             except (GripperError, DynamixelServoError) as error:
                 raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
 
@@ -142,10 +142,8 @@ class Gripper(object):
     def current_object_position(self):
         if self.target_servo is None:
             raise ValueError("Object Servo is None")
-        if self.target_servo.model == "XL430-W250-T":
-            yaw = Servo.step_to_angle_360(self.target_servo.current_position())
-        else:
-            yaw = Servo.step_to_angle_300(self.target_servo.current_position())
+
+        yaw = self.target_servo.step_to_angle(self.target_servo.current_position())
         if yaw < 0:
             yaw += 360
         return yaw
