@@ -14,10 +14,6 @@ import torch
 import random
 import numpy as np
 
-from queue import Queue, Empty
-
-from threading import Thread
-
 from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig
@@ -32,6 +28,7 @@ from networks import Critic
 from cares_reinforcement_learning.util import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 
+
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
     logging.info("Working with GPU")
@@ -43,16 +40,6 @@ with open('slack_token.txt') as file:
     slack_token = file.read()
 slack_bot = SlackBot(slack_token=slack_token)
 
-# TODO consider - https://github.com/rustedpy/result
-class ErrorWrapper():
-    def __init__(self, value, error=None):
-        self.value = value
-        self.error = error
-
-    def unwrap(self):
-        if self.error is not None:
-            raise self.error
-        return self.value
 
 class GripperTrainer():
     def __init__(self, env_config, gripper_config, learning_config, file_path) -> None:
@@ -94,86 +81,22 @@ class GripperTrainer():
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]
-
-        logging.info("Strating Environment Thread")
-        self.action_queue = Queue(maxsize=1)
-        self.state_queue  = Queue(maxsize=1)
-
-        self.environment_thread = Thread(target = self.environment_spin)
-        self.environment_thread.start()
-
-    # TODO tidy up the error handling within these functions
-    def step_envrionment(self, action):
-        self.restart_thread_if_dead()
-
+    
+    def environment_reset(self):
         try:
-            action_command = [1, action]
-            self.action_queue.put(action_command)
-            return self.state_queue.get(timeout=5).unwrap()
-        except (EnvironmentError , GripperError) as error:
-            error_message = f"Failed to step with message: {error}"
-            logging.error(error_message)
-            if erh.handle_gripper_error_home(self.environment, error_message, slack_bot, self.file_path):
-                return [], 0, True, True
-            else:
-                self.environment.gripper.close() # can do more if we want to save states and all
-                exit()
-        except Empty as error:
-            logging.error(f"Timed out waiting for state after step - environment thread is Alive: {self.environment_thread.is_alive()}")
-            self.restart_thread_if_dead()
-            self.reset_envrionment()
-            return [], 0, True, True
-
-    # TODO tidy up the error handling within these functions
-    def reset_envrionment(self):
-        logging.info(self.environment_thread.is_alive())
-        self.restart_thread_if_dead()
-
-        reset_command = [0, None]
-        self.action_queue.put(reset_command)
-        
-        try:
-            return self.state_queue.get(timeout=5).unwrap()
+            return self.environment.reset()
         except (EnvironmentError , GripperError) as error:
             error_message = f"Failed to reset with message: {error}"
             logging.error(error_message)
             if erh.handle_gripper_error_home(self.environment, error_message, slack_bot, self.file_path):
-                return self.reset_envrionment()  # might keep looping if it keep having issues
+                return self.environment_reset()  # might keep looping if it keep having issues
             else:
-                self.agent.save_models(self.file_path, self.file_name)
-                exit()
-        except Empty as error:
-            logging.error(f"Timed out waiting for state after reset - environment thread is Alive: {self.environment_thread.is_alive()}")
-            self.restart_thread_if_dead()
-            self.reset_envrionment()
-
-    def environment_spin(self):
-        while True:
-            try:
-                try:
-                    command, action = self.action_queue.get(False)
-                    if command == 0:
-                        value = self.environment.reset()
-                    elif command == 1:
-                        value = self.environment.step(action)
-                    self.state_queue.put(ErrorWrapper(value))
-                except Empty as error:
-                    pass
-            
-                self.environment.gripper.step()
-            except (EnvironmentError , GripperError) as error:
-                logging.error(f"Environment thread error: {error}")        
-                self.state_queue.put(ErrorWrapper(None, error))
-                return
-            
-    def restart_thread_if_dead(self):
-        if not self.environment_thread.is_alive():
-            self.environment_thread = Thread(target = self.environment_spin)
-            self.environment_thread.start()
+                self.environment.gripper.close()
+                self.agent.save_models(self.file_name, self.file_path)
 
     def evaluation(self):
         logging.info("Starting Training Loop")
-        self.agent.load_models(self.file_path, self.file_name)
+        self.agent.load_models(self.file_name, self.file_path)
 
         episode_timesteps = 0
         episode_reward    = 0
@@ -190,7 +113,7 @@ class GripperTrainer():
             action = self.agent.select_action_from_policy(state, evaluation=True)  # algorithm range [-1, 1]
             action_env = self.environment.denormalize(action)  # gripper range
 
-            next_state, reward, done, truncated = self.step_envrionment(action_env)
+            next_state, reward, done, truncated = self.envrionment.step(action_env)
             if not truncated:
                 logging.info(f"Reward of this step:{reward}")
                 state = next_state
@@ -200,7 +123,7 @@ class GripperTrainer():
                 logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
                 # Reset environment
-                state =  self.reset_envrionment()
+                state =  self.environment_reset() 
 
                 episode_reward    = 0
                 episode_timesteps = 0
@@ -213,6 +136,8 @@ class GripperTrainer():
         episode_reward    = 0
         episode_num       = 0
         historical_reward = {"step": [], "episode_reward": []}
+        historical_distance = {"step": [], "episode_distance": []}
+        
         best_episode_reward = -np.inf
 
         # TODO extract these parameters
@@ -220,7 +145,7 @@ class GripperTrainer():
         noise_decay  = 0.9999
         noise_scale  = 0.10
 
-        state = self.reset_envrionment()
+        state = self.environment_reset() 
 
         for total_step_counter in range(int(self.learning_config.max_steps_training)):
             episode_timesteps += 1
@@ -244,7 +169,7 @@ class GripperTrainer():
                 action = self.agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
                 action_env = self.environment.denormalize(action)  # gripper range
             
-            next_state, reward, done, truncated = self.step_envrionment(action_env)
+            next_state, reward, done, truncated = self.environment.step(action_env)
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}")
@@ -260,6 +185,11 @@ class GripperTrainer():
                         for _ in range(self.learning_config.G):
                             experiences = self.memory.sample(self.learning_config.batch_size)
                             self.agent.train_policy(experiences)
+
+
+                if episode_reward > best_episode_reward:
+                    best_episode_reward = episode_reward
+                    self.agent.save_models(f"best_{self.file_name}", self.file_path)
                         
             if done or truncated or episode_timesteps >= self.learning_config.episode_horizont:
                 message = f"#{self.environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
@@ -269,6 +199,10 @@ class GripperTrainer():
                 historical_reward["step"].append(total_step_counter)
                 historical_reward["episode_reward"].append(episode_reward)
 
+                episode_distance = self.environment.ep_final_distance()
+                historical_distance["step"].append(total_step_counter)
+                historical_distance["episode_distance"].append(episode_distance)
+
                 if self.environment.action_type == "velocity": # if velocity based, train every episode
                     if total_step_counter >= self.learning_config.max_steps_exploration:
                         for _ in range(self.learning_config.G):
@@ -277,19 +211,21 @@ class GripperTrainer():
 
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
-                    self.agent.save_models(self.file_path , self.file_name)
+                    self.agent.save_models(self.file_name, self.file_path)
 
-                state = self.reset_envrionment()
+                state = self.environment_reset() 
 
                 episode_reward    = 0
                 episode_timesteps = 0
                 episode_num      += 1
 
                 if episode_num % self.learning_config.plot_freq == 0:
-                    plot_reward_curve(historical_reward, self.file_path)
+                    plot_curve(historical_reward, self.file_path, "reward")
+                    plot_curve(historical_distance, self.file_path, "distance")
 
-        plot_reward_curve(historical_reward, self.file_path, "rewards")
-        self.agent.save_models(self.file_path, self.file_name)
+        plot_curve(historical_reward, self.file_path, "reward")
+        plot_curve(historical_distance, self.file_path, "distance")
+        self.agent.save_models(self.file_name, self.file_path)
         self.environment.gripper.close()
 
 # todo move this function to better place
@@ -306,10 +242,10 @@ def create_directories(local_results_path, folder_name):
     return file_path
 
 # todo move this function to better place
-def plot_reward_curve(data_reward, file_path, file_name):
-    data = pd.DataFrame.from_dict(data_reward)
+def plot_curve(data, file_path, file_name):
+    data = pd.DataFrame.from_dict(data)
     data.to_csv(f"{file_path}/{file_name}", index=False)
-    data.plot(x='step', y='episode_reward', title=file_name)
+    data.plot(x='step', y=f'episode_{file_name}', title=file_name)
     plt.savefig(f"{file_path}/{file_name}")
     plt.close()
 

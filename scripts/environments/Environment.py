@@ -120,25 +120,25 @@ class Environment(ABC):
         # TODO use truncated to indicate the gripper had a fault and needs to aborted
         truncated = False
         return state, reward, done, truncated
-
+    
     @exception_handler("Failed to step gripper")
     def step_gripper(self):
         self.gripper.step()
 
     @exception_handler("Failed to get servo states")
     def servo_state_space(self):
-        # Angle Servo + X-Y-Yaw Object
+        # Angle Servo + X-Y-Yaw Object + Goal
         state = []
         gripper_state = self.gripper.state()
         state += gripper_state["positions"]
+
         if self.action_type == "velocity":
             state += gripper_state["velocities"]
             state += gripper_state["loads"]
 
-
         object_state = self.get_object_state()
         if object_state is not None:
-            position = object_state["position"]
+            position    = object_state["position"]
             orientation = object_state["orientation"]
             state.append(position[0])  # X
             state.append(position[1])  # Y
@@ -149,12 +149,15 @@ class Environment(ABC):
             for i in range (3):
                 state.append(-1)
 
+        # Add the goal state into the state 
+        state.append(self.goal_state)
+
         return state 
 
-    # The aruco state presumes the Aruco IDs match the servo IDs + 2 Markers for finger tips + 1 Marker for Object
+    # The aruco state presumes the Aruco IDs match the servo IDs + a Marker for each finger tip + 1 Marker for Object
     @exception_handler("Failed to get aruco states")
     def aruco_state_space(self):
-        # X-Y Servo + X-Y Finger-tips + X-Y-Yaw Object
+        # X-Y Servo + X-Y Finger-tips + X-Y-Yaw Object + Goal
         state = []
 
         num_markers = self.gripper.num_motors + 3  # Servos + Finger Tips (2) + Object (1)
@@ -169,65 +172,36 @@ class Environment(ABC):
             if all(ids in marker_poses for ids in marker_ids):
                 break
 
-        # Add the XY poses for each of the markers into the state
-        state = [0 for _ in range(num_markers * 2 + 1)]
-        for id in marker_ids:
-            marker_pose = marker_poses[id]
-            position = marker_pose["position"]
-            # orientation = marker_pose["orientation"]
+        # order the markers by ID
+        marker_poses = dict(sorted(marker_poses.items()))
 
-            i = id - 1
-            state[i * 2] = position[0]  # X
-            state[i * 2 + 1] = position[1]  # Y
+        # Add the XY poses for each of the markers into the state
+        for _, marker_pose in marker_poses.items():
+            position = marker_pose["position"]
+            state.append(position[0])  # X
+            state.append(position[1])  # Y
 
         # Add the additional yaw information from the object marker (adds to the end)
         state[-1:] = [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
+        # Add the goal state into the state 
+        state.append(self.goal_state)
+
         return state
 
 
-    @exception_handler("Failed to get servo and aruco states states")
+    @exception_handler("Failed to get servo and aruco states")
     def servo_aruco_state_space(self):
-        # Angle Servo + X-Y-Yaw Object
+        # Servo (Position/Velocity/Load) + Servo XY + Target XY-Yaw + Goal
         state = []
-        gripper_state = self.gripper.state()
-        state += gripper_state["positions"]
+        servo_state_space = self.servo_state_space()[:-4]#remove the redundent target XY-Yaw + goal from the end
+        aruco_state_space = self.aruco_state_space()[:-1]#remove the goal from the end
 
-        object_state = self.get_object_state()
-        if object_state is not None:
-            position    = object_state["position"]
-            orientation = object_state["orientation"]
-            state.append(position[0])#X
-            state.append(position[1])#Y
-            state.append(orientation[2])#Yaw
-        else:
-            # if target is not visible then append -1 to the state (norm 0-360)
-            # TODO this needs further consideration...
-            for i in range (3):
-                state.append(-1)
+        state += servo_state_space
+        state += aruco_state_space
 
-        # X-Y-Agnle Servo + X-Y Finger Tips + X-Y-Yaw Object
-        state_size = self.gripper.num_motors * 3 + 7  # Num Servos * 3 + Finger Tips * 2 (4) + Object (3)
-
-        state = [0 for _ in range(state_size)]
-        servo_state_space = self.servo_state_space()
-        aruco_state_space = self.aruco_state_space()
-
-        # Add servo state space X-Y-Angle
-        for i in range(0, self.gripper.num_motors):
-            s_i = i * 3
-            a_i = i * 2
-            state[s_i] = aruco_state_space[a_i]  # X
-            state[s_i + 1] = aruco_state_space[a_i + 1]  # Y
-            state[s_i + 2] = servo_state_space[i]  # Angle
-
-        # Add Finger Tips
-        m_i = self.gripper.num_motors * 3
-        a_i = self.gripper.num_motors * 2
-        state[m_i:m_i + 5] = aruco_state_space[a_i:a_i + 5]  # (4+1) one extra to get full range
-
-        # Add Object Target
-        state[-3:] = aruco_state_space[-3:]
+        # Add the goal state into the state 
+        state.append(self.goal_state)
 
         return state
 
@@ -300,6 +274,12 @@ class Environment(ABC):
             action_norm[i]  = (action_gripper[i] - servo_min_value) * (max_range_value - min_range_value) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
 
+    def ep_final_distance(self):
+        return self.rotation_min_difference(self.goal_state, self.gripper.current_object_position())
+    
+    def rotation_min_difference(self, a, b):
+        return min(abs(a - b), (360+min(a, b) - max(a, b)))
+    
     @abstractmethod
     def choose_goal(self):
         pass

@@ -26,8 +26,6 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
     help_message = "Please fix the gripper and press | c to try again | x to quit | w to wiggle:"
     logging.error(help_message)
     slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
-    file_name = file_path.split("/")[-1]
-    result_plot_filename = f"{file_name}.png"
     
     while True:
         value, timed_out = timedInput(timeout=10)
@@ -69,8 +67,13 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
                 return True
             return True
         elif value == "p":
-            if os.path.exists(f"{file_path}/{result_plot_filename}"):
-                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{file_path}/", result_plot_filename)
+            if os.path.exists(f"{file_path}/rewards.png"):
+                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{file_path}/", "rewards.png")
+            else:
+                slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Result plot not ready yet or doesn't exist")
+        elif value == "d":
+            if os.path.exists(f"{file_path}/distance.png"):
+                slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{file_path}/", "distance.png")
             else:
                 slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Result plot not ready yet or doesn't exist")
         elif value == "f":

@@ -9,7 +9,7 @@ file_path = Path(__file__).parent.resolve()
 from configurations import EnvironmentConfig, GripperConfig
 
 def fixed_goal():
-    target_angle = np.random.randint(1, 2)
+    target_angle = np.random.randint(1, 3)
     if target_angle == 1:
         return 90
     # elif target_angle == 2:
@@ -18,7 +18,7 @@ def fixed_goal():
         return 270
     # elif target_angle == 4:
     #     return 0
-    return 90
+    # return 90
     raise ValueError(f"Target angle unknown: {target_angle}")
 
 def fixed_goals(object_current_pose, noise_tolerance):
@@ -56,14 +56,8 @@ class RotationEnvironment(Environment):
                 return relative_goal(self.gripper.current_object_position())#self.get_object_state()
             else:
                 return relative_goal(self.get_object_state())
-
-            return relative_goal(self.gripper.current_object_position())
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
-
-    def min_difference(self, a, b):
-        return min(abs(a - b), (360+min(a, b) - max(a, b)))
-        # return min((a - b), (360+min(a, b) - max(a, b)))
     
     # overriding method 
     def reward_function(self, target_goal, goal_before, goal_after):
@@ -77,7 +71,6 @@ class RotationEnvironment(Environment):
         
         done = False
 
-
         if type(goal_before) == dict:
             yaw_before = goal_before["orientation"][2]
             yaw_after  = goal_after["orientation"][2]
@@ -85,29 +78,16 @@ class RotationEnvironment(Environment):
             yaw_before = goal_before
             yaw_after  = goal_after
 
-        # yaw_before = goal_before#["orientation"][2]
-        # yaw_after  = goal_after#["orientation"][2]
-
-        goal_difference = self.min_difference(target_goal, yaw_after)
-        # To a goal position
-        delta_changes   = self.min_difference(target_goal, yaw_before) - self.min_difference(target_goal, yaw_after)
-
-        # Reward any change
-        # delta_changes = self.min_difference(yaw_before - yaw_after)
-
-        # Reward only changes in the right direction
-        # delta_changes = yaw_after - yaw_before
-
+        goal_difference = self.rotation_min_difference(target_goal, yaw_after)
+        delta_changes   = self.rotation_min_difference(target_goal, yaw_before) - self.rotation_min_difference(target_goal, yaw_after)
+        
         logging.info(f"Yaw = {yaw_after}")
 
         no_action_tolerance = 3
         if -no_action_tolerance <= delta_changes <= no_action_tolerance:
             reward = -1
         else:
-            reward = delta_changes/self.min_difference(target_goal, yaw_before)
-
-        # reward = -1 if reward < -1 else reward
-            # reward = reward if reward > 0 else -2
+            reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before)
 
         if goal_difference <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
