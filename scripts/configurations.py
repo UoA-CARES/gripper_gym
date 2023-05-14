@@ -49,4 +49,4 @@ class GripperConfig(BaseModel):
     min_values: List[int]
     max_values: List[int]
     home_sequence: List[List[int]]
-    actuated_target: bool
+    actuated_target: str

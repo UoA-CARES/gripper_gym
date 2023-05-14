@@ -63,9 +63,13 @@ class Gripper(object):
         self.target_servo = None
         self.actuated_target = config.actuated_target
 
-        if config.actuated_target:
+        if config.actuated_target is not None:
             try:
-                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 4095, 0, "XL430-W250-T")
+                if config.actuated_target == "magnet-encoder":
+                    # TODO: Add magnet encoder
+                    pass
+                else:
+                    self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 4095, 0, config.actuated_target)
             except (GripperError, DynamixelServoError) as error:
                 raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
 
@@ -281,7 +285,7 @@ class Gripper(object):
         if self.target_servo is not None:
             reset_home_position = 512 #random.randint(0, 1023)
             if self.target_servo.model == "XL430-W250-T":
-                reset_home_position = 2048
+                reset_home_position = random.randint(0, 4095)#2048
             self.target_servo.move(reset_home_position)
             self.target_servo.disable_torque()  # Need this to be target servo
 

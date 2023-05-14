@@ -9,16 +9,16 @@ file_path = Path(__file__).parent.resolve()
 from configurations import EnvironmentConfig, GripperConfig
 
 def fixed_goal():
-    target_angle = np.random.randint(1, 3)
+    target_angle = np.random.randint(1, 5)
     if target_angle == 1:
         return 90
-    # elif target_angle == 2:
-    #     return 180
+    elif target_angle == 2:
+        return 180
     elif target_angle == 2:
         return 270
-    # elif target_angle == 4:
-    #     return 0
-    # return 90
+    elif target_angle == 4:
+        return 0
+    return 90
     raise ValueError(f"Target angle unknown: {target_angle}")
 
 def fixed_goals(object_current_pose, noise_tolerance):
@@ -44,7 +44,7 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         if self.goal_selection_method == 0:# TODO Turn into enum
-            if self.gripper.actuated_target:
+            if self.gripper.actuated_target is not None:
                 object_state = self.gripper.current_object_position()#self.get_object_state()
             else:
                 object_state = self.get_object_state() 
@@ -52,7 +52,7 @@ class RotationEnvironment(Environment):
 
             return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == 1:
-            if self.gripper.actuated_target:
+            if self.gripper.actuated_target is not None:
                 return relative_goal(self.gripper.current_object_position())#self.get_object_state()
             else:
                 return relative_goal(self.get_object_state())

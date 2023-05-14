@@ -52,7 +52,7 @@ class Environment(ABC):
         else: 
             self.object_marker_id = self.gripper.num_motors + 3  # Num Servos + Finger Tips (2) + 1
 
-        if self.gripper.actuated_target:
+        if self.gripper.actuated_target is not None:
             self.goal_state = self.gripper.current_object_position()#self.get_object_state()
         else:
             self.goal_state = self.get_object_state()
@@ -93,7 +93,7 @@ class Environment(ABC):
     @exception_handler("Failed to step")
     def step(self, action):
         # Get initial pose of the object before moving to help calculate reward after moving.
-        if self.gripper.actuated_target:
+        if self.gripper.actuated_target is not None:
             object_state_before = self.gripper.current_object_position()#self.get_object_state()
         else:
             object_state_before = self.get_object_state()
@@ -108,7 +108,7 @@ class Environment(ABC):
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        if self.gripper.actuated_target:
+        if self.gripper.actuated_target is not None:
             object_state_after = self.gripper.current_object_position()#self.get_object_state()
         else:
             object_state_after = self.get_object_state()
