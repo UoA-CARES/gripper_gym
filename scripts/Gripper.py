@@ -244,15 +244,6 @@ class Gripper(object):
             self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
 
         for servo_id, servo in self.servos.items():
-
-            # if set_only:
-            #     servo.set_control_mode(ControlMode.JOINT.value)
-            # else:
-            #     servo.set_control_mode(ControlMode.WHEEL.value)
-
-            # target_velocity = velocities[servo_id-1]
-            # servo.move_velocity(target_velocity)
-
             target_velocity = velocities[servo_id-1]
             target_velocity_b = Servo.velocity_to_bytes(target_velocity)
 
@@ -283,7 +274,7 @@ class Gripper(object):
         self.move(pose)
 
         if self.target_servo is not None:
-            reset_home_position = 512 #random.randint(0, 1023)
+            reset_home_position = random.randint(0, 1023) #512
             if self.target_servo.model == "XL430-W250-T":
                 reset_home_position = random.randint(0, 4095)#2048
             self.target_servo.move(reset_home_position)
