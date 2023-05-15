@@ -13,10 +13,15 @@ def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
     slack_bot.post_message("#bot_terminal", warning_message)
     
     try :
-        environment.gripper.wiggle_home()
+        if not environment.gripper.wiggle_home():
+            warning_message = f"#{environment.gripper.gripper_id}: Wiggle home failed, rebooting"
+            logging.warning(warning_message)
+            slack_bot.post_message("#bot_terminal", warning_message)
+
+            environment.gripper.reboot()
         return True
     except (EnvironmentError , GripperError):
-        warning_message = f"#{environment.gripper.gripper_id}: Auto wiggle fix failed, going to final handler"
+        warning_message = f"#{environment.gripper.gripper_id}: Auto wiggle fix or reboot failed, going to final handler"
         logging.warning(warning_message)
         slack_bot.post_message("#bot_terminal", warning_message)
         return handle_gripper_error(environment, error_message, slack_bot, file_path)

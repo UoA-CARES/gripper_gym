@@ -139,6 +139,7 @@ class GripperTrainer():
         historical_distance = {"step": [], "episode_distance": []}
         
         best_episode_reward = -np.inf
+        success_count = 0
 
         # TODO extract these parameters
         min_noise    = 0.01
@@ -190,6 +191,8 @@ class GripperTrainer():
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
                     self.agent.save_models(f"best_{self.file_name}", self.file_path)
+
+            success_count = (success_count+1) if done else success_count
                         
             if done or truncated or episode_timesteps >= self.learning_config.episode_horizont:
                 message = f"#{self.environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
@@ -222,6 +225,7 @@ class GripperTrainer():
                 if episode_num % self.learning_config.plot_freq == 0:
                     plot_curve(historical_reward, self.file_path, "reward")
                     plot_curve(historical_distance, self.file_path, "distance")
+                    logging.info(f"Success Rate: {success_count/episode_num} with total {success_count} successes out of {episode_num} episodes")
 
         plot_curve(historical_reward, self.file_path, "reward")
         plot_curve(historical_distance, self.file_path, "distance")
