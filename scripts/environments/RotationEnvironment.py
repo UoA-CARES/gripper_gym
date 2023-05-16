@@ -14,27 +14,23 @@ def fixed_goal():
         return 90
     elif target_angle == 2:
         return 180
-    elif target_angle == 2:
+    elif target_angle == 3:
         return 270
     elif target_angle == 4:
         return 0
     return 90
-    raise ValueError(f"Target angle unknown: {target_angle}")
 
 def fixed_goals(object_current_pose, noise_tolerance):
-    if type(object_current_pose) == dict:
-        current_yaw = object_current_pose['orientation'][2]# Yaw.
-    else:
-        current_yaw = object_current_pose#['orientation'][2]# Yaw.
+    current_yaw = object_current_pose# Yaw.
 
     target_angle = fixed_goal()
     while abs(current_yaw - target_angle) < noise_tolerance:
         target_angle = fixed_goal()
     return target_angle
 
-def relative_goal(current_target):
-    return current_target + 90 #TODO redo this
-#####
+def relative_goal(object_current_pose):
+    current_yaw = object_current_pose['orientation'][2]# Yaw.
+    return current_yaw + 90 #TODO redo this
 
 # TODO turn the hard coded type ints into enums
 class RotationEnvironment(Environment):
@@ -43,19 +39,11 @@ class RotationEnvironment(Environment):
 
     # overriding method
     def choose_goal(self):
+        object_state = self.actual_object_state() 
         if self.goal_selection_method == 0:# TODO Turn into enum
-            if self.gripper.actuated_target is not None:
-                object_state = self.gripper.current_object_position()#self.get_object_state()
-            else:
-                object_state = self.get_object_state() 
-
-
             return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == 1:
-            if self.gripper.actuated_target is not None:
-                return relative_goal(self.gripper.current_object_position())#self.get_object_state()
-            else:
-                return relative_goal(self.get_object_state())
+            return relative_goal(object_state)
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
     
@@ -71,19 +59,15 @@ class RotationEnvironment(Environment):
         
         done = False
 
-        if type(goal_before) == dict:
-            yaw_before = goal_before["orientation"][2]
-            yaw_after  = goal_after["orientation"][2]
-        else:
-            yaw_before = goal_before
-            yaw_after  = goal_after
+        yaw_before = goal_before
+        yaw_after  = goal_after
 
         goal_difference = self.rotation_min_difference(target_goal, yaw_after)
         delta_changes   = self.rotation_min_difference(target_goal, yaw_before) - self.rotation_min_difference(target_goal, yaw_after)
         
         logging.info(f"Yaw = {yaw_after}")
 
-        no_action_tolerance = 3
+        no_action_tolerance = 3 # TODO should this not be self.noise_tolerance
         if -no_action_tolerance <= delta_changes <= no_action_tolerance:
             reward = -1
         else:

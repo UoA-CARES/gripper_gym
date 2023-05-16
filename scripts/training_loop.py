@@ -93,6 +93,20 @@ class GripperTrainer():
             else:
                 self.environment.gripper.close()
                 self.agent.save_models(self.file_name, self.file_path)
+                exit(1)
+
+    def environment_step(self, action_env):
+        try:
+            return self.environment.step(action_env)
+        except (EnvironmentError , GripperError) as error:
+            error_message = f"Failed to step environment with message: {error}"
+            logging.error(error_message)
+            if erh.handle_gripper_error_home(self.environment, error_message, slack_bot, self.file_path):
+                return [], 0, False, True
+            else:
+                self.environment.gripper.close()
+                self.agent.save_models(self.file_name, self.file_path)
+                exit(1)
 
     def evaluation(self):
         logging.info("Starting Training Loop")
@@ -170,7 +184,7 @@ class GripperTrainer():
                 action = self.agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
                 action_env = self.environment.denormalize(action)  # gripper range
             
-            next_state, reward, done, truncated = self.environment.step(action_env)
+            next_state, reward, done, truncated = self.environment_step(action_env)
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}")

@@ -33,8 +33,7 @@ class GripperError(IOError):
 class Gripper(object):
     def __init__(self, config: GripperConfig):
 
-        global glob_config
-        glob_config = config
+        self.config = config
 
         # Setup Servor handlers
         self.gripper_id = config.gripper_id
@@ -65,17 +64,13 @@ class Gripper(object):
 
         if config.actuated_target is not None:
             try:
-                if config.actuated_target == "magnet-encoder":
-                    # TODO: Add magnet encoder
-                    pass
-                else:
-                    self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 4095, 0, config.actuated_target)
+                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 4095, 0, config.actuated_target)
             except (GripperError, DynamixelServoError) as error:
                 raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
 
         try:
             for id in range(1, self.num_motors + 1):
-                led = id % 7 + 1
+                led = id % 7
                 self.servos[id] = Servo(self.port_handler, self.packet_handler, self.protocol, id, led,
                                         config.torque_limit, config.speed_limit, self.max_values[id - 1],
                                         self.min_values[id - 1])
@@ -83,6 +78,16 @@ class Gripper(object):
         except (GripperError, DynamixelServoError) as error:
             raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
     
+    @exception_handler("Failed to reboot servos")
+    def reboot(self):
+        for _, servo in self.servos.items():
+            servo.reboot()
+            time.sleep(0.5)
+
+        self.close()
+        self.__init__(self.config)
+        logging.info(f"Gripper#{self.gripper_id}: reboot completed")
+
     def setup_handlers(self):
         if not self.port_handler.openPort():
             error_message = f"Failed to open port {self.device_name}"
@@ -365,18 +370,6 @@ class Gripper(object):
             raise GripperError(error_message)
 
         self.group_bulk_write.clearParam()
-
-    @exception_handler("Failed to reboot servos")
-    def reboot(self):
-        for _, servo in self.servos.items():
-            servo.reboot()
-            start_time = time.perf_counter()
-            while time.perf_counter() < start_time + 0.5:
-                pass
-
-        self.close()
-        self.__init__(glob_config)
-        logging.info(f"Gripper#{self.gripper_id}: reboot completed")
 
     def verify_steps(self, steps):
         for servo_id, servo in self.servos.items():

@@ -24,7 +24,6 @@ def exception_handler(error_message):
             except EnvironmentError as error:
                 logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
                 raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
-                # handle what to do if the gripper is unrecoverably gone wrong - i.e. save data and fail gracefully
         return wrapper
     return decorator
 
@@ -32,7 +31,6 @@ class EnvironmentError(IOError):
     def __init__(self, gripper, message):
         self.gripper = gripper
         super().__init__(message)
-
 
 class Environment(ABC):
     def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig):
@@ -47,15 +45,14 @@ class Environment(ABC):
         self.noise_tolerance = env_config.noise_tolerance
 
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
+
+        #TODO move this to the config
         if self.gripper.num_motors == 9:
             self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
         else: 
             self.object_marker_id = self.gripper.num_motors + 3  # Num Servos + Finger Tips (2) + 1
 
-        if self.gripper.actuated_target is not None:
-            self.goal_state = self.gripper.current_object_position()#self.get_object_state()
-        else:
-            self.goal_state = self.get_object_state()
+        self.goal_state = self.actual_object_state()
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -92,32 +89,22 @@ class Environment(ABC):
 
     @exception_handler("Failed to step")
     def step(self, action):
-        # Get initial pose of the object before moving to help calculate reward after moving.
-        if self.gripper.actuated_target is not None:
-            object_state_before = self.gripper.current_object_position()#self.get_object_state()
-        else:
-            object_state_before = self.get_object_state()
+        object_state_before = self.actual_object_state()
         
         if self.action_type == "velocity":
             self.gripper.move_velocity(action, False)
         else:
             self.gripper.move(action)
-            
-        self.gripper.step()
-
+        
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        if self.gripper.actuated_target is not None:
-            object_state_after = self.gripper.current_object_position()#self.get_object_state()
-        else:
-            object_state_after = self.get_object_state()
+        object_state_after = self.actual_object_state()
 
         logging.debug(f"New Object State: {object_state_after}")
 
         reward, done = self.reward_function(self.goal_state, object_state_before, object_state_after)
 
-        # TODO use truncated to indicate the gripper had a fault and needs to aborted
         truncated = False
         return state, reward, done, truncated
     
@@ -136,7 +123,7 @@ class Environment(ABC):
             state += gripper_state["velocities"]
             state += gripper_state["loads"]
 
-        object_state = self.get_object_state()
+        object_state = self.observed_object_state()
         if object_state is not None:
             position    = object_state["position"]
             orientation = object_state["orientation"]
@@ -236,13 +223,16 @@ class Environment(ABC):
         return None
 
     @exception_handler("Failed to get object states")
-    def get_object_state(self): 
+    def observed_object_state(self): 
         if self.object_type == 0:
             return self.get_aruco_target_pose(blindable=False)
         elif self.object_type == 1:
             return self.get_aruco_target_pose(blindable=True, detection_attempts=15)
-
+        
         raise ValueError(f"Unknown object type: {self.object_type}") 
+
+    def actual_object_state(self):
+        return self.gripper.current_object_position()
 
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo
@@ -275,7 +265,7 @@ class Environment(ABC):
         return action_norm
 
     def ep_final_distance(self):
-        return self.rotation_min_difference(self.goal_state, self.gripper.current_object_position())
+        return self.rotation_min_difference(self.goal_state, self.actual_object_state())
     
     def rotation_min_difference(self, a, b):
         return min(abs(a - b), (360+min(a, b) - max(a, b)))
