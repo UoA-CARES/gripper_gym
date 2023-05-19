@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig
+from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
@@ -18,8 +18,8 @@ from cares_lib.dynamixel.Servo import DynamixelServoError
 
 # TODO turn the hard coded type ints into enums
 class TranslationEnvironment(Environment):
-    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig):
-        super().__init__(env_config, gripper_config)
+    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
+        super().__init__(env_config, gripper_config, object_config)
 
     # overriding method
     def choose_goal(self):

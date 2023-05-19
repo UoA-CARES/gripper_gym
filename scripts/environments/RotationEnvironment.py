@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig
+from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 
 def fixed_goal():
     target_angle = np.random.randint(1, 5)
@@ -29,13 +29,13 @@ def fixed_goals(object_current_pose, noise_tolerance):
     return target_angle
 
 def relative_goal(object_current_pose):
-    current_yaw = object_current_pose['orientation'][2]# Yaw.
-    return current_yaw + 90 #TODO redo this
+    current_yaw = object_current_pose# Yaw.
+    return (current_yaw + np.random.randint(30, 330))%360
 
 # TODO turn the hard coded type ints into enums
 class RotationEnvironment(Environment):
-    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig):
-        super().__init__(env_config, gripper_config)
+    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
+        super().__init__(env_config, gripper_config, object_config)
 
     # overriding method
     def choose_goal(self):

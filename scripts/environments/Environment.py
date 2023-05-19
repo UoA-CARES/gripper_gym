@@ -3,17 +3,17 @@ from abc import ABC, abstractmethod
 import logging
 import random
 from functools import wraps
-
+from scipy.stats import trim_mean
 from pathlib import Path
 
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig
+from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 from Gripper import Gripper
+from Objects import MagnetObject, ServoObject
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
-
 
 def exception_handler(error_message):
     def decorator(function):
@@ -33,31 +33,45 @@ class EnvironmentError(IOError):
         super().__init__(message)
 
 class Environment(ABC):
-    def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig):
+    def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
+        
         self.gripper = Gripper(gripper_config)
-        self.camera = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
+        self.camera  = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
 
         self.observation_type = env_config.observation_type
-        self.object_type = env_config.object_type
         self.action_type = env_config.action_type
+
+        self.blindable = env_config.blindable
 
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
 
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-
         #TODO move this to the config
         if self.gripper.num_motors == 9:
             self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
         else: 
             self.object_marker_id = self.gripper.num_motors + 3  # Num Servos + Finger Tips (2) + 1
 
+        aruco_yaws = []
+        for i in range(0, 10):
+            aruco_yaws.append(self.observed_object_state()["orientation"][2])
+        aruco_yaw = trim_mean(aruco_yaws, 0.1)
+
+        self.object_type = object_config.object_type
+        if self.object_type == "magnet":
+            self.target = MagnetObject(object_config, aruco_yaw)
+        elif self.object_type == "servo":
+            self.target = ServoObject(self.gripper.port_handler, self.gripper.packet_handler, self.gripper.num_motors+1, object_config.device_name)
+        else:
+            raise ValueError("Object Type unknown")
+
         self.goal_state = self.actual_object_state()
 
     @exception_handler("Environment failed to reset")
     def reset(self):
         
-        self.gripper.home()       
+        self.gripper.home()  
         state = self.get_state()
 
         logging.debug(state)
@@ -205,6 +219,8 @@ class Environment(ABC):
             return self.aruco_state_space()
         elif self.observation_type == 2:
             return self.servo_aruco_state_space()
+        elif self.observation_type == 3:
+            return self.image_state_space()
         
         raise ValueError(f"Observation Type unknown: {self.observation_type}") 
 
@@ -213,7 +229,7 @@ class Environment(ABC):
         while not blindable or attempt < detection_attempts: 
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-            logging.debug(f"Attempting to detect aruco target: {msg}")
+            logging.debug(f"Attempting to detect aruco target: {self.object_marker_id}")
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
@@ -221,19 +237,14 @@ class Environment(ABC):
             if self.object_marker_id in marker_poses:
                 return marker_poses[self.object_marker_id]
         return None
-
-    @exception_handler("Failed to get object states")
-    def observed_object_state(self): 
-        if self.object_type == 0:
-            return self.get_aruco_target_pose(blindable=False)
-        elif self.object_type == 1:
-            return self.get_aruco_target_pose(blindable=True, detection_attempts=15)
+    
+    def observed_object_state(self):
+        return self.get_aruco_target_pose(blindable=self.blindable, detection_attempts=5)
         
-        raise ValueError(f"Unknown object type: {self.object_type}") 
-
+    @exception_handler("Failed to get object states")
     def actual_object_state(self):
-        return self.gripper.current_object_position()
-
+        return self.target.get_yaw()
+        
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo
         action_gripper = [0 for _ in range(0, len(action_norm))]

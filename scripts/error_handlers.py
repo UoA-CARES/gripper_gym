@@ -55,7 +55,6 @@ def get_frame(environment, slack_bot, file_path):
     else:
         slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Having trouble accessing current frame")
 
-
 def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
     warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
     logging.warning(warning_message)

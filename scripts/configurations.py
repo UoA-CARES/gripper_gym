@@ -25,13 +25,13 @@ class EnvironmentConfig(BaseModel):
     env_type: int
 
     camera_id: int
-    object_type: int
+    blindable: bool
     observation_type: int
     action_type: str
     goal_selection_method: int
 
-    noise_tolerance: Optional[int] = 5
     marker_size: Optional[int] = 18
+    noise_tolerance: Optional[int] = 5
 
     camera_matrix: str
     camera_distortion: str
@@ -41,12 +41,19 @@ class GripperConfig(BaseModel):
     gripper_id: int
     device_name: str
     baudrate: int
+
     torque_limit: int
     speed_limit: int
     velocity_min: int
     velocity_max: int
+    
     num_motors: int
     min_values: List[int]
     max_values: List[int]
     home_sequence: List[List[int]]
-    actuated_target: str
+
+class ObjectConfig(BaseModel):
+    object_type: str
+    device_name: str
+    
+    baudrate: Optional[int] = 115200

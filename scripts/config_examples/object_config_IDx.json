@@ -1,0 +1,6 @@
+{
+    "object_type": "magnet",
+    "device_name": "/dev/ttyACM0",
+    
+    "baudrate": 115200
+}

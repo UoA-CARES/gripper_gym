@@ -16,7 +16,7 @@ import numpy as np
 
 from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
-from configurations import LearningConfig, EnvironmentConfig, GripperConfig
+from configurations import LearningConfig, EnvironmentConfig, GripperConfig,ObjectConfig
 
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
@@ -42,13 +42,13 @@ slack_bot = SlackBot(slack_token=slack_token)
 
 
 class GripperTrainer():
-    def __init__(self, env_config, gripper_config, learning_config, file_path) -> None:
+    def __init__(self, env_config, gripper_config, learning_config, object_config, file_path) -> None:
         self.learning_config = learning_config #TODO split this out into the actual values to reduce the self.learning_config stuff below
 
         if env_config.env_type == 0:
-            self.environment = RotationEnvironment(env_config, gripper_config)
+            self.environment = RotationEnvironment(env_config, gripper_config, object_config)
         elif env_config.env_type == 1:
-            self.environment = TranslationEnvironment(env_config, gripper_config)
+            self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
 
         logging.info("Resetting Environment")
         state = self.environment.reset()#will just crash right away if there is an issue but that is fine
@@ -129,7 +129,7 @@ class GripperTrainer():
 
             next_state, reward, done, truncated = self.envrionment.step(action_env)
             if not truncated:
-                logging.info(f"Reward of this step:{reward}")
+                logging.info(f"Reward of this step:{reward}\n")
                 state = next_state
                 episode_reward += reward
 
@@ -187,7 +187,7 @@ class GripperTrainer():
             next_state, reward, done, truncated = self.environment_step(action_env)
 
             if not truncated:
-                logging.info(f"Reward of this step:{reward}")
+                logging.info(f"Reward of this step:{reward}\n")
 
                 self.memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
 
@@ -267,11 +267,12 @@ def plot_curve(data, file_path, file_name):
     plt.savefig(f"{file_path}/{file_name}")
     plt.close()
 
-def store_configs(file_path, env_config, gripper_config, learning_config):
+def store_configs(file_path, env_config, gripper_config, learning_config, object_config):
     with open(f"{file_path}/configs.txt", "w") as f:
         f.write(f"Environment Config:\n{env_config.json()}\n")
         f.write(f"Gripper Config:\n{gripper_config.json()}\n")
         f.write(f"Learning Config:\n{learning_config.json()}\n")
+        f.write(f"Learning Config:\n{object_config.json()}\n")
         with open(Path(env_config.camera_matrix)) as cm:
             f.write(f"\nCamera Matrix:\n{cm.read()}\n")
         with open(Path(env_config.camera_distortion)) as cd:
@@ -283,6 +284,7 @@ def parse_args():
     parser.add_argument("--learning_config", type=str)
     parser.add_argument("--env_config",      type=str)
     parser.add_argument("--gripper_config",  type=str)
+    parser.add_argument("--object_config",   type=str)
 
     home_path = os.path.expanduser('~')
     parser.add_argument("--local_results_path",  type=str, default=f"{home_path}/gripper_training")
@@ -294,6 +296,7 @@ def main():
     env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
+    object_config = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
     local_results_path = args.local_results_path
 
     logging.info("Setting up Seeds")
@@ -304,12 +307,12 @@ def main():
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     #TODO add the agent/algorithm type to learning_config
     file_path  = f"{date_time_str}_"
-    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{env_config.object_type}_Seed{learning_config.seed}_TD3"
+    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{object_config.object_type}_Seed{learning_config.seed}_TD3"
 
     file_path = create_directories(local_results_path, file_path)
-    store_configs(file_path, env_config, gripper_config, learning_config)
+    store_configs(file_path, env_config, gripper_config, learning_config, object_config)
 
-    gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, file_path)
+    gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, object_config, file_path)
     gripper_trainer.train()
 
     #gripper_trainner.evaluation()

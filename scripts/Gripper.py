@@ -59,14 +59,6 @@ class Gripper(object):
         self.group_bulk_read = dxl.GroupBulkRead(self.port_handler, self.packet_handler)
 
         self.servos = {}
-        self.target_servo = None
-        self.actuated_target = config.actuated_target
-
-        if config.actuated_target is not None:
-            try:
-                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 4095, 0, config.actuated_target)
-            except (GripperError, DynamixelServoError) as error:
-                raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
 
         try:
             for id in range(1, self.num_motors + 1):
@@ -105,8 +97,6 @@ class Gripper(object):
     def setup_servos(self):
         for _, servo in self.servos.items():
             servo.enable()
-        if self.target_servo is not None:
-            self.target_servo.enable()
 
     @exception_handler("Failed to ping")
     def ping(self):
@@ -119,11 +109,6 @@ class Gripper(object):
         current_state["positions"] = self.current_positions()
         current_state["velocities"] = self.current_velocity()
         current_state["loads"] = self.current_load()
-
-        current_state["object"] = None
-        if self.target_servo is not None:
-            current_state["object"] = self.current_object_position()
-
         return current_state        
 
     @exception_handler("Failed to step")
@@ -146,16 +131,6 @@ class Gripper(object):
     @exception_handler("Failed to read current position")
     def current_positions(self):
         return self.bulk_read("current_position", 2)
-
-    @exception_handler("Failed to read object position")
-    def current_object_position(self):
-        if self.target_servo is None:
-            raise ValueError("Object Servo is None")
-
-        yaw = self.target_servo.step_to_angle(self.target_servo.current_position())
-        if yaw < 0:
-            yaw += 360
-        return yaw
 
     @exception_handler("Failed to read current velocity")
     def current_velocity(self):
@@ -278,13 +253,6 @@ class Gripper(object):
         pose = self.home_sequence[-1]
         self.move(pose)
 
-        if self.target_servo is not None:
-            reset_home_position = random.randint(0, 1023) #512
-            if self.target_servo.model == "XL430-W250-T":
-                reset_home_position = random.randint(0, 4095)#2048
-            self.target_servo.move(reset_home_position)
-            self.target_servo.disable_torque()  # Need this to be target servo
-
         if not self.is_home():
             error_message = f"Gripper#{self.gripper_id}: failed to Home"
             logging.error(error_message)
@@ -296,10 +264,6 @@ class Gripper(object):
     def wiggle_home(self):
         for pose in self.home_sequence:
             self.move(pose)
-
-        if self.target_servo is not None:
-            self.target_servo.move(400)#TODO abstract home position for the target servo
-            self.target_servo.disable_torque()  # Need this to be target servo
 
         if not self.is_home():
             error_message = f"Gripper#{self.gripper_id}: Failed to wiggle home"
@@ -425,7 +389,4 @@ class Gripper(object):
         for _, servo in self.servos.items():
             self.disable_torque()
         
-        if self.target_servo is not None:
-            self.target_servo.disable_torque()
-
         self.port_handler.closePort()
