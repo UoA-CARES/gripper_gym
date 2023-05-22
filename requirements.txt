@@ -1,11 +1,11 @@
 backoff==2.2.1
-cares_lib.egg==info
-cares_reinforcement_learning.egg==info
 dynamixel_sdk==3.7.31
 matplotlib==3.6.2
 numpy==1.17.4
 opencv_contrib_python==4.6.0.66
 pandas==1.5.2
 pydantic==1.10.7
+pyserial==3.5
 pytimedinput==2.0.1
+scipy==1.10.1
 torch==1.13.1

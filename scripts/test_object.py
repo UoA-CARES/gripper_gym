@@ -33,7 +33,7 @@ def main():
         aruco_yaws.append(get_marker_pose(aruco_detector, camera))
     aruco_yaw = trim_mean(aruco_yaws, 0.1)
 
-    object_config = ObjectConfig(target_type="magnet", device_name = "/dev/ttyACM0", baudrate = 115200)
+    object_config = ObjectConfig(object_type="magnet", device_name = "/dev/ttyACM0", baudrate = 115200)
     target = MagnetObject(object_config, aruco_yaw)
 
     while True:

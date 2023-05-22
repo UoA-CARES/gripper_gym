@@ -46,6 +46,7 @@ class Environment(ABC):
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
 
+        self.gripper.home()
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
         #TODO move this to the config
         if self.gripper.num_motors == 9:
@@ -167,7 +168,7 @@ class Environment(ABC):
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=False)
+                                                                self.camera.camera_distortion, display=True)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
@@ -233,7 +234,7 @@ class Environment(ABC):
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=False)
+                                                                self.camera.camera_distortion, display=True)
             if self.object_marker_id in marker_poses:
                 return marker_poses[self.object_marker_id]
         return None
