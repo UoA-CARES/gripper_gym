@@ -5,6 +5,7 @@ import random
 from functools import wraps
 from scipy.stats import trim_mean
 from pathlib import Path
+import numpy as np
 
 file_path = Path(__file__).parent.resolve()
 
@@ -138,6 +139,8 @@ class Environment(ABC):
             state += gripper_state["velocities"]
             state += gripper_state["loads"]
 
+        state += self.get_object_ends_pose()
+
         object_state = self.observed_object_state()
         if object_state is not None:
             position    = object_state["position"]
@@ -225,7 +228,7 @@ class Environment(ABC):
         
         raise ValueError(f"Observation Type unknown: {self.observation_type}") 
 
-    def get_aruco_target_pose(self, blindable=False, detection_attempts=4):
+    def get_aruco_object_pose(self, blindable=False, detection_attempts=4):
         attempt = 0
         while not blindable or attempt < detection_attempts: 
             attempt += 1
@@ -240,11 +243,33 @@ class Environment(ABC):
         return None
     
     def observed_object_state(self):
-        return self.get_aruco_target_pose(blindable=self.blindable, detection_attempts=5)
+        return self.get_aruco_object_pose(blindable=self.blindable, detection_attempts=5)
         
     @exception_handler("Failed to get object states")
     def actual_object_state(self):
         return self.target.get_yaw()
+    
+    def get_object_ends_pose(self):
+        object_ends = [-np.inf]*8
+        ends_distance =  5.2
+
+        object_state = self.observed_object_state()
+        if object_state is not None:
+            position    = object_state["position"]
+            orientation = object_state["orientation"]
+            center_x = position[0] # X
+            center_y = position[1] # Y
+            center_yaw = orientation[2]  # Yaw
+
+            angle_offsets = [45, 135, 225, 315]
+            for i in range(4):
+                angle = center_yaw + angle_offsets[i]
+                object_ends[i*2] = center_x + np.sin(np.deg2rad(angle)) * ends_distance
+                object_ends[i*2+1] = center_y + np.cos(np.deg2rad(angle)) * ends_distance
+
+        return object_ends
+
+
         
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo

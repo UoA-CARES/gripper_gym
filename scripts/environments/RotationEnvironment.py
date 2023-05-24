@@ -30,7 +30,7 @@ def fixed_goals(object_current_pose, noise_tolerance):
 
 def relative_goal(object_current_pose):
     current_yaw = object_current_pose# Yaw.
-    return (current_yaw + np.random.randint(30, 330))%360
+    return (current_yaw + 90)%360 #np.random.randint(30, 330)
 
 # TODO turn the hard coded type ints into enums
 class RotationEnvironment(Environment):

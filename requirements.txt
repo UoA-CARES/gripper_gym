@@ -1,7 +1,7 @@
 backoff==2.2.1
 dynamixel_sdk==3.7.31
 matplotlib==3.6.2
-numpy==1.17.4
+numpy==1.*
 opencv_contrib_python==4.6.0.66
 pandas==1.5.2
 pydantic==1.10.7
