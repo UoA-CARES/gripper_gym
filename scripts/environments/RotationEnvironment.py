@@ -26,7 +26,7 @@ def fixed_goal():
     return 90
 
 def fixed_goals(object_current_pose, noise_tolerance):
-    current_yaw = object_current_pose# Yaw.
+    current_yaw = object_current_pose
 
     target_angle = fixed_goal()
     while abs(current_yaw - target_angle) < noise_tolerance:
@@ -34,8 +34,9 @@ def fixed_goals(object_current_pose, noise_tolerance):
     return target_angle
 
 def relative_goal(object_current_pose):
-    current_yaw = object_current_pose# Yaw.
-    return (current_yaw + 90)%360 #np.random.randint(30, 330)
+    current_yaw = object_current_pose
+    return (current_yaw + 90)%360 # 90 degrees to the right
+    #return np.random.randint(30, 330) # anywhere to anywhere
 
 class RotationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
@@ -76,8 +77,8 @@ class RotationEnvironment(Environment):
         else:
             reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before)
 
-        precision_tollerance = 5
-        if goal_difference <= precision_tollerance:
+        precision_tolerance = 10
+        if goal_difference <= precision_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward += 10
             done = True

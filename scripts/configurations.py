@@ -33,6 +33,7 @@ class EnvironmentConfig(BaseModel):
     blindable: bool
     observation_type: int
     action_type: str
+    
     goal_selection_method: int
 
     marker_size: Optional[int] = 18

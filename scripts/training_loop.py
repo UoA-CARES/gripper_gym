@@ -152,7 +152,6 @@ class GripperTrainer():
             if done or truncated or episode_timesteps >= episode_horizont_evaluation:
                 logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
-                # Reset environment
                 state =  self.environment_reset() 
 
                 episode_reward    = 0

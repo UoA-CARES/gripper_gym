@@ -39,6 +39,7 @@ class OBSERVATION_TYPE(Enum):
     ARUCO = 1
     SERVO_ARUCO = 2
     IMAGE = 3
+
 class Environment(ABC):
     def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
         
@@ -157,7 +158,6 @@ class Environment(ABC):
             for i in range (3):
                 state.append(-1)
 
-        # Add the goal state into the state 
         state.append(self.goal_state)
 
         return state 
@@ -192,7 +192,6 @@ class Environment(ABC):
         # Add the additional yaw information from the object marker (adds to the end)
         state[-1:] = [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
-        # Add the goal state into the state 
         state.append(self.goal_state)
 
         return state
@@ -208,7 +207,6 @@ class Environment(ABC):
         state += servo_state_space
         state += aruco_state_space
 
-        # Add the goal state into the state 
         state.append(self.goal_state)
 
         return state
@@ -272,8 +270,6 @@ class Environment(ABC):
 
         return object_ends
 
-
-        
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo
         action_gripper = [0 for _ in range(0, len(action_norm))]

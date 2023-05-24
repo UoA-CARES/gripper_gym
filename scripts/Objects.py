@@ -3,7 +3,6 @@ import time
 import random
 import threading
 from enum import Enum
-from queue import Queue, Empty
 from time import sleep
 import numpy as np
 
@@ -11,7 +10,7 @@ from serial import Serial
 
 from configurations import ObjectConfig
 
-from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
+from cares_lib.dynamixel.Servo import Servo
 
 class Command(Enum):
     GET_YAW = 0
@@ -58,8 +57,6 @@ class MagnetObject(object):
         except (UnicodeDecodeError, ValueError):
             logging.info("Offset: Error reading from serial port, retrying...")
 
-    
-    
     def reset(self):
         pass
 
@@ -69,16 +66,16 @@ class ServoObject(object):
 
         self.min = 0
         self.max = 4094 if self.model == "XL430-W250-T" else 1023
-        self.target_servo = Servo(port_handler, packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+        self.object_servo = Servo(port_handler, packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
 
     def get_yaw(self):
-        current_position = self.target_servo.current_position()
-        yaw = self.target_servo.step_to_angle(current_position)
+        current_position = self.object_servo.current_position()
+        yaw = self.object_servo.step_to_angle(current_position)
         if yaw < 0:
             yaw += 360
         return yaw
     
     def reset(self):
         reset_home_position = random.randint(self.min, self.max)
-        self.target_servo.move(reset_home_position)
-        self.target_servo.disable_torque()
+        self.object_servo.move(reset_home_position)
+        self.object_servo.disable_torque()

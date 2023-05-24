@@ -1,6 +1,4 @@
 import logging
-import random
-import backoff
 import dynamixel_sdk as dxl
 import time
 
@@ -113,8 +111,6 @@ class Gripper(object):
 
     @exception_handler("Failed to step")
     def step(self):
-        # for _, servo in self.servos.items():
-        #     servo.step()
         state = self.state()
         for motor_id, servo in self.servos.items():
             index = motor_id - 1

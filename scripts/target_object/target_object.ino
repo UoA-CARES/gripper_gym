@@ -8,7 +8,7 @@
 #include "AS5600.h"
 #include "Wire.h"
 
-AS5600 as5600;   //  use default Wire
+AS5600 as5600;
 
 bool led_state = true;
 int led_pin = 13;
@@ -34,9 +34,9 @@ String getValue(String data, char separator, int index){
     return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-//void get_yaw(){
-//  c
-//}
+void get_yaw(){
+  Serial.println("YAW,"+String(as5600.rawAngle() * AS5600_RAW_TO_DEGREES));
+}
 
 float calculate_offset(float goal, float current) {
     float offset = goal - current;
@@ -70,12 +70,10 @@ void setup()
 }
 
 void processCommand(String command){
-  //this isn't perfect as spam data can be interpretted as a given action but whatever
   Command action = Command(getValue(command, ',', 0).toInt());
   switch(action){
     case Command::GET_YAW:
-//      get_yaw();
-      Serial.println("YAW,"+String(as5600.rawAngle() * AS5600_RAW_TO_DEGREES));
+      get_yaw();
       break;
     case Command::OFFSET:
       set_offset(command);
