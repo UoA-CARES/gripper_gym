@@ -16,7 +16,6 @@ from cares_lib.dynamixel.Servo import DynamixelServoError
 
 #####
 
-# TODO turn the hard coded type ints into enums
 class TranslationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)

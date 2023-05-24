@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 class LearningConfig(BaseModel):
+    algorithm: str
     seed: int
     batch_size: int
     buffer_capacity: int
@@ -20,6 +21,10 @@ class LearningConfig(BaseModel):
     critic_lr: float
     gamma: float
     tau: float
+
+    min_noise: float
+    noise_decay: float
+    noise_scale: float
 
 class EnvironmentConfig(BaseModel):
     env_type: int
@@ -54,6 +59,7 @@ class GripperConfig(BaseModel):
 
 class ObjectConfig(BaseModel):
     object_type: str
+    object_marker_id: int
+
     device_name: str
-    
     baudrate: Optional[int] = 115200

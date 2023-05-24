@@ -5,6 +5,7 @@ import random
 from functools import wraps
 from scipy.stats import trim_mean
 from pathlib import Path
+from enum import Enum
 import numpy as np
 
 file_path = Path(__file__).parent.resolve()
@@ -33,6 +34,11 @@ class EnvironmentError(IOError):
         self.gripper = gripper
         super().__init__(message)
 
+class OBSERVATION_TYPE(Enum):
+    SERVO = 0
+    ARUCO = 1
+    SERVO_ARUCO = 2
+    IMAGE = 3
 class Environment(ABC):
     def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
         
@@ -49,11 +55,8 @@ class Environment(ABC):
 
         self.gripper.home()
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-        #TODO move this to the config
-        if self.gripper.num_motors == 9:
-            self.object_marker_id = 4 # hardcoded for 3 finger gripper for now
-        else: 
-            self.object_marker_id = self.gripper.num_motors + 3  # Num Servos + Finger Tips (2) + 1
+
+        self.object_marker_id = object_config.object_marker_id
 
         aruco_yaws = []
         for i in range(0, 10):
@@ -217,13 +220,13 @@ class Environment(ABC):
 
     @exception_handler("Failed to get state")
     def get_state(self): 
-        if self.observation_type == 0:# TODO Turn into enum
+        if self.observation_type == OBSERVATION_TYPE.SERVO.value:
             return self.servo_state_space()
-        elif self.observation_type == 1:
+        elif self.observation_type == OBSERVATION_TYPE.ARUCO.value:
             return self.aruco_state_space()
-        elif self.observation_type == 2:
+        elif self.observation_type == OBSERVATION_TYPE.SERVO_ARUCO.value:
             return self.servo_aruco_state_space()
-        elif self.observation_type == 3:
+        elif self.observation_type == OBSERVATION_TYPE.IMAGE.value:
             return self.image_state_space()
         
         raise ValueError(f"Observation Type unknown: {self.observation_type}") 
