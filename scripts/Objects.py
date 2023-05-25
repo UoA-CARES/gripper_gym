@@ -17,11 +17,11 @@ class Command(Enum):
     OFFSET = 1
 
 class MagnetObject(object):
-    def __init__(self, config : ObjectConfig, aruco_yaw) -> None:
+    def __init__(self, config : ObjectConfig, aruco_yaw = None) -> None:
         self.serial = Serial(config.device_name, config.baudrate)
         sleep(1)
-
-        self.offset(aruco_yaw)
+        if aruco_yaw is not None:
+            self.offset(aruco_yaw)
 
     def get_response(self):
         return self.serial.read_until(b'\n').decode().split(",")

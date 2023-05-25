@@ -186,14 +186,14 @@ class GripperTrainer():
                 action_env = self.environment.sample_action()
                 action = self.environment.normalize(action_env) # algorithm range [-1, 1]
             else:
-                noise_scale *= self.noise_decay
-                noise_scale = max(self.min_noise, self.noise_scale)
-                # logging.info(f"Noise Scale:{noise_scale}")
+                self.noise_scale *= self.noise_decay
+                self.noise_scale = max(self.min_noise, self.noise_scale)
+                # logging.info(f"Noise Scale:{self.noise_scale}")
 
                 message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
                 logging.info(message)
 
-                action = self.agent.select_action_from_policy(state, noise_scale=noise_scale)  # algorithm range [-1, 1]
+                action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # algorithm range [-1, 1]
                 action_env = self.environment.denormalize(action)  # gripper range
             
             next_state, reward, done, truncated = self.environment_step(action_env)
@@ -232,8 +232,7 @@ class GripperTrainer():
                 historical_distance["step"].append(total_step_counter)
                 historical_distance["episode_distance"].append(episode_distance)
 
-                historical_success_rate["step"].append(total_step_counter)
-                historical_success_rate["episode_success_rate"].append(success_count/episode_num)
+
 
                 if self.environment.action_type == "velocity": # if velocity based, train every episode
                     if total_step_counter >= self.max_steps_exploration:
@@ -254,6 +253,9 @@ class GripperTrainer():
                 if episode_num % self.plot_freq == 0:
                     plot_curve(historical_reward, self.file_path, "reward")
                     plot_curve(historical_distance, self.file_path, "distance")
+
+                    historical_success_rate["step"].append(total_step_counter)
+                    historical_success_rate["episode_success_rate"].append(success_count/episode_num)
                     plot_curve(historical_success_rate, self.file_path, "success_rate")
                     logging.info(f"Success Rate: {success_count/episode_num} with total {success_count} successes out of {episode_num} episodes")
 

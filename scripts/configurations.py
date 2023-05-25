@@ -60,6 +60,7 @@ class GripperConfig(BaseModel):
 
 class ObjectConfig(BaseModel):
     object_type: str
+    object_observation_mode: str
     object_marker_id: int
 
     device_name: str

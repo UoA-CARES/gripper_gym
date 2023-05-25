@@ -58,11 +58,14 @@ class Environment(ABC):
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.object_marker_id = object_config.object_marker_id
+        self.object_observation_mode = object_config.object_observation_mode
 
-        aruco_yaws = []
-        for i in range(0, 10):
-            aruco_yaws.append(self.observed_object_state()["orientation"][2])
-        aruco_yaw = trim_mean(aruco_yaws, 0.1)
+        aruco_yaw = None
+        if self.object_observation_mode == "observed":
+            aruco_yaws = []
+            for i in range(0, 10):
+                aruco_yaws.append(self.observed_object_state(marker_only=True)[2])
+            aruco_yaw = trim_mean(aruco_yaws, 0.1)
 
         self.object_type = object_config.object_type
         if self.object_type == "magnet":
@@ -143,20 +146,10 @@ class Environment(ABC):
             state += gripper_state["velocities"]
             state += gripper_state["loads"]
 
-        state += self.get_object_ends_pose()
-
-        object_state = self.observed_object_state()
-        if object_state is not None:
-            position    = object_state["position"]
-            orientation = object_state["orientation"]
-            state.append(position[0])  # X
-            state.append(position[1])  # Y
-            state.append(orientation[2])  # Yaw
-        else:
-            # if target is not visible then append -1 to the state (norm 0-360)
-            # TODO this needs further consideration...
-            for i in range (3):
-                state.append(-1)
+        if self.object_observation_mode == "observed":
+            state += self.observed_object_state()
+        elif self.object_observation_mode == "actual":
+            state += self.actual_object_state(yaw_only=False)
 
         state.append(self.goal_state)
 
@@ -174,7 +167,7 @@ class Environment(ABC):
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=True)
+                                                                self.camera.camera_distortion, display=False)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
@@ -238,35 +231,46 @@ class Environment(ABC):
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=True)
+                                                                self.camera.camera_distortion, display=False)
             if self.object_marker_id in marker_poses:
                 return marker_poses[self.object_marker_id]
         return None
     
-    def observed_object_state(self):
-        return self.get_aruco_object_pose(blindable=self.blindable, detection_attempts=5)
-        
-    @exception_handler("Failed to get object states")
-    def actual_object_state(self):
-        return self.target.get_yaw()
-    
-    def get_object_ends_pose(self):
-        object_ends = [-np.inf]*8
-        ends_distance =  5.2
-
-        object_state = self.observed_object_state()
+    def observed_object_state(self, marker_only=False):
+        object_state = self.get_aruco_object_pose(blindable=self.blindable, detection_attempts=5)
         if object_state is not None:
+            state = []
             position    = object_state["position"]
             orientation = object_state["orientation"]
-            center_x = position[0] # X
-            center_y = position[1] # Y
-            center_yaw = orientation[2]  # Yaw
+            state.append(position[0])  # X
+            state.append(position[1])  # Y
+            state.append(orientation[2])  # Yaw
 
-            angle_offsets = [45, 135, 225, 315]
-            for i in range(4):
-                angle = center_yaw + angle_offsets[i]
-                object_ends[i*2] = center_x + np.sin(np.deg2rad(angle)) * ends_distance
-                object_ends[i*2+1] = center_y + np.cos(np.deg2rad(angle)) * ends_distance
+            if not marker_only:
+                angle_offsets = [45, 135, 225, 315]
+                state+=self.get_object_ends_pose(orientation[2], angle_offsets, center_x=position[0], center_y=position[1])
+            return state
+        return [0]*11    
+        
+    @exception_handler("Failed to get object states")
+    def actual_object_state(self, yaw_only=True):
+        yaw = self.target.get_yaw()
+        if yaw_only:
+            return yaw
+        else:
+            state = [yaw]
+            angle_offsets = [0, 90, 180, 270]
+            state += self.get_object_ends_pose(yaw, angle_offsets)
+            return state
+            
+    def get_object_ends_pose(self, center_yaw, angle_offsets, center_x = 0, center_y = 0):
+        object_ends = [0]*8
+        ends_distance =  5.2
+
+        for i in range(4):
+            angle = center_yaw + angle_offsets[i]
+            object_ends[i*2] = center_x + np.sin(np.deg2rad(angle)) * ends_distance
+            object_ends[i*2+1] = center_y + np.cos(np.deg2rad(angle)) * ends_distance
 
         return object_ends
 
