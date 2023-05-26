@@ -12,6 +12,8 @@ import torch
 import random
 import numpy as np
 
+from queue import Queue
+
 from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 from configurations import LearningConfig, EnvironmentConfig, GripperConfig,ObjectConfig
@@ -169,10 +171,13 @@ class GripperTrainer():
         historical_distance = {"step": [], "episode_distance": []}
         historical_success_rate = {"step": [], "episode_success_rate": []}
         
+        success_window_size = 100
+        rolling_success_rate = Queue(maxsize=success_window_size)
+        rolling_reward_rate  = Queue(maxsize=success_window_size)
+        
         best_episode_reward = -np.inf
-        success_count = 0
 
-        state = self.environment_reset() 
+        state = self.environment_reset()
 
         for total_step_counter in range(int(self.max_steps_training)):
             episode_timesteps += 1
@@ -213,26 +218,34 @@ class GripperTrainer():
                             experiences = self.memory.sample(self.batch_size)
                             self.agent.train_policy(experiences)
 
-
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
                     self.agent.save_models(f"best_{self.file_name}", self.file_path)
-
-            success_count = (success_count+1) if done else success_count
-                        
+            
             if done or truncated or episode_timesteps >= self.episode_horizont:
                 message = f"#{self.environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
                 logging.info(message)
                 slack_bot.post_message("#bot_terminal", message)
 
+                rolling_reward_rate.put(episode_reward)
+                rolling_reward_average = sum(list(rolling_reward_rate.queue))/rolling_reward_rate.qsize()
+
+                if done:
+                    rolling_success_rate.put(1)
+                else:
+                    rolling_success_rate.put(0)
+
+                rolling_success_average = sum(list(rolling_success_rate.queue))/rolling_success_rate.qsize()
+
                 historical_reward["step"].append(total_step_counter)
                 historical_reward["episode_reward"].append(episode_reward)
+
+                historical_success_rate["step"].append(total_step_counter)
+                historical_success_rate["episode_success_rate"].append(rolling_success_average)
 
                 episode_distance = self.environment.ep_final_distance()
                 historical_distance["step"].append(total_step_counter)
                 historical_distance["episode_distance"].append(episode_distance)
-
-
 
                 if self.environment.action_type == "velocity": # if velocity based, train every episode
                     if total_step_counter >= self.max_steps_exploration:
@@ -253,11 +266,8 @@ class GripperTrainer():
                 if episode_num % self.plot_freq == 0:
                     plot_curve(historical_reward, self.file_path, "reward")
                     plot_curve(historical_distance, self.file_path, "distance")
-
-                    historical_success_rate["step"].append(total_step_counter)
-                    historical_success_rate["episode_success_rate"].append(success_count/episode_num)
                     plot_curve(historical_success_rate, self.file_path, "success_rate")
-                    logging.info(f"Success Rate: {success_count/episode_num} with total {success_count} successes out of {episode_num} episodes")
+                    logging.info(f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes")
 
         plot_curve(historical_reward, self.file_path, "reward")
         plot_curve(historical_distance, self.file_path, "distance")
@@ -293,7 +303,7 @@ def main():
     env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
-    object_config = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
+    object_config   = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
     local_results_path = args.local_results_path
 
     logging.info("Setting up Seeds")
