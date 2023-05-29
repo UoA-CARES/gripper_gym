@@ -12,7 +12,7 @@ import torch
 import random
 import numpy as np
 
-from queue import Queue
+from collections import deque
 
 from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
@@ -23,10 +23,10 @@ from Gripper import GripperError
 from tools.utils import create_directories, plot_curve
 import tools.error_handlers as erh
 
-from cares_reinforcement_learning.algorithm import TD3
+from cares_reinforcement_learning.algorithm.policy import TD3
 from networks import Actor
 from networks import Critic
-from cares_reinforcement_learning.util import MemoryBuffer
+from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 
 if torch.cuda.is_available():
@@ -172,8 +172,8 @@ class GripperTrainer():
         historical_success_rate = {"step": [], "episode_success_rate": []}
         
         success_window_size = 100
-        rolling_success_rate = Queue(maxsize=success_window_size)
-        rolling_reward_rate  = Queue(maxsize=success_window_size)
+        rolling_success_rate = deque(maxlen=success_window_size)
+        rolling_reward_rate  = deque(maxlen=success_window_size)
         
         best_episode_reward = -np.inf
 
@@ -216,7 +216,13 @@ class GripperTrainer():
                     if total_step_counter >= self.max_steps_exploration:
                         for _ in range(self.G):
                             experiences = self.memory.sample(self.batch_size)
-                            self.agent.train_policy(experiences)
+                            info = self.agent.train_policy((
+                                experiences['state'],
+                                experiences['action'],
+                                experiences['reward'],
+                                experiences['next_state'],
+                                experiences['done']
+                            ))
 
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
@@ -227,15 +233,15 @@ class GripperTrainer():
                 logging.info(message)
                 slack_bot.post_message("#bot_terminal", message)
 
-                rolling_reward_rate.put(episode_reward)
-                rolling_reward_average = sum(list(rolling_reward_rate.queue))/rolling_reward_rate.qsize()
+                rolling_reward_rate.append(episode_reward)
+                rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
 
                 if done:
-                    rolling_success_rate.put(1)
+                    rolling_success_rate.append(1)
                 else:
-                    rolling_success_rate.put(0)
+                    rolling_success_rate.append(0)
 
-                rolling_success_average = sum(list(rolling_success_rate.queue))/rolling_success_rate.qsize()
+                rolling_success_average = sum(rolling_success_rate)/len(rolling_success_rate)
 
                 historical_reward["step"].append(total_step_counter)
                 historical_reward["episode_reward"].append(episode_reward)
@@ -251,7 +257,13 @@ class GripperTrainer():
                     if total_step_counter >= self.max_steps_exploration:
                         for _ in range(self.G):
                             experiences = self.memory.sample(self.batch_size)
-                            self.agent.train_policy(experiences)
+                            info = self.agent.train_policy((
+                                experiences['state'],
+                                experiences['action'],
+                                experiences['reward'],
+                                experiences['next_state'],
+                                experiences['done']
+                            ))
 
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
