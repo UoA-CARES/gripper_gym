@@ -4,7 +4,6 @@ logging.basicConfig(level=logging.INFO)
 import os
 import pydantic
 
-from pathlib import Path
 from argparse import ArgumentParser
 from datetime import datetime
 
@@ -20,7 +19,7 @@ from configurations import LearningConfig, EnvironmentConfig, GripperConfig,Obje
 
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
-from tools.utils import create_directories, store_data, plot_data
+import tools.utils as utils
 import tools.error_handlers as erh
 
 from cares_reinforcement_learning.algorithm.policy import TD3
@@ -167,10 +166,12 @@ class GripperTrainer():
         episode_reward    = 0
         episode_num       = 0
         
-        success_window_size = 100
+        success_window_size = 100 #episodes
+        steps_per_episode_window_size = 5 #episodes
         rolling_success_rate = deque(maxlen=success_window_size)
         rolling_reward_rate  = deque(maxlen=success_window_size)
-        rolling_steps_per_episode = deque(maxlen=success_window_size)
+        rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
+        plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average"]
         
         best_episode_reward = -np.inf
         previous_T_step = 0
@@ -234,32 +235,32 @@ class GripperTrainer():
                 # --- Storing success data ---
                 if done:
                     rolling_success_rate.append(1)
-                    store_data("1", self.file_path, "success_list")
+                    utils.store_data("1", self.file_path, "success_list")
                 else:
                     rolling_success_rate.append(0)
-                    store_data("0", self.file_path, "success_list")
+                    utils.store_data("0", self.file_path, "success_list")
                 rolling_success_average = sum(rolling_success_rate)/len(rolling_success_rate)
-                store_data(rolling_success_average, self.file_path, "rolling_success_average")
+                utils.store_data(rolling_success_average, self.file_path, "rolling_success_average")
 
                 # --- Storing reward data ---
-                store_data(episode_reward, self.file_path, "reward")
+                utils.store_data(episode_reward, self.file_path, "reward")
 
                 rolling_reward_rate.append(episode_reward)
                 rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
-                store_data(rolling_reward_average, self.file_path, "rolling_reward_average")
+                utils.store_data(rolling_reward_average, self.file_path, "rolling_reward_average")
 
                 # --- Storing distance data ---
                 episode_distance = self.environment.ep_final_distance()
-                store_data(episode_distance, self.file_path, "distance")
+                utils.store_data(episode_distance, self.file_path, "distance")
 
                 # --- Storing steps per episode data ---
                 steps_per_episode = total_step_counter - previous_T_step
                 previous_T_step = total_step_counter
-                store_data(steps_per_episode, self.file_path, "steps_per_episode")
+                utils.store_data(steps_per_episode, self.file_path, "steps_per_episode")
                 rolling_steps_per_episode.append(steps_per_episode)
 
                 rolling_steps_per_episode_average = sum(rolling_steps_per_episode)/len(rolling_steps_per_episode)
-                store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
+                utils.store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
 
                 # --- TRAIN ---
                 if self.environment.action_type == "velocity": # if velocity based, train every episode
@@ -285,34 +286,27 @@ class GripperTrainer():
                 episode_num      += 1
 
                 if episode_num % (self.plot_freq*10) == 0:
-                    plot_data(self.file_path, "reward")
-                    plot_data(self.file_path, "distance")
+                    utils.plot_data(self.file_path, "reward")
+                    utils.plot_data(self.file_path, "distance")
+
+                    utils.slack_post_plot(self.environment, slack_bot, self.file_path, plots)
+
 
                 if episode_num % self.plot_freq == 0:
-                    plot_data(self.file_path, "rolling_success_average")
-                    plot_data(self.file_path, "rolling_reward_average")
-                    plot_data(self.file_path, "rolling_steps_per_episode_average")
-                    logging.info(f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes")
+                    utils.plot_data(self.file_path, "rolling_success_average")
+                    utils.plot_data(self.file_path, "rolling_reward_average")
+                    utils.plot_data(self.file_path, "rolling_steps_per_episode_average")
 
-        plot_data(self.file_path, "reward")
-        plot_data(self.file_path, "distance")
-        plot_data(self.file_path, "rolling_success_average")
-        plot_data(self.file_path, "rolling_reward_average")
-        plot_data(self.file_path, "rolling_steps_per_episode_average")
+                    average_success_message = f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes\n"
+                    average_reward_message = f"Average Reward: {rolling_reward_average} over last {success_window_size} episodes\n"
+                    average_steps_per_episode_message = f"Average Steps Per Episode: {rolling_steps_per_episode_average} over last {steps_per_episode_window_size} episodes\n"
+                    
+                    logging.info(f"\n{average_success_message}{average_reward_message}{average_steps_per_episode_message}")
+                    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {average_success_message}{average_reward_message}{average_steps_per_episode_message}")
+
+        utils.plot_data(self.file_path, plots)
         self.agent.save_models(self.file_name, self.file_path)
         self.environment.gripper.close()
-
-
-def store_configs(file_path, env_config, gripper_config, learning_config, object_config):
-    with open(f"{file_path}/configs.txt", "w") as f:
-        f.write(f"Environment Config:\n{env_config.json()}\n")
-        f.write(f"Gripper Config:\n{gripper_config.json()}\n")
-        f.write(f"Learning Config:\n{learning_config.json()}\n")
-        f.write(f"Learning Config:\n{object_config.json()}\n")
-        with open(Path(env_config.camera_matrix)) as cm:
-            f.write(f"\nCamera Matrix:\n{cm.read()}\n")
-        with open(Path(env_config.camera_distortion)) as cd:
-            f.write(f"Camera Distortion:\n{cd.read()}\n")
         
 def parse_args():
     parser = ArgumentParser()
@@ -344,8 +338,8 @@ def main():
     file_path  = f"{date_time_str}_"
     file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
 
-    file_path = create_directories(local_results_path, file_path)
-    store_configs(file_path, env_config, gripper_config, learning_config, object_config)
+    file_path = utils.create_directories(local_results_path, file_path)
+    utils.store_configs(file_path, env_config, gripper_config, learning_config, object_config)
 
     gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, object_config, file_path)
     gripper_trainer.train()

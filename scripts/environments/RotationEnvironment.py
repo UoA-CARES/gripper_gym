@@ -34,9 +34,19 @@ def fixed_goals(object_current_pose, noise_tolerance):
     return target_angle
 
 def relative_goal(object_current_pose):
+    mode = 2
+    
+    if mode == 1:
+        diff = 90 #degrees to the right
+    elif mode == 2:
+        diff = 180 #degrees to the right
+    elif mode == 3:
+        diff = 270 #degrees to the right
+    elif mode == 4:
+        return np.random.randint(30, 330) # anywhere to anywhere
+    
     current_yaw = object_current_pose
-    return (current_yaw + 90)%360 # 90 degrees to the right
-    #return np.random.randint(30, 330) # anywhere to anywhere
+    return (current_yaw + diff)%360 
 
 class RotationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):

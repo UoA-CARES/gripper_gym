@@ -4,6 +4,7 @@ logging.basicConfig(level=logging.INFO)
 from pytimedinput import timedInput
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
+from tools.utils import slack_post_plot
 import cv2
 
 def reboot(environment, slack_bot):
@@ -11,42 +12,34 @@ def reboot(environment, slack_bot):
         logging.info("Rebooting Gripper")
         environment.gripper.reboot()
         logging.info("Rebooting succeeded")
+        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Rebooting succeeded")
     except (EnvironmentError , GripperError):
         warning_message = "Reboot failed"
         logging.warning(warning_message)
-        slack_bot.post_message("#bot_terminal", warning_message)
+        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
 
 def home(environment, slack_bot):
     try:
         logging.info("Trying to home")
         environment.gripper.home()
         logging.info("Home succeeded")
+        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Home succeeded")
     except (EnvironmentError , GripperError):
         warning_message = "Home failed"
         logging.warning(warning_message)
-        slack_bot.post_message("#bot_terminal", warning_message)
+        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
 
 def wiggle_home(environment, slack_bot):
     try:
         logging.info("Trying to wiggle home")
         environment.gripper.wiggle_home()
         logging.info("Wiggle home succeeded")
+        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Wiggle home succeeded")
     except (EnvironmentError , GripperError):
         warning_message = "Wiggle home failed"
         logging.warning(warning_message)
-        slack_bot.post_message("#bot_terminal", warning_message)
-
-def get_reward_plot(environment, slack_bot, file_path):
-    if os.path.exists(f"{file_path}/reward.png"):
-        slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{file_path}/", "reward.png")
-    else:
-        slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Result plot not ready yet or doesn't exist")
-
-def get_distance_plot(environment, slack_bot, file_path):
-    if os.path.exists(f"{file_path}/distance.png"):
-        slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current progress", f"{file_path}/", "distance.png")
-    else:
-        slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Result plot not ready yet or doesn't exist")
+        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
+        
 
 def get_frame(environment, slack_bot, file_path):
     cv2.imwrite(f"{file_path}/current_frame.png", environment.camera.get_frame())
@@ -88,6 +81,7 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
 
         if value == 'c':
             logging.info("Gripper fixed continuing onwards")
+            slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Gripper fixed continuing onwards")
             return True
         elif value == 'x':
             logging.info("Giving up correcting gripper")
@@ -99,9 +93,11 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
         elif value  == "w":
             wiggle_home(environment, slack_bot)
         elif value == "p":
-            get_reward_plot(environment, slack_bot, file_path)
+            slack_post_plot(environment, slack_bot, file_path, "reward")
         elif value == "d":
-            get_distance_plot(environment, slack_bot, file_path)
+            slack_post_plot(environment, slack_bot, file_path, "distance")
+        elif value == "s":
+            slack_post_plot(environment, slack_bot, file_path, "rolling_success_average")
         elif value == "f":
             get_frame(environment, slack_bot, file_path)
             
