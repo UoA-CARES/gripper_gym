@@ -8,15 +8,28 @@ def create_directories(local_results_path, folder_name):
 
     file_path = f"{local_results_path}/{folder_name}"
     
-    if not os.path.exists(f"{local_results_path}/{folder_name}"):
-        os.makedirs(f"{local_results_path}/{folder_name}")
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    if not os.path.exists(f"{file_path}/data"):
+        os.makedirs(f"{file_path}/data")
     if not os.path.exists("servo_errors"): #servo error still here because it's used by servo.py which shouldn't know the local storage
         os.makedirs("servo_errors")
     return file_path
 
-def plot_curve(data, file_path, file_name):
-    data = pd.DataFrame.from_dict(data)
-    data.to_csv(f"{file_path}/{file_name}", index=False)
-    data.plot(x='step', y=f'episode_{file_name}', title=file_name)
+def store_data(data, file_path, file_name):
+    with open(f"{file_path}/data/{file_name}.txt", "a") as f:
+        f.write(str(data) + "\n")
+
+def plot_data(file_path, file_name):
+    datas = []
+    with open(f"{file_path}/data/{file_name}.txt", "r") as file:
+        for line in file:
+            data = float(line.strip())
+            datas.append(data)
+
+    plt.plot(datas)
+    plt.xlabel("Step")
+    plt.ylabel(f"{file_name}")
+    plt.title(f"{file_name}")
     plt.savefig(f"{file_path}/{file_name}")
     plt.close()

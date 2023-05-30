@@ -20,7 +20,7 @@ from configurations import LearningConfig, EnvironmentConfig, GripperConfig,Obje
 
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
-from tools.utils import create_directories, plot_curve
+from tools.utils import create_directories, store_data, plot_data
 import tools.error_handlers as erh
 
 from cares_reinforcement_learning.algorithm.policy import TD3
@@ -166,16 +166,14 @@ class GripperTrainer():
         episode_timesteps = 0
         episode_reward    = 0
         episode_num       = 0
-
-        historical_reward = {"step": [], "episode_reward": []}
-        historical_distance = {"step": [], "episode_distance": []}
-        historical_success_rate = {"step": [], "episode_success_rate": []}
         
         success_window_size = 100
         rolling_success_rate = deque(maxlen=success_window_size)
         rolling_reward_rate  = deque(maxlen=success_window_size)
+        rolling_steps_per_episode = deque(maxlen=success_window_size)
         
         best_episode_reward = -np.inf
+        previous_T_step = 0
 
         state = self.environment_reset()
 
@@ -233,26 +231,37 @@ class GripperTrainer():
                 logging.info(message)
                 slack_bot.post_message("#bot_terminal", message)
 
-                rolling_reward_rate.append(episode_reward)
-                rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
-
+                # --- Storing success data ---
                 if done:
                     rolling_success_rate.append(1)
+                    store_data("1", self.file_path, "success_list")
                 else:
                     rolling_success_rate.append(0)
-
+                    store_data("0", self.file_path, "success_list")
                 rolling_success_average = sum(rolling_success_rate)/len(rolling_success_rate)
+                store_data(rolling_success_average, self.file_path, "rolling_success_average")
 
-                historical_reward["step"].append(total_step_counter)
-                historical_reward["episode_reward"].append(episode_reward)
+                # --- Storing reward data ---
+                store_data(episode_reward, self.file_path, "reward")
 
-                historical_success_rate["step"].append(total_step_counter)
-                historical_success_rate["episode_success_rate"].append(rolling_success_average)
+                rolling_reward_rate.append(episode_reward)
+                rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
+                store_data(rolling_reward_average, self.file_path, "rolling_reward_average")
 
+                # --- Storing distance data ---
                 episode_distance = self.environment.ep_final_distance()
-                historical_distance["step"].append(total_step_counter)
-                historical_distance["episode_distance"].append(episode_distance)
+                store_data(episode_distance, self.file_path, "distance")
 
+                # --- Storing steps per episode data ---
+                steps_per_episode = total_step_counter - previous_T_step
+                previous_T_step = total_step_counter
+                store_data(steps_per_episode, self.file_path, "steps_per_episode")
+                rolling_steps_per_episode.append(steps_per_episode)
+
+                rolling_steps_per_episode_average = sum(rolling_steps_per_episode)/len(rolling_steps_per_episode)
+                store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
+
+                # --- TRAIN ---
                 if self.environment.action_type == "velocity": # if velocity based, train every episode
                     if total_step_counter >= self.max_steps_exploration:
                         for _ in range(self.G):
@@ -275,16 +284,24 @@ class GripperTrainer():
                 episode_timesteps = 0
                 episode_num      += 1
 
+                if episode_num % (self.plot_freq*10) == 0:
+                    plot_data(self.file_path, "reward")
+                    plot_data(self.file_path, "distance")
+
                 if episode_num % self.plot_freq == 0:
-                    plot_curve(historical_reward, self.file_path, "reward")
-                    plot_curve(historical_distance, self.file_path, "distance")
-                    plot_curve(historical_success_rate, self.file_path, "success_rate")
+                    plot_data(self.file_path, "rolling_success_average")
+                    plot_data(self.file_path, "rolling_reward_average")
+                    plot_data(self.file_path, "rolling_steps_per_episode_average")
                     logging.info(f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes")
 
-        plot_curve(historical_reward, self.file_path, "reward")
-        plot_curve(historical_distance, self.file_path, "distance")
+        plot_data(self.file_path, "reward")
+        plot_data(self.file_path, "distance")
+        plot_data(self.file_path, "rolling_success_average")
+        plot_data(self.file_path, "rolling_reward_average")
+        plot_data(self.file_path, "rolling_steps_per_episode_average")
         self.agent.save_models(self.file_name, self.file_path)
         self.environment.gripper.close()
+
 
 def store_configs(file_path, env_config, gripper_config, learning_config, object_config):
     with open(f"{file_path}/configs.txt", "w") as f:
