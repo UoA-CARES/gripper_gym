@@ -4,7 +4,5 @@ __pycache__/
 scripts/logs
 slack_token.txt
 *.png
-config/camera_distortion.txt
-config/camera_matrix.txt
-data_plots
 gripper_example_local.py
+servo_errors

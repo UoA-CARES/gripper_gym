@@ -1,4 +1,5 @@
 {
+    "algorithm": "TD3",
     "seed": 456,
     "batch_size": 100,
     "buffer_capacity": 1000000,
@@ -12,5 +13,9 @@
     "actor_lr": 1e-3,
     "critic_lr": 1e-3,
     "gamma": 0.98,
-    "tau": 0.005   
+    "tau": 0.005,
+    
+    "min_noise": 0.01,
+    "noise_decay": 0.9999,
+    "noise_scale": 0.10
 }

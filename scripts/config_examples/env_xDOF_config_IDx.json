@@ -1,0 +1,16 @@
+{
+    "env_type": 0,
+    
+    "camera_id": 0,
+    "blindable": 1,
+    "observation_type": 2,
+    "action_type": "velocity",
+    
+    "goal_selection_method": 0,
+
+    "marker_size": 18,
+    "noise_tolerance": 5,
+
+    "camera_matrix": "/home/anyone/workspace/Gripper-Code/scripts/config_examples/camera_distortion.txt",
+    "camera_distortion": "/home/anyone/workspace/Gripper-Code/scripts/config_examples/camera_distortion.txt"
+}

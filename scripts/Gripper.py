@@ -1,6 +1,4 @@
 import logging
-import random
-import backoff
 import dynamixel_sdk as dxl
 import time
 
@@ -33,6 +31,8 @@ class GripperError(IOError):
 class Gripper(object):
     def __init__(self, config: GripperConfig):
 
+        self.config = config
+
         # Setup Servor handlers
         self.gripper_id = config.gripper_id
 
@@ -57,17 +57,10 @@ class Gripper(object):
         self.group_bulk_read = dxl.GroupBulkRead(self.port_handler, self.packet_handler)
 
         self.servos = {}
-        self.target_servo = None
-
-        if config.actuated_target:
-            try:
-                self.target_servo = Servo(self.port_handler, self.packet_handler, self.protocol, config.num_motors+1, 0, config.torque_limit, config.speed_limit, 1023, 0)
-            except (GripperError, DynamixelServoError) as error:
-                raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise target servo") from error
 
         try:
             for id in range(1, self.num_motors + 1):
-                led = id % 7 + 1
+                led = id % 7
                 self.servos[id] = Servo(self.port_handler, self.packet_handler, self.protocol, id, led,
                                         config.torque_limit, config.speed_limit, self.max_values[id - 1],
                                         self.min_values[id - 1])
@@ -75,6 +68,16 @@ class Gripper(object):
         except (GripperError, DynamixelServoError) as error:
             raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise servos") from error
     
+    @exception_handler("Failed to reboot servos")
+    def reboot(self):
+        for _, servo in self.servos.items():
+            servo.reboot()
+            time.sleep(0.5)
+
+        self.close()
+        self.__init__(self.config)
+        logging.info(f"Gripper#{self.gripper_id}: reboot completed")
+
     def setup_handlers(self):
         if not self.port_handler.openPort():
             error_message = f"Failed to open port {self.device_name}"
@@ -92,8 +95,6 @@ class Gripper(object):
     def setup_servos(self):
         for _, servo in self.servos.items():
             servo.enable()
-        if self.target_servo is not None:
-            self.target_servo.enable()
 
     @exception_handler("Failed to ping")
     def ping(self):
@@ -106,27 +107,26 @@ class Gripper(object):
         current_state["positions"] = self.current_positions()
         current_state["velocities"] = self.current_velocity()
         current_state["loads"] = self.current_load()
-
-        current_state["object"] = None
-        if self.target_servo is not None:
-            current_state["object"] = self.current_object_position()
-
         return current_state        
 
     @exception_handler("Failed to step")
     def step(self):
-        for _, servo in self.servos.items():
-            servo.step()
+        state = self.state()
+        for motor_id, servo in self.servos.items():
+            index = motor_id - 1
+            current_position = state["positions"][index]
+            current_velocity = Servo.velocity_to_int(state["velocities"][index])
+            logging.debug(f"Current Velocity {current_velocity} : {servo.min} < {current_position} < {servo.max}")
+            if (current_position >= servo.max and current_velocity > 0) or \
+                (current_position <= servo.min and current_velocity < 0):
+                logging.warn(f"Dynamixel#{motor_id}: position out of boundry, stopping servo")
+                servo.move_velocity(0)
+        return state
+
 
     @exception_handler("Failed to read current position")
     def current_positions(self):
         return self.bulk_read("current_position", 2)
-
-    @exception_handler("Failed to read object position")
-    def current_object_position(self):
-        if self.target_servo is None:
-            raise ValueError("Object Servo is None")
-        return self.target_servo.current_position()
 
     @exception_handler("Failed to read current velocity")
     def current_velocity(self):
@@ -178,13 +178,14 @@ class Gripper(object):
             raise ValueError(error_message)
 
         self.move_velocity(np.full(self.num_motors,self.speed_limit),True) # only for velocity
+        # self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
+        
         for servo_id, servo in self.servos.items():
-            # self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
             servo.set_control_mode(ControlMode.JOINT.value)
             target_position = steps[servo_id - 1]
 
             param_goal_position = [dxl.DXL_LOBYTE(target_position), dxl.DXL_HIBYTE(target_position)]
-            dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["goal_position"], 2,
+            dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["goal_position"], 2,
                                                         param_goal_position)
 
             if not dxl_result:
@@ -226,7 +227,7 @@ class Gripper(object):
                 continue
 
             param_goal_velocity = [dxl.DXL_LOBYTE(target_velocity_b), dxl.DXL_HIBYTE(target_velocity_b)]
-            dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["moving_speed"], 2,
+            dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["moving_speed"], 2,
                                                         param_goal_velocity)
 
             if not dxl_result:
@@ -248,11 +249,6 @@ class Gripper(object):
         pose = self.home_sequence[-1]
         self.move(pose)
 
-        if self.target_servo is not None:
-            reset_home_position = random.randint(0, 1023)
-            self.target_servo.move(reset_home_position)
-            self.target_servo.disable_torque()  # Need this to be target servo
-
         if not self.is_home():
             error_message = f"Gripper#{self.gripper_id}: failed to Home"
             logging.error(error_message)
@@ -264,10 +260,6 @@ class Gripper(object):
     def wiggle_home(self):
         for pose in self.home_sequence:
             self.move(pose)
-
-        if self.target_servo is not None:
-            self.target_servo.move(400)#TODO abstract home position for the target servo
-            self.target_servo.disable_torque()  # Need this to be target servo
 
         if not self.is_home():
             error_message = f"Gripper#{self.gripper_id}: Failed to wiggle home"
@@ -287,7 +279,7 @@ class Gripper(object):
             self.disable_torque()#disable to set servo parameters
 
             for servo_id, servo in self.servos.items():            
-                dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["control_mode"], 1, [new_mode[servo_id-1]])
+                dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["control_mode"], 1, [new_mode[servo_id-1]])
 
                 if not dxl_result:
                     error_message = f"Gripper#{self.gripper_id}: Failed to add control mode param for Dynamixel#{servo_id}"
@@ -308,7 +300,7 @@ class Gripper(object):
     @exception_handler("Failed to enable tourque")
     def enable_torque(self):
         for servo_id, servo in self.servos.items():   
-            dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["torque_enable"], 1, [1])
+            dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["torque_enable"], 1, [1])
 
             if not dxl_result:
                 error_message = f"Gripper#{self.gripper_id}: Failed to add torque enable param for Dynamixel#{servo_id}"
@@ -325,7 +317,7 @@ class Gripper(object):
     @exception_handler("Failed to disable tourque")
     def disable_torque(self):
         for servo_id, servo in self.servos.items():            
-            dxl_result = self.group_bulk_write.addParam(servo_id, Servo.addresses["torque_enable"], 1, [0])    
+            dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["torque_enable"], 1, [0])    
 
             if not dxl_result:
                 error_message = f"Gripper#{self.gripper_id}: Failed to add torque disable param for Dynamixel#{servo_id}"
@@ -338,16 +330,6 @@ class Gripper(object):
             raise GripperError(error_message)
 
         self.group_bulk_write.clearParam()
-
-    @exception_handler("Failed to reboot servos")
-    def reboot(self):
-        for _, servo in self.servos.items():
-            servo.reboot()
-            start_time = time.perf_counter()
-            while time.perf_counter() < start_time + 0.5:
-                pass
-        self.setup_servos()
-        logging.info(f"Gripper#{self.gripper_id}: reboot completed")
 
     def verify_steps(self, steps):
         for servo_id, servo in self.servos.items():
@@ -378,21 +360,21 @@ class Gripper(object):
             logging.error(error_message)
             raise GripperError(error_message)
 
-        for id, _ in self.servos.items():
-            readings.append(self.group_bulk_read.getData(id, Servo.addresses[address], length))
+        for id, servo in self.servos.items():
+            readings.append(self.group_bulk_read.getData(id, servo.addresses[address], length))
 
         self.group_bulk_read.clearParam()
         return readings
 
     def bulk_read_addparam(self, servo_id, address, length):
-        dxl_addparam_result = self.group_bulk_read.addParam(servo_id, Servo.addresses[address], length)
+        dxl_addparam_result = self.group_bulk_read.addParam(servo_id, self.servos[servo_id].addresses[address], length)
         if not dxl_addparam_result:
             error_message = f"Gripper#{self.gripper_id} - Dynamixel#{servo_id}: groupBulkRead addparam {address} failed"
             logging.error(error_message)
             raise GripperError(error_message)
 
     def check_bulk_read_avaliability(self, servo_id, address, length):
-        dxl_getdata_result = self.group_bulk_read.isAvailable(servo_id, Servo.addresses[address], length)
+        dxl_getdata_result = self.group_bulk_read.isAvailable(servo_id, self.servos[servo_id].addresses[address], length)
         if not dxl_getdata_result:
             error_message = f"Gripper#{self.gripper_id} - Dynamixel#{servo_id}: groupBulkRead {address} unavaliable"
             logging.error(error_message)
@@ -403,7 +385,4 @@ class Gripper(object):
         for _, servo in self.servos.items():
             self.disable_torque()
         
-        if self.target_servo is not None:
-            self.target_servo.disable_torque()
-
         self.port_handler.closePort()

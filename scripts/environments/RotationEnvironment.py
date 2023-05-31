@@ -2,11 +2,16 @@ from environments.Environment import Environment
 
 import logging
 import numpy as np
+from enum import Enum
 
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig
+from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
+
+class GOAL_SELECTION_METHOD(Enum):
+    FIXED = 0
+    RELATIVE = 1
 
 def fixed_goal():
     target_angle = np.random.randint(1, 5)
@@ -18,39 +23,45 @@ def fixed_goal():
         return 270
     elif target_angle == 4:
         return 0
-    raise ValueError(f"Target angle unknown: {target_angle}")
+    return 90
 
 def fixed_goals(object_current_pose, noise_tolerance):
-    current_yaw = object_current_pose['orientation'][2]# Yaw
+    current_yaw = object_current_pose
+
     target_angle = fixed_goal()
     while abs(current_yaw - target_angle) < noise_tolerance:
         target_angle = fixed_goal()
     return target_angle
 
-def relative_goal(current_target):
-    return current_target + 90 #TODO redo this
-#####
+def relative_goal(object_current_pose):
+    mode = 2
+    
+    if mode == 1:
+        diff = 90 #degrees to the right
+    elif mode == 2:
+        diff = 180 #degrees to the right
+    elif mode == 3:
+        diff = 270 #degrees to the right
+    elif mode == 4:
+        return np.random.randint(30, 330) # anywhere to anywhere
+    
+    current_yaw = object_current_pose
+    return (current_yaw + diff)%360 
 
-# TODO turn the hard coded type ints into enums
 class RotationEnvironment(Environment):
-    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig):
-        super().__init__(env_config, gripper_config)
+    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
+        super().__init__(env_config, gripper_config, object_config)
 
     # overriding method
     def choose_goal(self):
-        if self.goal_selection_method == 0:# TODO Turn into enum
-            object_state = self.get_object_state()
-            while object_state == None:
-                if not self.gripper.is_home():
-                    self.gripper.home()
-                object_state = self.get_object_state()
-
+        object_state = self.actual_object_state() 
+        if self.goal_selection_method == GOAL_SELECTION_METHOD.FIXED.value:
             return fixed_goals(object_state, self.noise_tolerance)
-        elif self.goal_selection_method == 1:
-            return relative_goal(self.get_object_state())
+        elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE.value:
+            return relative_goal(object_state)
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
-
+    
     # overriding method 
     def reward_function(self, target_goal, goal_before, goal_after):
         if goal_before is None: 
@@ -63,23 +74,23 @@ class RotationEnvironment(Environment):
         
         done = False
 
-        yaw_before = goal_before["orientation"][2]
-        yaw_after  = goal_after["orientation"][2]
+        yaw_before = goal_before
+        yaw_after  = goal_after
 
-        goal_difference = np.abs(target_goal - yaw_after)
-        delta_changes   = np.abs(target_goal - yaw_before) - np.abs(target_goal - yaw_after)
-
+        goal_difference = self.rotation_min_difference(target_goal, yaw_after)
+        delta_changes   = self.rotation_min_difference(target_goal, yaw_before) - self.rotation_min_difference(target_goal, yaw_after)
+        
         logging.info(f"Yaw = {yaw_after}")
 
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-            reward = -10
+            reward = -1
         else:
-            reward = np.sign(delta_changes) * np.log(np.abs(delta_changes) + 1)
-            #reward = delta_changes / (np.abs(yaw_before - target_goal))
-            #reward = reward if reward > 0 else 0
+            reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before)
 
-        if goal_difference <= self.noise_tolerance:
+        precision_tolerance = 10
+        if goal_difference <= precision_tolerance:
             logging.info("----------Reached the Goal!----------")
+            reward += 10
             done = True
 
         return reward, done
