@@ -1,7 +1,7 @@
 # CARES Gripper Package
 
 This repository contains the code used to control and test the grippers (Two-finger and Three-Finger) currently being designed and used in the CARES lab at UOA. 
-While being written for this specific system, it also intends to be applicable to many dynamixel servo systems with small changes to the code.   
+While being written for this specific system, it also intends to be applicable to many dynamixel servo systems with minor changes to the code.   
  
 ## Installation
 
@@ -15,6 +15,16 @@ Create local directory for gripper local storage, copy and paste the config_exam
 
 ## Hardware Setup 
 The current setup uses Dynamixel XL-320 servo motors (4 for Two-Finger and 9 for Three-Finger Gripper), which are being controlled using a [U2D2](https://emanual.robotis.com/docs/en/parts/interface/u2d2/). 
+
+### Magnetic Encoder Setup
+An AS5600 magnetic encoder can be used to get the object angle during training. 3D printed object valve suitable for using this encoder can be found in the STL files folder below. 
+
+To set this up 
+1. Connect the encoder with an arduino board. VCC - 3.3V; GND - GND; DIR - GND; SCL - SCL; SDA - SDA;
+2. Upload magnetic_encoder_object.ino onto the arduino.
+3. Check device name and modify the object_config file accordingly
+
+
 ### BOM
 A list of items required to build the grippers can be found in [Grippers BOM](https://docs.google.com/spreadsheets/d/1GFGDXZwodSCUbbnDEK6e9giJs_8Xy-eVyAdYuDRv4Qk/edit#gid=1627805202).
 
@@ -28,17 +38,6 @@ A list of items required to build the grippers can be found in [Grippers BOM](ht
 
 Consult the repository [wiki]() for a guide on how to use the package
 
-<!-- TODO: 
-WIKI Planning
-need to explain and give instructions for:
-
-- config: env, gripper, learning
-- env: current ones: rotation and translation. can extend environment for different tasks but changing choose goal and reward function
-- network is where you can play around with your own ideas
-- training_loop.py
-- to test and play with gripper - gripper example
- -->
-
 
 ## Package Structure
 
@@ -48,6 +47,7 @@ cares_gripper_package/
 │  ├─ env_xDOF_config_IDx.json
 │  ├─ gripper_xDOF_config_IDx.json
 │  ├─ learning_config_IDx.json
+│  ├─ objecy_config.IDx.json
 │  ├─ camera_distortion.txt
 │  ├─ camera_matrix.txt
 ├─ environments/
@@ -58,6 +58,17 @@ cares_gripper_package/
 ├─ networks/
 │  ├─ Actor.py
 │  ├─ Critic.py
+├─ magnetic_encoder_object
+│  ├─ magnetic_encoder_object.ino
+├─ tools
+│  ├─ error_handlers.py
+│  ├─ gripper_example.py
+│  ├─ utils.py
+├─ configurations.py
+├─ Gripper.py
+├─ Objects.py
+├─ training_loop.py
+
 
 ```
 `config/`: various configuration file examples for environment, gripper, training and camera. Instructions for these configs can be found in [wiki]().
@@ -65,3 +76,7 @@ cares_gripper_package/
 `environments/`: currently for rotation and translation tasks. Can extend environment class for different tasks by changing choose goal and reward function.
 
 `networks/`: can contain your own neural networks that can be used with each algorithm.
+
+`magneti encoder object/`: currently only contains arduino code for the magnetic encoder.
+
+`tools/`: helper functions and example
