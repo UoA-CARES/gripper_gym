@@ -12,6 +12,7 @@ from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 class GOAL_SELECTION_METHOD(Enum):
     FIXED = 0
     RELATIVE = 1
+    RELATIVE_90_180_270 = 2
 
 def fixed_goal():
     target_angle = np.random.randint(1, 5)
@@ -48,6 +49,20 @@ def relative_goal(object_current_pose):
     current_yaw = object_current_pose
     return (current_yaw + diff)%360 
 
+def relative_goal_90_180_270(object_current_pose):
+    mode = np.random.randint(1, 4)
+    logging.info(f"Target Angle Mode: {mode}")
+
+    if mode == 1:
+        diff = 90 #degrees to the right
+    elif mode == 2:
+        diff = 180 #degrees to the right
+    elif mode == 3:
+        diff = 270 #degrees to the right
+    
+    current_yaw = object_current_pose
+    return (current_yaw + diff)%360 
+
 class RotationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
@@ -59,6 +74,8 @@ class RotationEnvironment(Environment):
             return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE.value:
             return relative_goal(object_state)
+        elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
+            return relative_goal_90_180_270(object_state)
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
     
