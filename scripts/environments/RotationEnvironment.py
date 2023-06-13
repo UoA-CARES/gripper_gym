@@ -84,20 +84,20 @@ class RotationEnvironment(Environment):
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
     
     # overriding method 
-    def reward_function(self, target_goal, yaw_before, yaw_after_rounded):
+    def reward_function(self, target_goal, yaw_before, yaw_after):
 
         if yaw_before is None: 
             logging.debug("Start Marker Pose is None")
             return 0, True
 
-        if yaw_after_rounded is None:
+        if yaw_after is None:
             logging.debug("Final Marker Pose is None")
             return 0, True
         
         done = False
 
         yaw_before_rounded = round(yaw_before)
-        yaw_after_rounded = round(yaw_after_rounded)
+        yaw_after_rounded = round(yaw_after)
 
         goal_difference = self.rotation_min_difference(target_goal, yaw_after_rounded)
         delta_changes   = self.rotation_min_difference(target_goal, yaw_before_rounded) - self.rotation_min_difference(target_goal, yaw_after_rounded)
