@@ -80,29 +80,29 @@ class RotationEnvironment(Environment):
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
     
     # overriding method 
-    def reward_function(self, target_goal, goal_before, goal_after):
-        if goal_before is None: 
+    def reward_function(self, target_goal, yaw_before, yaw_after_rounded):
+        if yaw_before is None: 
             logging.debug("Start Marker Pose is None")
             return 0, True
 
-        if goal_after is None:
+        if yaw_after_rounded is None:
             logging.debug("Final Marker Pose is None")
             return 0, True
         
         done = False
 
-        yaw_before = goal_before
-        yaw_after  = goal_after
+        yaw_before_rounded = round(yaw_before)
+        yaw_after_rounded = round(yaw_after_rounded)
 
-        goal_difference = self.rotation_min_difference(target_goal, yaw_after)
-        delta_changes   = self.rotation_min_difference(target_goal, yaw_before) - self.rotation_min_difference(target_goal, yaw_after)
+        goal_difference = self.rotation_min_difference(target_goal, yaw_after_rounded)
+        delta_changes   = self.rotation_min_difference(target_goal, yaw_before_rounded) - self.rotation_min_difference(target_goal, yaw_after_rounded)
         
-        logging.info(f"Yaw = {yaw_after}")
+        logging.info(f"Yaw = {yaw_after_rounded}")
 
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
             reward = -1
         else:
-            reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before)
+            reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before_rounded)
 
         precision_tolerance = 10
         if goal_difference <= precision_tolerance:
