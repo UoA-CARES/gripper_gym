@@ -12,6 +12,7 @@ from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 class GOAL_SELECTION_METHOD(Enum):
     FIXED = 0
     RELATIVE = 1
+    RELATIVE_90_180_270 = 2
 
 def fixed_goal():
     target_angle = np.random.randint(1, 5)
@@ -45,6 +46,20 @@ def relative_goal(object_current_pose):
     elif mode == 4:
         return np.random.randint(30, 330) # anywhere to anywhere
     
+    current_yaw = object_current_pose
+    return (current_yaw + diff)%360
+
+def relative_goal_90_180_270(object_current_pose):
+    mode = np.random.randint(1, 4)
+    logging.info(f"Target Angle Mode: {mode}")
+
+    if mode == 1:
+        diff = 90 #degrees to the right
+    elif mode == 2:
+        diff = 180 #degrees to the right
+    elif mode == 3:
+        diff = 270 #degrees to the right
+
     current_yaw = object_current_pose
     return (current_yaw + diff)%360 
 
