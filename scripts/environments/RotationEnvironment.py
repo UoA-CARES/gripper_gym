@@ -74,6 +74,8 @@ class RotationEnvironment(Environment):
             return fixed_goals(object_state, self.noise_tolerance)
         elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE.value:
             return relative_goal(object_state)
+        elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
+            return relative_goal_90_180_270(object_state)
         
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
     
