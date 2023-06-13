@@ -102,7 +102,13 @@ class RotationEnvironment(Environment):
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
             reward = -1
         else:
-            reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before_rounded)
+            raw_reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before_rounded)
+            if (raw_reward >= 50) :
+                reward = 50
+            elif (raw_reward <= -50) :
+                reward = -50
+            else:
+                reward = raw_reward
 
         precision_tolerance = 10
         if goal_difference <= precision_tolerance:
