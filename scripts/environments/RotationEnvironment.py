@@ -9,6 +9,10 @@ file_path = Path(__file__).parent.resolve()
 
 from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 
+class REWARD_CONSTANTS(Enum):
+    MAX_REWARD = 10
+    MIN_REWARD =-50
+
 class GOAL_SELECTION_METHOD(Enum):
     FIXED = 0
     RELATIVE = 1
@@ -81,6 +85,7 @@ class RotationEnvironment(Environment):
     
     # overriding method 
     def reward_function(self, target_goal, yaw_before, yaw_after_rounded):
+
         if yaw_before is None: 
             logging.debug("Start Marker Pose is None")
             return 0, True
@@ -103,9 +108,9 @@ class RotationEnvironment(Environment):
             reward = -1
         else:
             raw_reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before_rounded)
-            if (raw_reward >= 50) :
-                reward = 50
-            elif (raw_reward <= -50) :
+            if (raw_reward >= REWARD_CONSTANTS.MAX_REWARD.value) :
+                reward = 10
+            elif (raw_reward <= REWARD_CONSTANTS.MIN_REWARD.value) :
                 reward = -50
             else:
                 reward = raw_reward
