@@ -35,7 +35,7 @@ def fixed_goals(object_current_pose, noise_tolerance):
     return target_angle
 
 def relative_goal(object_current_pose):
-    mode = 2
+    mode = 1
     
     if mode == 1:
         diff = 90 #degrees to the right
