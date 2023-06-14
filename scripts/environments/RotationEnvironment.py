@@ -122,6 +122,7 @@ class RotationEnvironment(Environment):
         # Current yaw_before might not equal yaw_after in prev step, hence need to check before as well to see if it has reached the goal already
         if (goal_difference_before <= precision_tolerance):
             logging.info("----------Reached the Goal!----------")
+            logging.info("Warning: Yaw before in current step not equal to Yaw after in prev step")
             reward += 10
             done = True
             return reward, done
