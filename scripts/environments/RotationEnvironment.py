@@ -9,6 +9,10 @@ file_path = Path(__file__).parent.resolve()
 
 from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 
+class REWARD_CONSTANTS(Enum):
+    MAX_REWARD = 10
+    MIN_REWARD =-50
+
 class GOAL_SELECTION_METHOD(Enum):
     FIXED = 0
     RELATIVE = 1
@@ -80,29 +84,36 @@ class RotationEnvironment(Environment):
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
     
     # overriding method 
-    def reward_function(self, target_goal, goal_before, goal_after):
-        if goal_before is None: 
+    def reward_function(self, target_goal, yaw_before, yaw_after):
+
+        if yaw_before is None: 
             logging.debug("Start Marker Pose is None")
             return 0, True
 
-        if goal_after is None:
+        if yaw_after is None:
             logging.debug("Final Marker Pose is None")
             return 0, True
         
         done = False
 
-        yaw_before = goal_before
-        yaw_after  = goal_after
+        yaw_before_rounded = round(yaw_before)
+        yaw_after_rounded = round(yaw_after)
 
-        goal_difference = self.rotation_min_difference(target_goal, yaw_after)
-        delta_changes   = self.rotation_min_difference(target_goal, yaw_before) - self.rotation_min_difference(target_goal, yaw_after)
+        goal_difference = self.rotation_min_difference(target_goal, yaw_after_rounded)
+        delta_changes   = self.rotation_min_difference(target_goal, yaw_before_rounded) - self.rotation_min_difference(target_goal, yaw_after_rounded)
         
-        logging.info(f"Yaw = {yaw_after}")
+        logging.info(f"Yaw = {yaw_after_rounded}")
 
         if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
             reward = -1
         else:
-            reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before)
+            raw_reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before_rounded)
+            if (raw_reward >= REWARD_CONSTANTS.MAX_REWARD.value) :
+                reward = REWARD_CONSTANTS.MAX_REWARD.value
+            elif (raw_reward <= REWARD_CONSTANTS.MIN_REWARD.value) :
+                reward = REWARD_CONSTANTS.MIN_REWARD.value
+            else:
+                reward = raw_reward
 
         precision_tolerance = 10
         if goal_difference <= precision_tolerance:
