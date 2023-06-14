@@ -15,8 +15,11 @@ class REWARD_CONSTANTS(Enum):
 
 class GOAL_SELECTION_METHOD(Enum):
     FIXED = 0
-    RELATIVE = 1
-    RELATIVE_90_180_270 = 2
+    RELATIVE_90 = 1
+    RELATIVE_180 = 2
+    RELATIVE_270 = 3
+    RELATIVE_BETWEEN_30_330 = 4
+    RELATIVE_90_180_270 = 5
 
 def fixed_goal():
     target_angle = np.random.randint(1, 5)
@@ -38,8 +41,7 @@ def fixed_goals(object_current_pose, noise_tolerance):
         target_angle = fixed_goal()
     return target_angle
 
-def relative_goal(object_current_pose):
-    mode = 2
+def relative_goal(mode, object_current_pose):
     
     if mode == 1:
         diff = 90 #degrees to the right
@@ -74,14 +76,25 @@ class RotationEnvironment(Environment):
     # overriding method
     def choose_goal(self):
         object_state = self.actual_object_state() 
-        if self.goal_selection_method == GOAL_SELECTION_METHOD.FIXED.value:
-            return fixed_goals(object_state, self.noise_tolerance)
-        elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE.value:
-            return relative_goal(object_state)
-        elif self.goal_selection_method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
-            return relative_goal_90_180_270(object_state)
-        
-        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
+
+        logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}") # Log selected goal
+
+        # Determine which function to call based on passed in goal int value
+        match self.goal_selection_method:
+            case GOAL_SELECTION_METHOD.FIXED.value:
+                return fixed_goals(object_state, self.noise_tolerance)
+            case GOAL_SELECTION_METHOD.RELATIVE_90.value:
+                return relative_goal(1, object_state)
+            case GOAL_SELECTION_METHOD.RELATIVE_180.value:
+                return relative_goal(2, object_state)
+            case GOAL_SELECTION_METHOD.RELATIVE_270.value:
+                return relative_goal(3, object_state)
+            case GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330.value:
+                return relative_goal(4, object_state)
+            case GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
+                return relative_goal_90_180_270(object_state)
+            case _:
+                raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal foun, throw error
     
     # overriding method 
     def reward_function(self, target_goal, yaw_before, yaw_after):
