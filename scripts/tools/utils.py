@@ -1,4 +1,5 @@
 import os
+import shutil
 import matplotlib.pyplot as plt
 from pathlib import Path
 
@@ -16,16 +17,22 @@ def create_directories(local_results_path, folder_name):
         os.makedirs("servo_errors")
     return file_path
 
-def store_configs(file_path, env_config, gripper_config, learning_config, object_config):
-    with open(f"{file_path}/configs.txt", "w") as f:
-        f.write(f"Environment Config:\n{env_config.json()}\n")
-        f.write(f"Gripper Config:\n{gripper_config.json()}\n")
-        f.write(f"Learning Config:\n{learning_config.json()}\n")
-        f.write(f"Learning Config:\n{object_config.json()}\n")
-        with open(Path(env_config.camera_matrix)) as cm:
-            f.write(f"\nCamera Matrix:\n{cm.read()}\n")
-        with open(Path(env_config.camera_distortion)) as cd:
-            f.write(f"Camera Distortion:\n{cd.read()}\n")
+def store_configs(file_path, parent_path, folder_name = "configs"):
+    if not os.path.isdir(f"{file_path + '/' + folder_name}"):
+        os.mkdir(file_path + '/' + folder_name)
+
+    for file_name in os.listdir(parent_path):
+    # construct full file path
+        source = parent_path + "/" + file_name
+
+        destination = file_path + "/" + folder_name + "/" + file_name
+        print(f"Destination: {destination}")
+
+        # copy only files
+        if os.path.isfile(source):
+            shutil.copy(source, destination)
+            print('copied', file_name)
+
 
 def store_data(data, file_path, file_name):
     with open(f"{file_path}/data/{file_name}.txt", "a") as f:

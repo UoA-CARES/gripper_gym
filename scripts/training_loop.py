@@ -27,6 +27,7 @@ from networks import Actor
 from networks import Critic
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
+from pathlib import Path
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
@@ -323,6 +324,8 @@ def parse_args():
 def main():
 
     args = parse_args()
+    parent_path = Path(args.env_config).parent.absolute()
+
     env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
     gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
@@ -339,7 +342,7 @@ def main():
     file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
 
     file_path = utils.create_directories(local_results_path, file_path)
-    utils.store_configs(file_path, env_config, gripper_config, learning_config, object_config)
+    utils.store_configs(file_path, str(parent_path))
 
     gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, object_config, file_path)
     gripper_trainer.train()
