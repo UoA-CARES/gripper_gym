@@ -116,7 +116,16 @@ class RotationEnvironment(Environment):
         yaw_before_rounded = round(yaw_before)
         yaw_after_rounded = round(yaw_after)
 
-        goal_difference = self.rotation_min_difference(target_goal, yaw_after_rounded)
+        goal_difference_before = self.rotation_min_difference(target_goal, yaw_before_rounded)
+        goal_difference_after = self.rotation_min_difference(target_goal, yaw_after_rounded)
+
+        # Current yaw_before might not equal yaw_after in prev step, hence need to check before as well to see if it has reached the goal already
+        if (goal_difference_before <= precision_tolerance):
+            logging.info("----------Reached the Goal!----------")
+            reward += 10
+            done = True
+            return reward, done
+
         delta_changes   = self.rotation_min_difference(target_goal, yaw_before_rounded) - self.rotation_min_difference(target_goal, yaw_after_rounded)
         
         logging.info(f"Yaw = {yaw_after_rounded}")
@@ -133,7 +142,7 @@ class RotationEnvironment(Environment):
                 reward = raw_reward
 
         precision_tolerance = 10
-        if goal_difference <= precision_tolerance:
+        if goal_difference_after <= precision_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward += 10
             done = True
