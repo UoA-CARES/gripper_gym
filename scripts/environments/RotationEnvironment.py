@@ -73,28 +73,32 @@ class RotationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
 
+    def get_goal_function(self, object_state):
+        # Determine which function to call based on passed in goal int value
+        method = self.goal_selection_method
+
+        if (method == GOAL_SELECTION_METHOD.FIXED.value):
+            return fixed_goals(object_state, self.noise_tolerance)
+        elif (method == GOAL_SELECTION_METHOD.RELATIVE_90.value):
+            return relative_goal(1, object_state)
+        elif (method == GOAL_SELECTION_METHOD.RELATIVE_180.value):
+            return relative_goal(2, object_state)
+        elif (method == GOAL_SELECTION_METHOD.RELATIVE_270.value):
+            return relative_goal(3, object_state)
+        elif (method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330.value):
+            return relative_goal(4, object_state)
+        elif (method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value):
+            return relative_goal_90_180_270(object_state)
+
+        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal found, throw error
+
     # overriding method
     def choose_goal(self):
         object_state = self.actual_object_state() 
 
         logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}") # Log selected goal
 
-        # Determine which function to call based on passed in goal int value
-        match self.goal_selection_method:
-            case GOAL_SELECTION_METHOD.FIXED.value:
-                return fixed_goals(object_state, self.noise_tolerance)
-            case GOAL_SELECTION_METHOD.RELATIVE_90.value:
-                return relative_goal(1, object_state)
-            case GOAL_SELECTION_METHOD.RELATIVE_180.value:
-                return relative_goal(2, object_state)
-            case GOAL_SELECTION_METHOD.RELATIVE_270.value:
-                return relative_goal(3, object_state)
-            case GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330.value:
-                return relative_goal(4, object_state)
-            case GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
-                return relative_goal_90_180_270(object_state)
-            case _:
-                raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal foun, throw error
+        return self.get_goal_function(object_state)
     
     # overriding method 
     def reward_function(self, target_goal, yaw_before, yaw_after):
