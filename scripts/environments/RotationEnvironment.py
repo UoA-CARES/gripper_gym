@@ -109,9 +109,9 @@ class RotationEnvironment(Environment):
         else:
             raw_reward = delta_changes/self.rotation_min_difference(target_goal, yaw_before_rounded)
             if (raw_reward >= REWARD_CONSTANTS.MAX_REWARD.value) :
-                reward = 10
+                reward = REWARD_CONSTANTS.MAX_REWARD.value
             elif (raw_reward <= REWARD_CONSTANTS.MIN_REWARD.value) :
-                reward = -50
+                reward = REWARD_CONSTANTS.MIN_REWARD.value
             else:
                 reward = raw_reward
 
