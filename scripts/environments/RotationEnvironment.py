@@ -124,7 +124,7 @@ class RotationEnvironment(Environment):
         if (goal_difference_before <= precision_tolerance):
             logging.info("----------Reached the Goal!----------")
             logging.info("Warning: Yaw before in current step not equal to Yaw after in prev step")
-            reward += 10
+            reward = 10
             done = True
             return reward, done
 
