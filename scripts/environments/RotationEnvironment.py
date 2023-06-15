@@ -50,7 +50,7 @@ def relative_goal(mode, object_current_pose):
     elif mode == 3:
         diff = 270 #degrees to the right
     elif mode == 4:
-        return np.random.randint(30, 330) # anywhere to anywhere
+        diff = np.random.randint(30, 330) # anywhere to anywhere
     
     current_yaw = object_current_pose
     return (current_yaw + diff)%360
