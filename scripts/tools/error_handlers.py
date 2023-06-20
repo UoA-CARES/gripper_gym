@@ -2,7 +2,7 @@ from time import sleep
 import logging
 import os
 logging.basicConfig(level=logging.INFO)
-from cares_lib.dynamixel.Servo import  DynamixelServoError
+from cares_lib.dynamixel.Servo import DynamixelServoError
 from pytimedinput import timedInput
 from environments.Environment import EnvironmentError
 from Gripper import GripperError
@@ -64,7 +64,7 @@ def get_frame(environment, slack_bot, file_path):
     else:
         slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Having trouble accessing current frame")
 
-def handle_gripper_error_home(environment, error_message, slack_bot, file_path):       
+def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
     warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
     logging.warning(warning_message)
     slack_bot.post_message("#bot_terminal", warning_message)
