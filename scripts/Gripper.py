@@ -214,10 +214,10 @@ class Gripper(object):
             logging.error(error_message)
             raise ValueError(error_message)
         
-        if set_only:
-            self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
-        else:
-            self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
+        # if set_only:
+        #     self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
+        # else:
+        #     self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
 
         for servo_id, servo in self.servos.items():
             target_velocity = velocities[servo_id-1]
