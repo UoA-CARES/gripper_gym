@@ -273,29 +273,29 @@ class Gripper(object):
     def is_home(self):
         return np.all(np.abs(self.home_sequence[-1] - np.array(self.current_positions())) <= MOVING_STATUS_THRESHOLD)
     
-    @exception_handler("Failed to set control mode")
-    def set_control_mode(self, new_mode):
-        if (new_mode != self.current_control_mode()).all():
-            self.disable_torque()#disable to set servo parameters
+    # @exception_handler("Failed to set control mode")
+    # def set_control_mode(self, new_mode):
+    #     if (new_mode != self.current_control_mode()).all():
+    #         self.disable_torque()#disable to set servo parameters
 
-            for servo_id, servo in self.servos.items():            
-                dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["control_mode"], 1, [new_mode[servo_id-1]])
+    #         for servo_id, servo in self.servos.items():            
+    #             dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["control_mode"], 1, [new_mode[servo_id-1]])
 
-                if not dxl_result:
-                    error_message = f"Gripper#{self.gripper_id}: Failed to add control mode param for Dynamixel#{servo_id}"
-                    logging.error(error_message)
-                    raise GripperError(error_message)
+    #             if not dxl_result:
+    #                 error_message = f"Gripper#{self.gripper_id}: Failed to add control mode param for Dynamixel#{servo_id}"
+    #                 logging.error(error_message)
+    #                 raise GripperError(error_message)
 
-            dxl_comm_result = self.group_bulk_write.txPacket()
-            if dxl_comm_result != dxl.COMM_SUCCESS:
-                error_message = f"Gripper#{self.gripper_id}: failed to send change control mode command to gripper"
-                logging.error(error_message)
-                raise GripperError(error_message)
+    #         dxl_comm_result = self.group_bulk_write.txPacket()
+    #         if dxl_comm_result != dxl.COMM_SUCCESS:
+    #             error_message = f"Gripper#{self.gripper_id}: failed to send change control mode command to gripper"
+    #             logging.error(error_message)
+    #             raise GripperError(error_message)
 
-            logging.debug(f"Gripper#{self.gripper_id}: Change control mode command succeeded")
-            self.group_bulk_write.clearParam()
+    #         logging.debug(f"Gripper#{self.gripper_id}: Change control mode command succeeded")
+    #         self.group_bulk_write.clearParam()
 
-            self.enable_torque()
+    #         self.enable_torque()
 
     @exception_handler("Failed to enable tourque")
     def enable_torque(self):
