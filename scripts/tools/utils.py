@@ -56,6 +56,29 @@ def plot_data(file_path, files):
         plt.savefig(f"{file_path}/{file_name}")
         plt.close()
 
+def plot_data_time(file_path, files, file_name_average_reward, file_name_time):
+    average_reward = [0]
+    time = [0]
+    if type(files) is not list:
+        files = [files]
+
+    with open(f"{file_path}/data/{file_name_average_reward}.txt", "r") as file:
+        for line in file:
+            data = float(line.strip())
+            average_reward.append(data)
+
+    with open(f"{file_path}/data/{file_name_time}.txt", "r") as file:
+        for line in file:
+            data = float(line.strip())
+            time.append(data)            
+
+        plt.plot(time, average_reward)
+        plt.xlabel("Time")
+        plt.ylabel(f"{file_name_average_reward}")
+        plt.title("Average Reward vs Time")
+        plt.savefig(f"{file_path}/reward_average_vs_time")
+        plt.close()        
+
 def slack_post_plot(environment, slack_bot, file_path, plots):
     if type(plots) is not list:
         plots = [plots]

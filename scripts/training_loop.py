@@ -166,13 +166,14 @@ class GripperTrainer():
         episode_timesteps = 0
         episode_reward    = 0
         episode_num       = 0
+        start_time = datetime.now()
         
         success_window_size = 100 #episodes
         steps_per_episode_window_size = 5 #episodes
         rolling_success_rate = deque(maxlen=success_window_size)
         rolling_reward_rate  = deque(maxlen=success_window_size)
         rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
-        plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average"]
+        plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average", "reward_average_vs_time"]
         
         best_episode_reward = -np.inf
         previous_T_step = 0
@@ -245,10 +246,14 @@ class GripperTrainer():
 
                 # --- Storing reward data ---
                 utils.store_data(episode_reward, self.file_path, "reward")
-
                 rolling_reward_rate.append(episode_reward)
+
                 rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
                 utils.store_data(rolling_reward_average, self.file_path, "rolling_reward_average")
+
+                # --- Storing time data ---
+                episode_time = datetime.now() - start_time
+                utils.store_data(round(episode_time.total_seconds()), self.file_path, "time") # Stores time in seconds since beginning training
 
                 # --- Storing distance data ---
                 episode_distance = self.environment.ep_final_distance()
@@ -297,6 +302,7 @@ class GripperTrainer():
                     utils.plot_data(self.file_path, "rolling_success_average")
                     utils.plot_data(self.file_path, "rolling_reward_average")
                     utils.plot_data(self.file_path, "rolling_steps_per_episode_average")
+                    utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
 
                     average_success_message = f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes\n"
                     average_reward_message = f"Average Reward: {rolling_reward_average} over last {success_window_size} episodes\n"
