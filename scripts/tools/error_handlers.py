@@ -69,12 +69,11 @@ def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
     logging.warning(warning_message)
     slack_bot.post_message("#bot_terminal", warning_message)
     
-    try :
+    try:
         if not environment.gripper.wiggle_home():
             warning_message = f"#{environment.gripper.gripper_id}: Wiggle home failed, rebooting"
             logging.warning(warning_message)
             slack_bot.post_message("#bot_terminal", warning_message)
-            
         return True
     except (EnvironmentError , GripperError):
         if auto_reboot_sequence(environment, slack_bot):
@@ -94,32 +93,38 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
     slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
     
     while True:
-        value, timed_out = timedInput(timeout=10)
-        if timed_out:
-            value = read_slack(slack_bot, environment.gripper.gripper_id)
+        try:
+            value, timed_out = timedInput(timeout=10)
+            if timed_out:
+                value = read_slack(slack_bot, environment.gripper.gripper_id)
 
-        if value == 'c':
-            logging.info("Gripper fixed continuing onwards")
-            slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Gripper fixed continuing onwards")
-            return True
-        elif value == 'x':
-            logging.info("Giving up correcting gripper")
-            return False
-        elif value == "r":
-            reboot(environment, slack_bot)
-        elif value  == "h":
-            home(environment, slack_bot)
-        elif value  == "w":
-            wiggle_home(environment, slack_bot)
-        elif value == "p":
-            slack_post_plot(environment, slack_bot, file_path, "reward")
-        elif value == "d":
-            slack_post_plot(environment, slack_bot, file_path, "distance")
-        elif value == "s":
-            slack_post_plot(environment, slack_bot, file_path, "rolling_success_average")
-        elif value == "f":
-            get_frame(environment, slack_bot, file_path)
-            
+            if value == 'c':
+                logging.info("Gripper fixed continuing onwards")
+                slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Gripper fixed continuing onwards")
+                return True
+            elif value == 'x':
+                logging.info("Giving up correcting gripper")
+                return False
+            elif value == "r":
+                reboot(environment, slack_bot)
+            elif value  == "h":
+                home(environment, slack_bot)
+            elif value  == "w":
+                wiggle_home(environment, slack_bot)
+            elif value == "p":
+                slack_post_plot(environment, slack_bot, file_path, "reward")
+            elif value == "d":
+                slack_post_plot(environment, slack_bot, file_path, "distance")
+            elif value == "s":
+                slack_post_plot(environment, slack_bot, file_path, "rolling_success_average")
+            elif value == "f":
+                get_frame(environment, slack_bot, file_path)
+        except (EnvironmentError , GripperError):
+            logging.error(f"An error was encountered, please retry the operation") # Error was encountered after user selects operation, allow them to select again
+            logging.error(help_message)
+            slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
+            continue
+
 
 def read_slack(slack_bot, gripper_id):
     message = slack_bot.get_message("cares-chat-bot")
