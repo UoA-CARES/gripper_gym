@@ -74,6 +74,7 @@ def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
             warning_message = f"#{environment.gripper.gripper_id}: Wiggle home failed, rebooting"
             logging.warning(warning_message)
             slack_bot.post_message("#bot_terminal", warning_message)
+
         return True
     except (EnvironmentError , GripperError):
         if auto_reboot_sequence(environment, slack_bot):
@@ -118,10 +119,12 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
                 slack_post_plot(environment, slack_bot, file_path, "rolling_success_average")
             elif value == "f":
                 get_frame(environment, slack_bot, file_path)
-        except (EnvironmentError , GripperError):
-            logging.error(f"An error was encountered, please retry the operation") # Error was encountered after user selects operation, allow them to select again
+        except (EnvironmentError , GripperError) as error:
+            # Error was encountered after user selects operation, allow them to select again
+            retry_error_message= f"Error encountered during manual error handling with message: {error}"
+            logging.error(retry_error_message)
             logging.error(help_message)
-            slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
+            slack_bot.post_message("#cares-chat-bot", f"{retry_error_message}, {help_message}")
             continue
 
 
