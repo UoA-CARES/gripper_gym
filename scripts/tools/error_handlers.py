@@ -97,7 +97,6 @@ def handle_gripper_error(environment, error_message, slack_bot, file_path):
             value, timed_out = timedInput(timeout=10)
             if timed_out:
                 value = read_slack(slack_bot, environment.gripper.gripper_id)
-
             if value == 'c':
                 logging.info("Gripper fixed continuing onwards")
                 slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Gripper fixed continuing onwards")
