@@ -57,8 +57,8 @@ def plot_data(file_path, files):
         plt.close()
 
 def plot_data_time(file_path, files, file_name_average_reward, file_name_time):
-    average_reward = [0]
-    time = [0]
+    average_reward = []
+    time = []
     if type(files) is not list:
         files = [files]
 
