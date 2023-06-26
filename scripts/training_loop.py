@@ -173,7 +173,8 @@ class GripperTrainer():
         rolling_success_rate = deque(maxlen=success_window_size)
         rolling_reward_rate  = deque(maxlen=success_window_size)
         rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
-        plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average", "reward_average_vs_time"]
+        plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average"]
+        time_plots = ["reward_average_vs_time"]
         
         best_episode_reward = -np.inf
         previous_T_step = 0
@@ -296,6 +297,7 @@ class GripperTrainer():
                     utils.plot_data(self.file_path, "distance")
 
                     utils.slack_post_plot(self.environment, slack_bot, self.file_path, plots)
+                    utils.slack_post_plot(self.environment, slack_bot, self.file_path, time_plots)
 
 
                 if episode_num % self.plot_freq == 0:
@@ -312,6 +314,7 @@ class GripperTrainer():
                     slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {average_success_message}{average_reward_message}{average_steps_per_episode_message}")
 
         utils.plot_data(self.file_path, plots)
+        utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
         self.agent.save_models(self.file_name, self.file_path)
         self.environment.gripper.close()
         
