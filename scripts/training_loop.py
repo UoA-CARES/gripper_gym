@@ -127,7 +127,6 @@ class GripperTrainer():
                 actor_network=actor,
                 critic_network=critic,
                 gamma=learning_config.gamma,
-                tau=learning_config.tau,
                 action_num=action_num,
                 device=DEVICE,
             )
