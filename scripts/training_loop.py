@@ -22,12 +22,13 @@ from Gripper import GripperError
 import tools.utils as utils
 import tools.error_handlers as erh
 
-from cares_reinforcement_learning.algorithm.policy import TD3
+from cares_reinforcement_learning.algorithm.policy import TD3, SAC, PPO, DDPG
 from networks import Actor
 from networks import Critic
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 from pathlib import Path
+from enum import Enum
 
 if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
@@ -40,6 +41,11 @@ with open('slack_token.txt') as file:
     slack_token = file.read()
 slack_bot = SlackBot(slack_token=slack_token)
 
+class ALGORITHMS(Enum):
+    TD3 = "TD3"
+    SAC = "SAC"
+    PPO = "PPO"
+    DDPG = "DDPG"
 
 class GripperTrainer():
     def __init__(self, env_config, gripper_config, learning_config, object_config, file_path) -> None:
@@ -88,17 +94,54 @@ class GripperTrainer():
         self.memory = MemoryBuffer(learning_config.buffer_capacity)
 
         logging.info("Setting RL Algorithm")
-        self.agent = TD3(
-            actor_network=actor,
-            critic_network=critic,
-            gamma=learning_config.gamma,
-            tau=learning_config.tau,
-            action_num=action_num,
-            device=DEVICE,
-        )
+        self.agent = self.choose_algorithm(learning_config, actor, critic, action_num)
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]
+
+    def choose_algorithm(self, learning_config, actor, critic, action_num):
+        algorithm = learning_config.algorithm
+
+        logging.info(f"Chosen algorithm: {algorithm}")
+
+        if algorithm == ALGORITHMS.TD3.value:
+            return TD3(
+                actor_network=actor,
+                critic_network=critic,
+                gamma=learning_config.gamma,
+                tau=learning_config.tau,
+                action_num=action_num,
+                device=DEVICE,
+            )
+        elif algorithm == ALGORITHMS.SAC.value:
+            return SAC(
+                actor_network=actor,
+                critic_network=critic,
+                gamma=learning_config.gamma,
+                tau=learning_config.tau,
+                action_num=action_num,
+                device=DEVICE,
+            )
+        elif algorithm == ALGORITHMS.PPO.value:
+            return PPO(
+                actor_network=actor,
+                critic_network=critic,
+                gamma=learning_config.gamma,
+                tau=learning_config.tau,
+                action_num=action_num,
+                device=DEVICE,
+            )
+        elif algorithm == ALGORITHMS.DDPG.value:
+            return DDPG(
+                actor_network=actor,
+                critic_network=critic,
+                gamma=learning_config.gamma,
+                tau=learning_config.tau,
+                action_num=action_num,
+                device=DEVICE,
+            )
+        
+        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal found, throw error
     
     def environment_reset(self):
         try:
