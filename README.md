@@ -19,14 +19,19 @@ Consult the repository [wiki](https://github.com/UoA-CARES/Gripper-Code/wiki) fo
 
 ## Hardware Setup 
 The current setup uses Dynamixel XL-320 servo motors (4 for Two-Finger and 9 for Three-Finger Gripper), which are being controlled using a [U2D2](https://emanual.robotis.com/docs/en/parts/interface/u2d2/). 
+Below is an example of the wiring setup for the three-fingered gripper. This is easily changed for other configurations, with a maximum of 4 daisy chains coming from the U2D2. 
+<img src="https://github.com/UoA-CARES/Gripper-Code/assets/105029122/994e451f-8459-42e2-9aa7-c27b7d10af29" width="400" />
 
 ### Magnetic Encoder Setup
 An AS5600 magnetic encoder can be used to get the object angle during training. 3D printed object valve suitable for using this encoder can be found in the STL files folder below. 
 
 To set this up 
-1. Connect the encoder with an arduino board. VCC - 3.3V; GND - GND; DIR - GND; SCL - SCL; SDA - SDA;
-2. Upload magnetic_encoder_object.ino onto the arduino.
+1. Connect the encoder with an arduino board. VCC - 3.3V; GND - GND; DIR - GND; SCL - SCL; SDA - SDA; (see wiring digram below)
+2. Upload magnetic_encoder_object.ino onto the Arduino.
 3. Check device name and modify the object_config file accordingly
+
+   <img src="https://github.com/UoA-CARES/Gripper-Code/assets/105029122/305bc589-e68e-4433-9fbd-919544614493" alt="wiring diagram for connecting an as5600 magnetic encoder to an Arduino Mega" width="400" />
+   
 
 
 ### BOM
