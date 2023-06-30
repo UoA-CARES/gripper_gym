@@ -23,8 +23,8 @@ import tools.utils as utils
 import tools.error_handlers as erh
 
 from cares_reinforcement_learning.algorithm.policy import TD3, SAC, PPO, DDPG
-from networks import Actor
-from networks import Critic
+from networks.SAC import Actor
+from networks.SAC import Critic
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 from pathlib import Path
@@ -68,6 +68,7 @@ class GripperTrainer():
         self.min_noise = learning_config.min_noise
         self.noise_decay = learning_config.noise_decay
         self.noise_scale = learning_config.noise_scale
+        self.algorithm = learning_config.algorithm
         
         if env_config.env_type == 0:
             self.environment = RotationEnvironment(env_config, gripper_config, object_config)
@@ -242,7 +243,19 @@ class GripperTrainer():
                 message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
                 logging.info(message)
 
-                action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # algorithm range [-1, 1]
+                # TODO: Can we reuse the same actor and critic or must have different ones for each algorithm?? David said yes, because they are slightly different
+                # TODO: Need to add batch normalization to the other algorithms too
+
+                if (self.algorithm == ALGORITHMS.TD3.value):
+                    action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # returns a 1D array with range [-1, 1], only TD3 has noise scale
+                    # print("TD3 action: " + str(action))
+                else:
+                    # Batch normalization throws error without model.eval() and model.train(), see below link
+                    # https://stackoverflow.com/questions/65882526/expected-more-than-1-value-per-channel-when-training-got-input-size-torch-size
+                    self.agent.actor_net.eval() # copied from TD3 algorithm implementation in CARES library to prevent error
+                    action = self.agent.select_action_from_policy(state)
+                    self.agent.actor_net.train() 
+
                 action_env = self.environment.denormalize(action)  # gripper range
             
             next_state, reward, done, truncated = self.environment_step(action_env)
