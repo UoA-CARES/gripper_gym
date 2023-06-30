@@ -100,49 +100,6 @@ class GripperTrainer():
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]
-
-    def choose_algorithm(self, learning_config, actor, critic, action_num):
-        algorithm = learning_config.algorithm
-
-        logging.info(f"Chosen algorithm: {algorithm}")
-
-        if algorithm == ALGORITHMS.TD3.value:
-            return TD3(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                tau=learning_config.tau,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        elif algorithm == ALGORITHMS.SAC.value:
-            return SAC(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                tau=learning_config.tau,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        elif algorithm == ALGORITHMS.PPO.value:
-            return PPO(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        elif algorithm == ALGORITHMS.DDPG.value:
-            return DDPG(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                tau=learning_config.tau,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        
-        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal found, throw error
     
     def environment_reset(self):
         try:
