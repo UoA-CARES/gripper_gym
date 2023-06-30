@@ -17,13 +17,6 @@ class Critic(nn.Module):
 
         self.bn_1 = nn.BatchNorm1d(self.hidden_size[0])
 
-        # Q2 architecture
-        self.h_linear_12 = nn.Linear(observation_size + num_actions, self.hidden_size[0])
-        self.h_linear_22 = nn.Linear(self.hidden_size[0], self.hidden_size[1])
-        self.h_linear_32 = nn.Linear(self.hidden_size[1], 1)
-
-        self.bn_2 = nn.BatchNorm1d(self.hidden_size[0])
-
         self.optimiser = optim.Adam(self.parameters(), lr=learning_rate)
 
     def forward(self, state, action):
@@ -34,9 +27,4 @@ class Critic(nn.Module):
         q1 = F.relu(self.h_linear_2(q1))
         q1 = self.h_linear_3(q1)
 
-        q2 = F.relu(self.h_linear_12(obs_action))
-        q2 = self.bn_2(q2)
-        q2 = F.relu(self.h_linear_22(q2))
-        q2 = self.h_linear_32(q2)
-
-        return q1, q2
+        return q1
