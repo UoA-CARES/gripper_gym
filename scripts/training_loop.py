@@ -23,8 +23,7 @@ import tools.utils as utils
 import tools.error_handlers as erh
 
 from cares_reinforcement_learning.algorithm.policy import TD3, SAC, PPO, DDPG
-from networks.SAC import Actor
-from networks.SAC import Critic
+from networks import NetworkFactory
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 from pathlib import Path
@@ -88,14 +87,16 @@ class GripperTrainer():
         slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
         logging.info("Setting up Network")
-        actor  = Actor(observation_size, action_num, learning_config.actor_lr)
-        critic = Critic(observation_size, action_num, learning_config.critic_lr)
+        network_factory = NetworkFactory()
+        # actor  = Actor(observation_size, action_num, learning_config.actor_lr)
+        # critic = Critic(observation_size, action_num, learning_config.critic_lr)
 
         logging.info("Setting up Memory")
         self.memory = MemoryBuffer(learning_config.buffer_capacity)
 
         logging.info("Setting RL Algorithm")
-        self.agent = self.choose_algorithm(learning_config, actor, critic, action_num)
+        self.agent = network_factory.create_network(self.algorithm, observation_size, action_num, learning_config, DEVICE)
+        # self.agent = self.choose_algorithm(learning_config, actor, critic, action_num)
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]
@@ -243,12 +244,8 @@ class GripperTrainer():
                 message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
                 logging.info(message)
 
-                # TODO: Can we reuse the same actor and critic or must have different ones for each algorithm?? David said yes, because they are slightly different
-                # TODO: Need to add batch normalization to the other algorithms too
-
                 if (self.algorithm == ALGORITHMS.TD3.value):
                     action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                    # print("TD3 action: " + str(action))
                 else:
                     # Batch normalization throws error without model.eval() and model.train(), see below link
                     # https://stackoverflow.com/questions/65882526/expected-more-than-1-value-per-channel-when-training-got-input-size-torch-size
