@@ -95,6 +95,7 @@ class GripperTrainer():
         self.memory = MemoryBuffer(learning_config.buffer_capacity)
 
         logging.info("Setting RL Algorithm")
+        logging.info(f"Chosen algorithm: {self.algorithm}")
         self.agent = network_factory.create_network(self.algorithm, observation_size, action_num, learning_config, DEVICE)
         # self.agent = self.choose_algorithm(learning_config, actor, critic, action_num)
 
