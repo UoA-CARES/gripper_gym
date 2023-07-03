@@ -22,7 +22,6 @@ from Gripper import GripperError
 import tools.utils as utils
 import tools.error_handlers as erh
 
-from cares_reinforcement_learning.algorithm.policy import TD3, SAC, PPO, DDPG
 from networks import NetworkFactory
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
@@ -88,8 +87,6 @@ class GripperTrainer():
 
         logging.info("Setting up Network")
         network_factory = NetworkFactory()
-        # actor  = Actor(observation_size, action_num, learning_config.actor_lr)
-        # critic = Critic(observation_size, action_num, learning_config.critic_lr)
 
         logging.info("Setting up Memory")
         self.memory = MemoryBuffer(learning_config.buffer_capacity)
@@ -97,7 +94,6 @@ class GripperTrainer():
         logging.info("Setting RL Algorithm")
         logging.info(f"Chosen algorithm: {self.algorithm}")
         self.agent = network_factory.create_network(self.algorithm, observation_size, action_num, learning_config, DEVICE)
-        # self.agent = self.choose_algorithm(learning_config, actor, critic, action_num)
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]
@@ -207,7 +203,7 @@ class GripperTrainer():
                 else:
                     # Batch normalization throws error without model.eval() and model.train(), see below link
                     # https://stackoverflow.com/questions/65882526/expected-more-than-1-value-per-channel-when-training-got-input-size-torch-size
-                    self.agent.actor_net.eval() # copied from TD3 algorithm implementation in CARES library to prevent error
+                    self.agent.actor_net.eval() # adapted from TD3 algorithm implementation in CARES library to prevent error
                     action = self.agent.select_action_from_policy(state)
                     self.agent.actor_net.train() 
 
