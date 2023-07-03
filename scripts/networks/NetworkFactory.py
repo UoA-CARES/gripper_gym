@@ -1,4 +1,4 @@
-from cares_reinforcement_learning.algorithm.policy import TD3, SAC, PPO, DDPG
+from cares_reinforcement_learning.algorithm.policy import TD3, SAC, DDPG
 
 def create_SAC(observation_size, action_num, learning_config, DEVICE):
     from networks.SAC import Actor

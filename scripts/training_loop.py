@@ -42,7 +42,6 @@ slack_bot = SlackBot(slack_token=slack_token)
 class ALGORITHMS(Enum):
     TD3 = "TD3"
     SAC = "SAC"
-    PPO = "PPO"
     DDPG = "DDPG"
 
 class GripperTrainer():
