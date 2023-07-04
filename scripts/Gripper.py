@@ -119,7 +119,7 @@ class Gripper(object):
             logging.debug(f"Current Velocity {current_velocity} : {servo.min} < {current_position} < {servo.max}")
             if (current_position >= servo.max and current_velocity > 0) or \
                 (current_position <= servo.min and current_velocity < 0):
-                logging.warn(f"Dynamixel#{motor_id}: position out of boundry, stopping servo")
+                # logging.warn(f"Dynamixel#{motor_id}: position out of boundry, stopping servo")
                 servo.move_velocity(0)
         return state
 
@@ -178,7 +178,7 @@ class Gripper(object):
             raise ValueError(error_message)
 
         self.move_velocity(np.full(self.num_motors,self.speed_limit),True) # only for velocity
-        # self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
+        self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
         
         for servo_id, servo in self.servos.items():
             servo.set_control_mode(ControlMode.JOINT.value)
@@ -214,10 +214,10 @@ class Gripper(object):
             logging.error(error_message)
             raise ValueError(error_message)
         
-        # if set_only:
-        #     self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
-        # else:
-        #     self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
+        if set_only:
+            self.set_control_mode(np.full(self.num_motors,ControlMode.JOINT.value))
+        else:
+            self.set_control_mode(np.full(self.num_motors,ControlMode.WHEEL.value))
 
         for servo_id, servo in self.servos.items():
             target_velocity = velocities[servo_id-1]
@@ -273,29 +273,29 @@ class Gripper(object):
     def is_home(self):
         return np.all(np.abs(self.home_sequence[-1] - np.array(self.current_positions())) <= MOVING_STATUS_THRESHOLD)
     
-    # @exception_handler("Failed to set control mode")
-    # def set_control_mode(self, new_mode):
-    #     if (new_mode != self.current_control_mode()).all():
-    #         self.disable_torque()#disable to set servo parameters
+    @exception_handler("Failed to set control mode")
+    def set_control_mode(self, new_mode):
+        if (new_mode != self.current_control_mode()).all():
+            self.disable_torque()#disable to set servo parameters
 
-    #         for servo_id, servo in self.servos.items():            
-    #             dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["control_mode"], 1, [new_mode[servo_id-1]])
+            for servo_id, servo in self.servos.items():            
+                dxl_result = self.group_bulk_write.addParam(servo_id, servo.addresses["control_mode"], 1, [new_mode[servo_id-1]])
 
-    #             if not dxl_result:
-    #                 error_message = f"Gripper#{self.gripper_id}: Failed to add control mode param for Dynamixel#{servo_id}"
-    #                 logging.error(error_message)
-    #                 raise GripperError(error_message)
+                if not dxl_result:
+                    error_message = f"Gripper#{self.gripper_id}: Failed to add control mode param for Dynamixel#{servo_id}"
+                    logging.error(error_message)
+                    raise GripperError(error_message)
 
-    #         dxl_comm_result = self.group_bulk_write.txPacket()
-    #         if dxl_comm_result != dxl.COMM_SUCCESS:
-    #             error_message = f"Gripper#{self.gripper_id}: failed to send change control mode command to gripper"
-    #             logging.error(error_message)
-    #             raise GripperError(error_message)
+            dxl_comm_result = self.group_bulk_write.txPacket()
+            if dxl_comm_result != dxl.COMM_SUCCESS:
+                error_message = f"Gripper#{self.gripper_id}: failed to send change control mode command to gripper"
+                logging.error(error_message)
+                raise GripperError(error_message)
 
-    #         logging.debug(f"Gripper#{self.gripper_id}: Change control mode command succeeded")
-    #         self.group_bulk_write.clearParam()
+            logging.debug(f"Gripper#{self.gripper_id}: Change control mode command succeeded")
+            self.group_bulk_write.clearParam()
 
-    #         self.enable_torque()
+            self.enable_torque()
 
     @exception_handler("Failed to enable tourque")
     def enable_torque(self):
