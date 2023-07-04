@@ -22,9 +22,7 @@ from Gripper import GripperError
 import tools.utils as utils
 import tools.error_handlers as erh
 
-from cares_reinforcement_learning.algorithm.policy import TD3, SAC, PPO, DDPG
-from networks import Actor
-from networks import Critic
+from networks import NetworkFactory
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_lib.slack_bot.SlackBot import SlackBot
 from pathlib import Path
@@ -44,7 +42,6 @@ slack_bot = SlackBot(slack_token=slack_token)
 class ALGORITHMS(Enum):
     TD3 = "TD3"
     SAC = "SAC"
-    PPO = "PPO"
     DDPG = "DDPG"
 
 class GripperTrainer():
@@ -68,6 +65,7 @@ class GripperTrainer():
         self.min_noise = learning_config.min_noise
         self.noise_decay = learning_config.noise_decay
         self.noise_scale = learning_config.noise_scale
+        self.algorithm = learning_config.algorithm
         
         if env_config.env_type == 0:
             self.environment = RotationEnvironment(env_config, gripper_config, object_config)
@@ -87,60 +85,17 @@ class GripperTrainer():
         slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
         logging.info("Setting up Network")
-        actor  = Actor(observation_size, action_num, learning_config.actor_lr)
-        critic = Critic(observation_size, action_num, learning_config.critic_lr)
+        network_factory = NetworkFactory()
 
         logging.info("Setting up Memory")
         self.memory = MemoryBuffer(learning_config.buffer_capacity)
 
         logging.info("Setting RL Algorithm")
-        self.agent = self.choose_algorithm(learning_config, actor, critic, action_num)
+        logging.info(f"Chosen algorithm: {self.algorithm}")
+        self.agent = network_factory.create_network(self.algorithm, observation_size, action_num, learning_config, DEVICE)
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]
-
-    def choose_algorithm(self, learning_config, actor, critic, action_num):
-        algorithm = learning_config.algorithm
-
-        logging.info(f"Chosen algorithm: {algorithm}")
-
-        if algorithm == ALGORITHMS.TD3.value:
-            return TD3(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                tau=learning_config.tau,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        elif algorithm == ALGORITHMS.SAC.value:
-            return SAC(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                tau=learning_config.tau,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        elif algorithm == ALGORITHMS.PPO.value:
-            return PPO(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        elif algorithm == ALGORITHMS.DDPG.value:
-            return DDPG(
-                actor_network=actor,
-                critic_network=critic,
-                gamma=learning_config.gamma,
-                tau=learning_config.tau,
-                action_num=action_num,
-                device=DEVICE,
-            )
-        
-        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal found, throw error
     
     def environment_reset(self):
         try:
@@ -242,7 +197,15 @@ class GripperTrainer():
                 message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
                 logging.info(message)
 
-                action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # algorithm range [-1, 1]
+                if (self.algorithm == ALGORITHMS.TD3.value):
+                    action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # returns a 1D array with range [-1, 1], only TD3 has noise scale
+                else:
+                    # Batch normalization throws error without model.eval() and model.train(), see below link
+                    # https://stackoverflow.com/questions/65882526/expected-more-than-1-value-per-channel-when-training-got-input-size-torch-size
+                    self.agent.actor_net.eval() # adapted from TD3 algorithm implementation in CARES library to prevent error
+                    action = self.agent.select_action_from_policy(state)
+                    self.agent.actor_net.train() 
+
                 action_env = self.environment.denormalize(action)  # gripper range
             
             next_state, reward, done, truncated = self.environment_step(action_env)
