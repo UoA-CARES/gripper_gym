@@ -1,6 +1,8 @@
 import logging
 logging.basicConfig(level=logging.INFO)
 
+import time
+
 import os
 import pydantic
 
@@ -142,7 +144,7 @@ class GripperTrainer():
             action = self.agent.select_action_from_policy(state, evaluation=True)  # algorithm range [-1, 1]
             action_env = self.environment.denormalize(action)  # gripper range
 
-            next_state, reward, done, truncated = self.envrionment.step(action_env)
+            next_state, reward, done, truncated = self.environment.step(action_env)
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
                 state = next_state
@@ -209,6 +211,12 @@ class GripperTrainer():
                 action_env = self.environment.denormalize(action)  # gripper range
             
             next_state, reward, done, truncated = self.environment_step(action_env)
+            if self.environment.action_type == "velocity":
+                # time between this being called each loop...
+                start = time.time()
+                self.environment.step_gripper()
+                end = time.time()
+                logging.info(f"Elapsed time is {end-start}")
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")

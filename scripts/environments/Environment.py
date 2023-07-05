@@ -54,7 +54,7 @@ class Environment(ABC):
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
 
-        self.gripper.home()
+        self.gripper.wiggle_home()
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.object_marker_id = object_config.object_marker_id
@@ -80,7 +80,7 @@ class Environment(ABC):
     @exception_handler("Environment failed to reset")
     def reset(self):
         
-        self.gripper.home()  
+        self.gripper.wiggle_home()  
         state = self.get_state()
 
         logging.debug(state)
