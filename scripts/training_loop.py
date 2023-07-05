@@ -334,6 +334,7 @@ def parse_args():
     parser.add_argument("--env_config",      type=str)
     parser.add_argument("--gripper_config",  type=str)
     parser.add_argument("--object_config",   type=str)
+    parser.add_argument("--debug",          type=bool)
 
     home_path = os.path.expanduser('~')
     parser.add_argument("--local_results_path",  type=str, default=f"{home_path}/gripper_training")
@@ -349,6 +350,10 @@ def main():
     learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
     object_config   = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
     local_results_path = args.local_results_path
+    is_debug = args.debug
+
+    if is_debug:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     logging.info("Setting up Seeds")
     torch.manual_seed(learning_config.seed)
