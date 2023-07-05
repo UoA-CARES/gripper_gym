@@ -202,11 +202,7 @@ class GripperTrainer():
                 if (self.algorithm == ALGORITHMS.TD3.value):
                     action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # returns a 1D array with range [-1, 1], only TD3 has noise scale
                 else:
-                    # Batch normalization throws error without model.eval() and model.train(), see below link
-                    # https://stackoverflow.com/questions/65882526/expected-more-than-1-value-per-channel-when-training-got-input-size-torch-size
-                    self.agent.actor_net.eval() # adapted from TD3 algorithm implementation in CARES library to prevent error
                     action = self.agent.select_action_from_policy(state)
-                    self.agent.actor_net.train() 
 
                 action_env = self.environment.denormalize(action)  # gripper range
             
