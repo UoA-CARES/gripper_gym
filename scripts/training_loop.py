@@ -180,6 +180,8 @@ class GripperTrainer():
 
         state = self.environment_reset()
 
+        prev_time = time.time()
+
         for total_step_counter in range(int(self.max_steps_training)):
             episode_timesteps += 1
 
@@ -205,14 +207,17 @@ class GripperTrainer():
                     action = self.agent.select_action_from_policy(state)
 
                 action_env = self.environment.denormalize(action)  # gripper range
-            
+
+            env_start = time.time()
             next_state, reward, done, truncated = self.environment_step(action_env)
+            env_end = time.time()
+            logging.info(f"time to execute environment_step: {env_end-env_start}")
+            
             if self.environment.action_type == "velocity":
                 # time between this being called each loop...
-                start = time.time()
                 self.environment.step_gripper()
-                end = time.time()
-                logging.info(f"Elapsed time is {end-start}")
+                logging.info(f"Time since step_gripper was last called: {time.time() - prev_time}")
+                prev_time = time.time()
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
@@ -223,17 +228,20 @@ class GripperTrainer():
 
                 episode_reward += reward
 
-                if self.environment.action_type == "position": # if position based, train every step
-                    if total_step_counter >= self.max_steps_exploration:
-                        for _ in range(self.G):
-                            experiences = self.memory.sample(self.batch_size)
-                            info = self.agent.train_policy((
-                                experiences['state'],
-                                experiences['action'],
-                                experiences['reward'],
-                                experiences['next_state'],
-                                experiences['done']
-                            ))
+                # if self.environment.action_type == "position": # if position based, train every step
+                start = time.time()
+                if total_step_counter >= self.max_steps_exploration:
+                    for _ in range(self.G):
+                        experiences = self.memory.sample(self.batch_size)
+                        info = self.agent.train_policy((
+                            experiences['state'],
+                            experiences['action'],
+                            experiences['reward'],
+                            experiences['next_state'],
+                            experiences['done']
+                        ))
+                end = time.time()
+                logging.info(f"Time to run training loop {end-start} \n")
 
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
@@ -279,17 +287,17 @@ class GripperTrainer():
                 utils.store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
 
                 # --- TRAIN ---
-                if self.environment.action_type == "velocity": # if velocity based, train every episode
-                    if total_step_counter >= self.max_steps_exploration:
-                        for _ in range(self.G):
-                            experiences = self.memory.sample(self.batch_size)
-                            info = self.agent.train_policy((
-                                experiences['state'],
-                                experiences['action'],
-                                experiences['reward'],
-                                experiences['next_state'],
-                                experiences['done']
-                            ))
+                # if self.environment.action_type == "velocity": # if velocity based, train every episode
+                #     if total_step_counter >= self.max_steps_exploration:
+                #         for _ in range(self.G):
+                #             experiences = self.memory.sample(self.batch_size)
+                #             info = self.agent.train_policy((
+                #                 experiences['state'],
+                #                 experiences['action'],
+                #                 experiences['reward'],
+                #                 experiences['next_state'],
+                #                 experiences['done']
+                #             ))
 
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
@@ -334,7 +342,7 @@ def parse_args():
     parser.add_argument("--env_config",      type=str)
     parser.add_argument("--gripper_config",  type=str)
     parser.add_argument("--object_config",   type=str)
-    parser.add_argument("--debug",          type=bool)
+    parser.add_argument("--debug",      type=bool)
 
     home_path = os.path.expanduser('~')
     parser.add_argument("--local_results_path",  type=str, default=f"{home_path}/gripper_training")
