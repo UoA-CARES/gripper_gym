@@ -5,6 +5,7 @@ import threading
 from enum import Enum
 from time import sleep
 import numpy as np
+import dynamixel_sdk as dxl
 
 from serial import Serial
 
@@ -61,12 +62,33 @@ class MagnetObject(object):
         pass
 
 class ServoObject(object):
-    def __init__(self, port_handler, packet_handler, servo_id, model) -> None:
+    def __init__(self, config : ObjectConfig, servo_id, model="XL330-M077-T") -> None:
+        self.device_name = config.device_name
         self.model = model
 
         self.min = 0
-        self.max = 4094 if self.model == "XL430-W250-T" else 1023
-        self.object_servo = Servo(port_handler, packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+        self.max = 1023
+        self.protocol = 2
+        self.baudrate = config.baudrate
+
+        self.port_handler = dxl.PortHandler(self.device_name)
+        self.packet_handler = dxl.PacketHandler(self.protocol)
+        self.setup_handlers()
+
+        self.object_servo = Servo(self.port_handler, self.packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+
+    def setup_handlers(self):
+        if not self.port_handler.openPort():
+            error_message = f"Failed to open port {self.device_name}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.info(f"Succeeded to open port {self.device_name}")
+
+        if not self.port_handler.setBaudRate(self.baudrate):
+            error_message = f"Failed to change the baudrate to {self.baudrate}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
 
     def get_yaw(self):
         current_position = self.object_servo.current_position()

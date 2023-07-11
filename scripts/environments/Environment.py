@@ -40,6 +40,8 @@ class OBSERVATION_TYPE(Enum):
     SERVO_ARUCO = 2
     IMAGE = 3
 
+VALVE_SERVO_ID = 10
+
 class Environment(ABC):
     def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
         
@@ -71,7 +73,7 @@ class Environment(ABC):
         if self.object_type == "magnet":
             self.target = MagnetObject(object_config, aruco_yaw)
         elif self.object_type == "servo":
-            self.target = ServoObject(self.gripper.port_handler, self.gripper.packet_handler, self.gripper.num_motors+1, object_config.device_name)
+            self.target = ServoObject(object_config, VALVE_SERVO_ID)
         else:
             raise ValueError("Object Type unknown")
 
