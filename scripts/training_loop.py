@@ -228,7 +228,7 @@ class GripperTrainer():
 
                 episode_reward += reward
 
-                # if self.environment.action_type == "position": # if position based, train every step
+                # Regardless if velocity or position based, train every step
                 start = time.time()
                 if total_step_counter >= self.max_steps_exploration:
                     for _ in range(self.G):
