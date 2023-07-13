@@ -91,6 +91,8 @@ class Environment(ABC):
         self.goal_state = self.choose_goal()
 
         logging.info(f"New Goal Generated: {self.goal_state}")
+
+        self.target.reset_target_servo()
         return state
         
     def sample_action(self):

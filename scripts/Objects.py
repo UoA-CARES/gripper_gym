@@ -1,17 +1,27 @@
 import logging
-import time
 import random
-import threading
 from enum import Enum
 from time import sleep
-import numpy as np
 import dynamixel_sdk as dxl
+from functools import wraps
 
 from serial import Serial
 
 from configurations import ObjectConfig
 
 from cares_lib.dynamixel.Servo import Servo
+
+def exception_handler(error_message):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return function(self, *args, **kwargs)
+            except EnvironmentError as error:
+                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
+                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
+        return wrapper
+    return decorator
 
 class Command(Enum):
     GET_YAW = 0
@@ -74,6 +84,7 @@ class ServoObject(object):
         self.port_handler = dxl.PortHandler(self.device_name)
         self.packet_handler = dxl.PacketHandler(self.protocol)
         self.setup_handlers()
+        self.servo_id = servo_id
 
         self.object_servo = Servo(self.port_handler, self.packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
 
@@ -100,4 +111,13 @@ class ServoObject(object):
     def reset(self):
         reset_home_position = random.randint(self.min, self.max)
         self.object_servo.move(reset_home_position)
+        self.object_servo.disable_torque()
+
+    @exception_handler("Failed while trying to reset target servo")
+    def reset_target_servo(self):
+        RESET_POSITION = 0
+
+        self.object_servo.enable_torque()
+        logging.info(f"Resetting Servo #{self.servo_id} to position: {RESET_POSITION}")
+        self.object_servo.move(RESET_POSITION)
         self.object_servo.disable_torque()
