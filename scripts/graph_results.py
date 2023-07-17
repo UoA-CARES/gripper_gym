@@ -14,38 +14,12 @@ Y_VALS_FILE_NAME = "reward.txt"
 
 def parse_args():
     parser = ArgumentParser()
-    parser.add_argument("--root_folder",      type=str)
+    parser.add_argument("--folder1",      type=str)
+    parser.add_argument("--folder2",      type=str)
+    parser.add_argument("--folder3",      type=str)
     parser.add_argument("--plot_type",      type=str)
     parser.add_argument("--title",      type=str)
     return parser.parse_args()
-
-def save_fig(fig, title):
-    home_path = os.path.expanduser('~')
-    result_images_path = f"{home_path}/gripper_result_plots"
-    if not os.path.exists(result_images_path):
-        os.mkdir(result_images_path)
-
-    fig.write_image(f"{result_images_path}/{title}.png")
-
-def create_fig(title, datas):
-    fig = go.Figure(
-        data = datas,
-        layout = {"xaxis": {"title": "Steps"}, "yaxis": {"title": "Average Reward"}, "title": title}
-    )
-
-    fig.update_layout(
-        title={
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top'
-        },
-        font=dict(
-            family="Time New Roman",
-            size=18,
-        )
-    )
-
-    return fig
 
 def parse_step(step_file, arr):
     curr_step = 0
@@ -63,12 +37,15 @@ def parse_reward(reward_file, arr):
             data = float(line.strip())
             arr.append(data)
 
-def plot_average(datas_map, window_size=50):
+def parse_folder(folder, folders_arr):
+    if folder:
+        sub_dirs = [f.path for f in os.scandir(folder) if f.is_dir()]
+        folders_arr.append(sub_dirs)
+
+def plot_single_graph(datas_map, title, window_size=50):
     plt.ioff()
-    
     figure = plt.figure()
     figure.set_figwidth(6)
-     
     sns.set_theme(style="darkgrid")
 
     for key in datas_map:
@@ -95,69 +72,155 @@ def plot_average(datas_map, window_size=50):
     sns.move_legend(ax, "lower right")
     plt.xlabel("Steps")
     plt.ylabel("Average Reward")
-    plt.title("90,180,270 Degrees Valve Rotation")
+    plt.title(title)
+    plt.show()
+
+def plot_multiple(datas_map_arr, titles, window_size=50):
+    plt.ioff()
+    sns.set()
+    fig, axes = plt.subplots(1, len(datas_map_arr), constrained_layout=True)
+    sns.set_theme(style="darkgrid")
+    print(len(datas_map_arr))
+
+    for i, datas_map in enumerate(datas_map_arr):
+        for key in datas_map:
+            x_label = "x"
+            y_label = "y"
+
+            df = pd.DataFrame({'x' : datas_map[key]['x'], 'y': datas_map[key]['y']})
+
+            # confidence interval stuff
+            df["avg"] = df[y_label].rolling(window=window_size, min_periods=1).mean()
+            movStd = df[y_label].rolling(window=window_size, min_periods=1).std()
+
+            confIntPos = df["avg"] + Z * movStd / np.sqrt(window_size)
+            confIntNeg = df["avg"] - Z * movStd / np.sqrt(window_size)
+
+            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y="avg", label=key)
+            axes[i].set_xlim(1,12000) # Limit graph to specific x value
+            axes[i].fill_between(df[x_label], confIntNeg, confIntPos, alpha=0.2)
+            
+        axes[i].set_title(titles[i])
+        axes[i].set_xlabel("Steps")
+        axes[i].set_ylabel("")
+
+        sns.move_legend(axes[i], "lower right")
+
+    axes[0].set_ylabel('Average Reward')
     plt.show()
 
 
-def plot_G_values(root_folder, title):
+def plot_G_values(folder1, folder2, folder3):
+    folders = []
+    datas_map_arr = []
+    titles = ["TD3 30-330", "SAC 30-330", "DDPG 30-330"]
+
+    parse_folder(folder1, folders)
+    parse_folder(folder2, folders)
+    parse_folder(folder3, folders)
+
+    for sub_dirs in folders:
+        datas_map = {}
+        for sub_dir in sub_dirs:
+            folder_name = os.path.basename(sub_dir)
+            splitted = folder_name.split("_")
+            algorithm = splitted[-2]
+
+            # Regex to extract G value at end
+            pattern = r"G\d+"
+            matches = re.findall(pattern, folder_name)
+
+            if matches:
+                g_val = matches[0][1:]
+            else:
+                g_val = "error"
+
+            step_file = f"{sub_dir}/data/{X_VALS_FILE_NAME}"
+            reward_file = f"{sub_dir}/data/{Y_VALS_FILE_NAME}"
+
+            key = algorithm + " G:" + g_val
+            datas_map[key] = { "x": [] , "y": []}
+            parse_step(step_file, datas_map[key]["x"])
+            parse_reward(reward_file, datas_map[key]["y"])
+
+        od = collections.OrderedDict(sorted(datas_map.items()))
+        datas_map_arr.append(od)
+    
+    plot_multiple(datas_map_arr, titles)
+    
+
+def plot_different_algorithms(folder1):
+    folders = []
+    datas_map_arr = []
+    titles = ["Valve Rotation 90", "Valve Rotation 90,180,270", "Valve Rotation 30-330"]
+
+    sub_dirs = [f.path for f in os.scandir(folder1) if f.is_dir()]
+    folder1.append(sub_dirs)
+
+    for sub_dirs in folders:
+        datas_map = {}
+        for sub_dir in sub_dirs:
+            folder_name = os.path.basename(sub_dir)
+            splitted = folder_name.split("_")
+            algorithm = splitted[-2]
+
+            step_file = f"{sub_dir}/data/{X_VALS_FILE_NAME}"
+            reward_file = f"{sub_dir}/data/{Y_VALS_FILE_NAME}"
+
+            datas_map[algorithm] = { "x": [] , "y": []}
+            parse_step(step_file, datas_map[algorithm]["x"])
+            parse_reward(reward_file, datas_map[algorithm]["y"])
+
+        od = collections.OrderedDict(sorted(datas_map.items()))
+        datas_map_arr.append(od)
+    
+    plot_multiple(datas_map_arr, titles)
+
+def plot_single(folder1, title, plot_type):
+
+    sub_dirs = [f.path for f in os.scandir(folder1) if f.is_dir()]
     datas_map = {}
-
-    sub_dirs = [f.path for f in os.scandir(root_folder) if f.is_dir()]
-
     for sub_dir in sub_dirs:
         folder_name = os.path.basename(sub_dir)
         splitted = folder_name.split("_")
         algorithm = splitted[-2]
 
-        # Regex to extract G value at end
-        pattern = r"G\d+"
-        matches = re.findall(pattern, folder_name)
+        if plot_type == "g_single":
+            # Regex to extract G value at end
+            pattern = r"G\d+"
+            matches = re.findall(pattern, folder_name)
 
-        if matches:
-            g_val = matches[0][1:]
+            if matches:
+                g_val = matches[0][1:]
+            else:
+                g_val = "error"
+
+            step_file = f"{sub_dir}/data/{X_VALS_FILE_NAME}"
+            reward_file = f"{sub_dir}/data/{Y_VALS_FILE_NAME}"
+            key = algorithm + " G:" + g_val
         else:
-            g_val = "error"
+            key = algorithm
 
         step_file = f"{sub_dir}/data/{X_VALS_FILE_NAME}"
         reward_file = f"{sub_dir}/data/{Y_VALS_FILE_NAME}"
 
-        key = algorithm + " G:" + g_val
         datas_map[key] = { "x": [] , "y": []}
         parse_step(step_file, datas_map[key]["x"])
         parse_reward(reward_file, datas_map[key]["y"])
 
     od = collections.OrderedDict(sorted(datas_map.items()))
-    plot_average(od)
-
-def plot_different_algorithms(root_folder, title):
-    datas_map = {}
-
-    sub_dirs = [f.path for f in os.scandir(root_folder) if f.is_dir()]
-    base_folder_name = os.path.basename(root_folder)
-    task = base_folder_name.split(" ")[0] # task name should be first word in space separated array
-
-    for sub_dir in sub_dirs:
-        folder_name = os.path.basename(sub_dir)
-        splitted = folder_name.split("_")
-        algorithm = splitted[-2]
-
-        step_file = f"{sub_dir}/data/{X_VALS_FILE_NAME}"
-        reward_file = f"{sub_dir}/data/{Y_VALS_FILE_NAME}"
-
-        datas_map[algorithm] = { "x": [] , "y": []}
-        parse_step(step_file, datas_map[algorithm]["x"])
-        parse_reward(reward_file, datas_map[algorithm]["y"])
-
-    od = collections.OrderedDict(sorted(datas_map.items()))
-    plot_average(od)
+    
+    plot_single_graph(od, title)
 
 # plot graphs with desired comparison type
 def main():
     args = parse_args()
     if (args.plot_type == "g"):
-        plot_G_values(args.root_folder, args.title)
-    elif (args.plot_type == "algorithm"):
-        plot_different_algorithms(args.root_folder, args.title)
+        plot_G_values(args.folder1, args.folder2, args.folder3)
+    elif (args.plot_type == "algorithms"):
+        plot_different_algorithms(args.folder1, args.folder2, args.folder3)
+    elif (args.plot_type == "g_single" or args.plot_type == "algorithms_single"):
+        plot_single(args.folder1, args.title, args.plot_type)
     else:
         raise ValueError("Invalid plot type")
 
