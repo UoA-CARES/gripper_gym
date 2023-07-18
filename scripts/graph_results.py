@@ -37,6 +37,13 @@ def parse_reward(reward_file, arr):
             data = float(line.strip())
             arr.append(data)
 
+def parse_success_rate(success_file, arr):
+    # parse success rate
+    with open(success_file, "r") as file:
+        for line in file:
+            data = float(line.strip())
+            arr.append(data)
+
 def parse_folder(folder, folders_arr):
     if folder:
         sub_dirs = [f.path for f in os.scandir(folder) if f.is_dir()]
@@ -49,7 +56,6 @@ def plot_single_graph(datas_map, title, window_size=50):
     sns.set_theme(style="darkgrid")
 
     for key in datas_map:
-        # if key == "SAC":
         x_label = "x"
         y_label = "y"
 
@@ -64,7 +70,7 @@ def plot_single_graph(datas_map, title, window_size=50):
 
         ax = sns.lineplot(data=df, x=x_label, y="avg", label=key)
 
-        ax.set_xlim(1,12000) # Limit graph to specific x value
+        # ax.set_xlim(1,12000) # Limit graph to specific x value
 
         ax.set(xlabel=x_label, ylabel="avg")
         plt.fill_between(df[x_label], confIntNeg, confIntPos, alpha=0.2)
@@ -212,6 +218,28 @@ def plot_single(folder1, title, plot_type):
     
     plot_single_graph(od, title)
 
+def plot_evaluation(folder1, title):
+    # sub_dirs = [f.path for f in os.scandir(folder1) if f.is_dir()]
+    datas_map = {}
+    folder_name = os.path.basename(folder1)
+    print(folder_name)
+    splitted = folder_name.split("_")
+    algorithm = splitted[-2]
+    print(algorithm)
+
+    step_file = f"{folder1}/data/{X_VALS_FILE_NAME}"
+    reward_file = f"{folder1}/data/{Y_VALS_FILE_NAME}"
+
+    key = algorithm
+
+    datas_map[key] = { "x": [] , "y": []}
+    parse_step(step_file, datas_map[key]["x"])
+    parse_reward(reward_file, datas_map[key]["y"])
+
+    od = collections.OrderedDict(sorted(datas_map.items()))
+    
+    plot_single_graph(od, title)
+
 # plot graphs with desired comparison type
 def main():
     args = parse_args()
@@ -221,6 +249,8 @@ def main():
         plot_different_algorithms(args.folder1, args.folder2, args.folder3)
     elif (args.plot_type == "g_single" or args.plot_type == "algorithms_single"):
         plot_single(args.folder1, args.title, args.plot_type)
+    elif (args.plot_type == "evaluation"):
+        plot_evaluation(args.folder1, args.title)
     else:
         raise ValueError("Invalid plot type")
 
