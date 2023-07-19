@@ -56,7 +56,7 @@ class Environment(ABC):
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
 
-        self.gripper.wiggle_home()
+        self.gripper.home()
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.object_marker_id = object_config.object_marker_id
@@ -83,7 +83,7 @@ class Environment(ABC):
     def reset(self):
         
         self.gripper.wiggle_home()  
-        self.target.reset_target_servo()
+        self.target.reset_target_servo() # only reset if using new servos
         state = self.get_state()
 
         logging.debug(state)

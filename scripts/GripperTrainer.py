@@ -140,7 +140,7 @@ class GripperTrainer():
         state = self.environment_reset() 
 
         max_steps_evaluation        = 1000
-        episode_horizont_evaluation = 5
+        episode_horizont_evaluation = 50
 
         for total_step_counter in range(max_steps_evaluation):
             episode_timesteps += 1
@@ -170,6 +170,8 @@ class GripperTrainer():
             if done or truncated or episode_timesteps >= episode_horizont_evaluation:
                 logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
+                state =  self.environment_reset() 
+
                 # --- Storing success data ---
                 if done:
                     rolling_success_rate.append(1)
@@ -196,26 +198,11 @@ class GripperTrainer():
                 rolling_steps_per_episode_average = sum(rolling_steps_per_episode)/len(rolling_steps_per_episode)
                 utils.store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
 
-                state =  self.environment_reset() 
-
                 episode_reward    = 0
                 episode_timesteps = 0
                 episode_num += 1
 
-                if episode_num % (self.plot_freq*10) == 0:
-                    utils.plot_data(self.file_path, "reward")
-                    utils.plot_data(self.file_path, "distance")
-
-                    utils.slack_post_plot(self.environment, slack_bot, self.file_path, plots)
-                    utils.slack_post_plot(self.environment, slack_bot, self.file_path, time_plots)
-
-
                 if episode_num % self.plot_freq == 0:
-                    utils.plot_data(self.file_path, "rolling_success_average")
-                    utils.plot_data(self.file_path, "rolling_reward_average")
-                    utils.plot_data(self.file_path, "rolling_steps_per_episode_average")
-                    utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
-
                     average_success_message = f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes\n"
                     average_reward_message = f"Average Reward: {rolling_reward_average} over last {success_window_size} episodes\n"
                     average_steps_per_episode_message = f"Average Steps Per Episode: {rolling_steps_per_episode_average} over last {steps_per_episode_window_size} episodes\n"
@@ -223,8 +210,6 @@ class GripperTrainer():
                     logging.info(f"\n{average_success_message}{average_reward_message}{average_steps_per_episode_message}")
                     slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {average_success_message}{average_reward_message}{average_steps_per_episode_message}")
 
-        utils.plot_data(self.file_path, plots)
-        utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
         self.environment.gripper.close()
 
     def train(self):
