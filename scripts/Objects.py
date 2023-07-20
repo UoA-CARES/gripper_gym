@@ -1,16 +1,27 @@
 import logging
-import time
 import random
-import threading
 from enum import Enum
 from time import sleep
-import numpy as np
+import dynamixel_sdk as dxl
+from functools import wraps
 
 from serial import Serial
 
 from configurations import ObjectConfig
 
 from cares_lib.dynamixel.Servo import Servo
+
+def exception_handler(error_message):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return function(self, *args, **kwargs)
+            except EnvironmentError as error:
+                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
+                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
+        return wrapper
+    return decorator
 
 class Command(Enum):
     GET_YAW = 0
@@ -61,12 +72,34 @@ class MagnetObject(object):
         pass
 
 class ServoObject(object):
-    def __init__(self, port_handler, packet_handler, servo_id, model) -> None:
+    def __init__(self, config : ObjectConfig, servo_id, model="XL330-M077-T") -> None:
+        self.device_name = config.device_name
         self.model = model
 
         self.min = 0
-        self.max = 4094 if self.model == "XL430-W250-T" else 1023
-        self.object_servo = Servo(port_handler, packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+        self.max = 1023
+        self.protocol = 2
+        self.baudrate = config.baudrate
+
+        self.port_handler = dxl.PortHandler(self.device_name)
+        self.packet_handler = dxl.PacketHandler(self.protocol)
+        self.setup_handlers()
+        self.servo_id = servo_id
+
+        self.object_servo = Servo(self.port_handler, self.packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+
+    def setup_handlers(self):
+        if not self.port_handler.openPort():
+            error_message = f"Failed to open port {self.device_name}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.info(f"Succeeded to open port {self.device_name}")
+
+        if not self.port_handler.setBaudRate(self.baudrate):
+            error_message = f"Failed to change the baudrate to {self.baudrate}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
 
     def get_yaw(self):
         current_position = self.object_servo.current_position()
@@ -78,4 +111,13 @@ class ServoObject(object):
     def reset(self):
         reset_home_position = random.randint(self.min, self.max)
         self.object_servo.move(reset_home_position)
+        self.object_servo.disable_torque()
+
+    @exception_handler("Failed while trying to reset target servo")
+    def reset_target_servo(self):
+        RESET_POSITION = 0
+
+        self.object_servo.enable_torque()
+        logging.info(f"Resetting Servo #{self.servo_id} to position: {RESET_POSITION}")
+        self.object_servo.move(RESET_POSITION)
         self.object_servo.disable_torque()

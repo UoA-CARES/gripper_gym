@@ -65,6 +65,7 @@ def wiggle_home(environment, slack_bot):
         warning_message = "Wiggle home failed"
         logging.warning(warning_message)
         slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
+        raise GripperError(warning_message)
         
 
 def get_frame(environment, slack_bot, file_path):
