@@ -113,7 +113,7 @@ class GripperTrainer():
             error_message = f"Failed to step environment with message: {error}"
             logging.error(error_message)
             if erh.handle_gripper_error_home(self.environment, error_message, slack_bot, self.file_path):
-                return [], 0, False, True
+                return [], 0, False, False # Truncated should be false to prevent skipping the entire episode
             else:
                 self.environment.gripper.close()
                 self.agent.save_models(self.file_name, self.file_path)

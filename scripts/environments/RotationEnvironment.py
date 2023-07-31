@@ -102,7 +102,7 @@ class RotationEnvironment(Environment):
     
     # overriding method 
     def reward_function(self, target_goal, yaw_before, yaw_after):
-        precision_tolerance = 5
+        precision_tolerance = 10
 
         if yaw_before is None: 
             logging.debug("Start Marker Pose is None")

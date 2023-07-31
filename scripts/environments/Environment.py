@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 import logging
 import random
+import time
 from functools import wraps
 from scipy.stats import trim_mean
 from pathlib import Path
@@ -56,7 +57,7 @@ class Environment(ABC):
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
 
-        self.gripper.home()
+        self.gripper.wiggle_home()
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.object_marker_id = object_config.object_marker_id
@@ -115,17 +116,29 @@ class Environment(ABC):
 
     @exception_handler("Failed to step")
     def step(self, action):
+        start = time.time()
         object_state_before = self.actual_object_state()
+        end = time.time()
+        logging.debug(f"Time to call actual_object_state: {end-start}")
+
+        logging.debug(f"state_before: {object_state_before}")
         
+        start = time.time()
         if self.action_type == "velocity":
             self.gripper.move_velocity(action, False)
+            time.sleep(2)
         else:
             self.gripper.move(action)
+        end = time.time()
+        logging.debug(f"Time to call move_velocity: {end-start}")
         
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
+        start = time.time()
         object_state_after = self.actual_object_state()
+        end = time.time()
+        logging.debug(f"Time to call actual_object_state after: {end-start}")
 
         logging.debug(f"New Object State: {object_state_after}")
 
