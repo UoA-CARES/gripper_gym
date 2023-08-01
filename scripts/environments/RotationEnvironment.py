@@ -93,12 +93,11 @@ class RotationEnvironment(Environment):
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal found, throw error
 
     # overriding method
-    def choose_goal(self):
-        object_state = self.actual_object_state() 
-
+    def choose_goal(self, home_pos):
+        # object_state = self.actual_object_state() 
         logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}") # Log selected goal
 
-        return self.get_goal_function(object_state)
+        return self.get_goal_function(home_pos)
     
     # overriding method 
     def reward_function(self, target_goal, yaw_before, yaw_after):

@@ -77,7 +77,7 @@ class ServoObject(object):
         self.model = model
 
         self.min = 0
-        self.max = 1023
+        self.max = 4095
         self.protocol = 2
         self.baudrate = config.baudrate
 
@@ -114,10 +114,8 @@ class ServoObject(object):
         self.object_servo.disable_torque()
 
     @exception_handler("Failed while trying to reset target servo")
-    def reset_target_servo(self):
-        RESET_POSITION = 0
-
+    def reset_target_servo(self, home_pos):
         self.object_servo.enable_torque()
-        logging.info(f"Resetting Servo #{self.servo_id} to position: {RESET_POSITION}")
-        self.object_servo.move(RESET_POSITION)
+        logging.info(f"Resetting Servo #{self.servo_id} to position: {home_pos}")
+        self.object_servo.move(home_pos)
         self.object_servo.disable_torque()

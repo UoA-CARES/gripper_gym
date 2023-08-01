@@ -18,6 +18,9 @@ from Objects import MagnetObject, ServoObject
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
 
+VALVE_SERVO_ID = 10
+SLEEP_TIME = 1.2 # in seconds
+
 def exception_handler(error_message):
     def decorator(function):
         @wraps(function)
@@ -40,8 +43,6 @@ class OBSERVATION_TYPE(Enum):
     ARUCO = 1
     SERVO_ARUCO = 2
     IMAGE = 3
-
-VALVE_SERVO_ID = 10
 
 class Environment(ABC):
     def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
@@ -80,18 +81,37 @@ class Environment(ABC):
 
         self.goal_state = self.actual_object_state()
 
+    def get_home_angle(self, home_pos):
+        angle_ratio = 4096/360
+        home_pos_angle = (home_pos/angle_ratio + 180) % 360 # 0 in decimal is 180 degrees so need to add offset
+        return home_pos_angle
+
     @exception_handler("Environment failed to reset")
     def reset(self):
-        
-        self.gripper.wiggle_home()  
-        self.target.reset_target_servo() # only reset if using new servos
+        self.gripper.wiggle_home()
         state = self.get_state()
 
         logging.debug(state)
 
-        # choose goal will crash if not home
-        self.goal_state = self.choose_goal()
+        # random home pos
+        home_pos = random.randint(0, 4095)
+        home_angle = self.get_home_angle(home_pos)
 
+        # choose goal will crash if not home
+        self.goal_state = self.choose_goal(home_angle)
+        self.goal_state = 0
+        home_angle = 355
+
+        # compare home and goal angles
+        while (self.rotation_min_difference(home_angle, self.goal_state) < 30):
+            logging.info(f"goal angle too close to target, goal: {self.goal_state}, home_angle: {home_angle}")
+            home_pos = random.randint(0, 4095)
+            home_angle = self.get_home_angle(home_pos)
+            self.goal_state = self.choose_goal(home_angle)
+
+        self.target.reset_target_servo(home_pos) # only reset if using new servos
+
+        logging.info(f"New Home Angle Generated: {home_angle}")
         logging.info(f"New Goal Generated: {self.goal_state}")
         return state
         
@@ -126,7 +146,7 @@ class Environment(ABC):
         start = time.time()
         if self.action_type == "velocity":
             self.gripper.move_velocity(action, False)
-            time.sleep(2)
+            time.sleep(SLEEP_TIME)
         else:
             self.gripper.move(action)
         end = time.time()
