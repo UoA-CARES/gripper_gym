@@ -19,7 +19,7 @@ from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
 
 VALVE_SERVO_ID = 10
-SLEEP_TIME = 1.2 # in seconds
+SLEEP_TIME = 0.5 # in seconds
 
 def exception_handler(error_message):
     def decorator(function):
@@ -99,8 +99,6 @@ class Environment(ABC):
 
         # choose goal will crash if not home
         self.goal_state = self.choose_goal(home_angle)
-        self.goal_state = 0
-        home_angle = 355
 
         # compare home and goal angles
         while (self.rotation_min_difference(home_angle, self.goal_state) < 30):

@@ -62,6 +62,8 @@ class GripperTrainer():
         self.noise_decay = learning_config.noise_decay
         self.noise_scale = learning_config.noise_scale
         self.algorithm = learning_config.algorithm
+
+        self.eval_freq = 10 # evaluate every 10 episodes
         
         if env_config.env_type == 0:
             self.environment = RotationEnvironment(env_config, gripper_config, object_config)
@@ -120,7 +122,57 @@ class GripperTrainer():
                 self.agent.save_models(self.file_name, self.file_path)
                 exit(1)
 
-    def evaluate(self, model_path):
+    def evaluation_loop(self, total_counter, file_name, historical_reward_evaluation):
+        max_steps_evaluation = 50
+        episode_timesteps    = 0
+        episode_reward       = 0
+        episode_num          = 0
+
+        state = self.environment_reset()
+        historical_episode_reward_evaluation = []
+
+        for total_step_counter in range(max_steps_evaluation):
+            episode_timesteps += 1
+            message = f"EVALUATION | Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
+            logging.info(message)
+
+            self.noise_scale *= self.noise_decay
+            self.noise_scale = max(self.min_noise, self.noise_scale)
+
+            if (self.algorithm == ALGORITHMS.TD3.value):
+                action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)  # returns a 1D array with range [-1, 1], only TD3 has noise scale
+            else:
+                action = self.agent.select_action_from_policy(state)
+
+            action_env = self.environment.denormalize(action)  # gripper range
+
+            next_state, reward, done, truncated = self.environment.step(action_env)
+
+            if self.environment.action_type == "velocity":
+                self.environment.step_gripper()
+
+            if not truncated:
+                logging.info(f"EVALUATION | Reward of this step:{reward}\n")
+                state = next_state
+                episode_reward += reward
+
+            if done or truncated or episode_timesteps >= max_steps_evaluation:
+                logging.info(f"EVALUATION | Eval Episode {episode_num + 1} was completed with {episode_timesteps} steps | Reward= {episode_reward:.3f}")
+                historical_episode_reward_evaluation.append(episode_reward)
+
+                state =  self.environment_reset()
+                episode_reward    = 0
+                episode_timesteps = 0
+                episode_num += 1
+
+        # at end of evaluation, save the data
+        mean_reward_evaluation = np.round(np.mean(historical_episode_reward_evaluation), 2)
+        historical_reward_evaluation["avg_episode_reward"].append(mean_reward_evaluation)
+        historical_reward_evaluation["step"].append(total_counter)
+        utils.save_evaluation_values(historical_reward_evaluation, file_name, self.file_path)
+        
+
+    def evaluate_at_end(self, model_path):
         logging.info("Starting Evaluation Loop")
 
         model_name = f"best_{os.path.basename(os.path.normpath(model_path))}"
@@ -169,7 +221,7 @@ class GripperTrainer():
                 episode_reward += reward
 
             if done or truncated or episode_timesteps >= episode_horizont_evaluation:
-                logging.info(f"Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
+                logging.info(f"EVALUATION | Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
 
                 state =  self.environment_reset() 
 
@@ -228,6 +280,12 @@ class GripperTrainer():
         rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
         plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average"]
         time_plots = ["reward_average_vs_time"]
+
+        historical_reward_evaluation = {"step": [], "avg_episode_reward": []}
+
+        # To store zero at the beginning
+        historical_reward_evaluation["step"].append(0)
+        historical_reward_evaluation["avg_episode_reward"].append(0)
         
         best_episode_reward = -np.inf
         previous_T_step = 0
@@ -269,9 +327,12 @@ class GripperTrainer():
             
             if self.environment.action_type == "velocity":
                 # time between this being called each loop...
-                self.environment.step_gripper()
-                logging.info(f"Time since step_gripper was last called: {time.time() - prev_time}")
-                prev_time = time.time()
+                try:
+                    self.environment.step_gripper()
+                    logging.info(f"Time since step_gripper was last called: {time.time() - prev_time}")
+                    prev_time = time.time()
+                except (EnvironmentError , GripperError):
+                    continue
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
@@ -349,6 +410,11 @@ class GripperTrainer():
                 episode_reward    = 0
                 episode_timesteps = 0
                 episode_num      += 1
+
+                if episode_num % self.eval_freq == 0:
+                    logging.info("*************--Evaluation Loop--*************")
+                    self.evaluation_loop(total_step_counter, self.file_name, historical_reward_evaluation)
+                    logging.info("--------------------------------------------")
 
                 if episode_num % (self.plot_freq*10) == 0:
                     utils.plot_data(self.file_path, "reward")

@@ -50,7 +50,7 @@ def main():
     file_path = utils.create_directories(local_results_path, file_path)
     gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, object_config, file_path)
     utils.store_configs(file_path, str(parent_path))
-    gripper_trainer.evaluate(args.evaluate_path)
+    gripper_trainer.evaluate_at_end(args.evaluate_path)
 
 
 if __name__ == '__main__':
