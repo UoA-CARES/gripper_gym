@@ -146,10 +146,13 @@ class GripperTrainer():
 
             action_env = self.environment.denormalize(action)  # gripper range
 
-            next_state, reward, done, truncated = self.environment.step(action_env)
+            next_state, reward, done, truncated = self.environment_step(action_env)
 
             if self.environment.action_type == "velocity":
-                self.environment.step_gripper()
+                try:
+                    self.environment.step_gripper()
+                except (EnvironmentError , GripperError):
+                    continue
 
             if not truncated:
                 logging.info(f"EVALUATION | Reward of this step:{reward}\n")
@@ -210,10 +213,13 @@ class GripperTrainer():
 
             action_env = self.environment.denormalize(action)  # gripper range
 
-            next_state, reward, done, truncated = self.environment.step(action_env)
+            next_state, reward, done, truncated = self.environment_step(action_env)
 
             if self.environment.action_type == "velocity":
-                self.environment.step_gripper()
+                try:
+                    self.environment.step_gripper()
+                except (EnvironmentError , GripperError):
+                    continue
             
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
