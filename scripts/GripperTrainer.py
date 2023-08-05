@@ -420,6 +420,7 @@ class GripperTrainer():
                 if episode_num % self.eval_freq == 0:
                     logging.info("*************--Evaluation Loop--*************")
                     self.evaluation_loop(total_step_counter, self.file_name, historical_reward_evaluation)
+                    state = self.environment_reset()  # reset env at end of evaluation before continuing
                     logging.info("--------------------------------------------")
 
                 if episode_num % (self.plot_freq*10) == 0:
