@@ -11,7 +11,7 @@ import pathlib
 
 Z = 1.960 # 95% confidence interval
 X_VALS_FILE_NAME = "steps_per_episode.txt"
-Y_VALS_FILE_NAME = "reward.txt"
+Y_VALS_FILE_NAME = "success_list.txt"
 X_LIMIT = 30000
 
 def parse_args():
@@ -83,7 +83,7 @@ def plot_single_graph(datas_map, title, window_size=50):
     plt.title(title)
     plt.show()
 
-def plot_multiple(datas_map_arr, titles, window_size=20):
+def plot_algo_compare(datas_map_arr, titles, window_size=20):
     plt.ioff()
     sns.set()
     fig, axes = plt.subplots(1, len(datas_map_arr), constrained_layout=True)
@@ -117,6 +117,39 @@ def plot_multiple(datas_map_arr, titles, window_size=20):
     axes[0].set_ylabel('Average Reward')
     plt.show()
 
+def plot_success_rate(datas_map_arr, titles, window_size=100):
+    plt.ioff()
+    sns.set()
+    fig, axes = plt.subplots(1, len(datas_map_arr), constrained_layout=True)
+    sns.set_theme(style="darkgrid")
+
+    for i, datas_map in enumerate(datas_map_arr):
+        for key in datas_map:
+            x_label = "x"
+            y_label = "y"
+
+            df = pd.DataFrame({'x' : datas_map[key]['x'], 'y': datas_map[key]['y']})
+
+            # confidence interval stuff
+            df["avg"] = df[y_label].rolling(window=window_size, min_periods=1).mean()
+            movStd = df[y_label].rolling(window=window_size, min_periods=1).std()
+
+            confIntPos = df["avg"] + Z * movStd / np.sqrt(window_size)
+            confIntNeg = df["avg"] - Z * movStd / np.sqrt(window_size)
+
+            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y="avg", label=key)
+            axes[i].set_xlim(1,X_LIMIT) # Limit graph to specific x value
+            axes[i].fill_between(df[x_label], confIntNeg, confIntPos, alpha=0.2)
+            
+        axes[i].set_title(titles[i])
+        axes[i].set_xlabel("Steps")
+        axes[i].set_ylabel("")
+        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0,0))  # Set x-axis tick labels in scientific notation
+
+        sns.move_legend(axes[i], "lower right")
+
+    axes[0].set_ylabel('Success Rate')
+    plt.show()
 
 # def plot_G_values(folder1, folder2, folder3):
 #     folders = []
@@ -200,21 +233,20 @@ def plot_evals(dataframes, titles):
             x_label = "step"
             y_label = "avg_episode_reward"
 
-            # confidence interval stuff
-
             axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y=y_label, label=key)
             axes[i].set_xlim(1,X_LIMIT) # Limit graph to specific x value
             
         axes[i].set_title(titles[i])
         axes[i].set_xlabel("Steps")
         axes[i].set_ylabel("")
+        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0,0))  # Set x-axis tick labels in scientific notation
 
         sns.move_legend(axes[i], "lower right")
 
     axes[0].set_ylabel('Average Reward')
     plt.show()
 
-def plot_different_algorithms(folder1):
+def plot_different_algorithms(folder1, success_rate):
     datas_map_arr = []
     titles = []
 
@@ -241,7 +273,10 @@ def plot_different_algorithms(folder1):
         task = splitted[-1]
         titles.append(f"{task}")
     
-    plot_multiple(datas_map_arr, titles)
+    if (success_rate):
+        plot_success_rate(datas_map_arr, titles)
+    else:
+        plot_algo_compare(datas_map_arr, titles)
 
 def plot_single(folder1, title, plot_type):
 
@@ -305,7 +340,9 @@ def main():
     # if (args.plot_type == "g"):
     #     plot_G_values(args.folder1, args.folder2, args.folder3)
     if (args.plot_type == "algorithms"):
-        plot_different_algorithms(args.folder1)
+        plot_different_algorithms(args.folder1, success_rate=False)
+    if (args.plot_type == "success"):
+        plot_different_algorithms(args.folder1, success_rate=True)
     elif (args.plot_type == "g_single" or args.plot_type == "algorithms_single"):
         plot_single(args.folder1, args.title, args.plot_type)
     elif (args.plot_type == "post_training_evaluation"):
