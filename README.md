@@ -2,6 +2,17 @@
 
 This repository contains the code used to control and test the grippers (Two-finger and Three-Finger) currently being designed and used in the CARES lab at UOA. 
 While being written for this specific system, it also intends to be applicable to many dynamixel servo systems with minor changes to the code.   
+
+Visualisation of the gripper learning to rotate the valve 90 degrees is shown below:
+<div style="display: flex; flex-wrap: wrap; ">
+  <div style="display: flex; flex-direction: column; align-items: center"><img src="readme_wiki_media/exploration_phase_final.gif" alt="Gif 1" width="200" height="auto" style="margin: 5px;" float="none"/><p>Exploration Phase</p></div>
+
+  <div style="display: flex; flex-direction: column; align-items: center"><img src="readme_wiki_media/during_training_final.gif" alt="Gif 1" width="200" height="auto" style="margin: 5px;" float="none"/><p>During Training</p></div>
+
+  <div style="display: flex; flex-direction: column; align-items: center"><img src="readme_wiki_media/trained_policy_final.gif" alt="Gif 1" width="200" height="auto" style="margin: 5px;" float="none"/><p>Final Policy</p></div>
+</div>
+
+
  
 ## Installation
 
