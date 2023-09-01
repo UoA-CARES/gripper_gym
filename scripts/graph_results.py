@@ -220,7 +220,7 @@ def plot_training_evaluation(root_folder):
 
     plot_evals(dataframes, titles)
 
-def plot_evals(dataframes, titles):
+def plot_evals(dataframes, titles, window_size=20):
     plt.ioff()
     sns.set()
     fig, axes = plt.subplots(1, len(dataframes), constrained_layout=True)
@@ -233,8 +233,16 @@ def plot_evals(dataframes, titles):
             x_label = "step"
             y_label = "avg_episode_reward"
 
-            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y=y_label, label=key)
+            # confidence interval stuff
+            df["avg"] = df[y_label].rolling(window=window_size, min_periods=1).mean()
+            movStd = df[y_label].rolling(window=window_size, min_periods=1).std()
+
+            confIntPos = df["avg"] + Z * movStd / np.sqrt(window_size)
+            confIntNeg = df["avg"] - Z * movStd / np.sqrt(window_size)
+
+            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y="avg", label=key)
             axes[i].set_xlim(1,X_LIMIT) # Limit graph to specific x value
+            axes[i].fill_between(df[x_label], confIntNeg, confIntPos, alpha=0.2)
             
         axes[i].set_title(titles[i])
         axes[i].set_xlabel("Steps")
