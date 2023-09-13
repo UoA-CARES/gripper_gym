@@ -4,14 +4,23 @@ This repository contains the code used to control and test the grippers (Two-fin
 While being written for this specific system, it also intends to be applicable to many dynamixel servo systems with minor changes to the code.   
 
 Visualisation of the gripper learning to rotate the valve 90 degrees is shown below:
+
+<style>
+table th:first-of-type {
+    width: 33%;
+}
+table th:nth-of-type(2) {
+    width: 33%;
+}
+table th:nth-of-type(3) {
+    width: 33%;
+}
+</style>
+
 | Exploration Phase                   | During Training                     | Final Policy                                |
 | ----------------------------------- | ----------------------------------- | ------------------------------------------- |
 | ![explore](readme_wiki_media/exploration_phase_final.gif) | ![during](readme_wiki_media/during_training_final.gif) | ![final](readme_wiki_media/trained_policy_final.gif) |
 
-
-
-
- 
 ## Installation
 
 `git clone` the repository
