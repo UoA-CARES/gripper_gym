@@ -12,7 +12,7 @@ file_path = Path(__file__).parent.resolve()
 
 from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
 from Gripper import Gripper
-from Objects import MagnetObject, ServoObject
+from Objects import MagnetObject, ServoObject, ArucoObject
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
@@ -68,9 +68,10 @@ class Environment(ABC):
             for i in range(0, 10):
                 aruco_yaws.append(self.observed_object_state(marker_only=True)[2])
             aruco_yaw = trim_mean(aruco_yaws, 0.1)
-
         self.object_type = object_config.object_type
-        if self.object_type == "magnet":
+        if self.object_type == "aruco":
+            self.target = ArucoObject(self.camera, self.aruco_detector, object_config.object_marker_id)
+        elif self.object_type == "magnet":
             self.target = MagnetObject(object_config, aruco_yaw)
         elif self.object_type == "servo":
             self.target = ServoObject(object_config, VALVE_SERVO_ID)

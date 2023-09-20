@@ -144,7 +144,7 @@ class GripperTrainer():
 
         for total_step_counter in range(max_steps_evaluation):
             episode_timesteps += 1
-            message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
+            message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter}"
             logging.info(message)
 
             self.noise_scale *= self.noise_decay
@@ -251,7 +251,7 @@ class GripperTrainer():
                 self.noise_scale = max(self.min_noise, self.noise_scale)
                 # logging.info(f"Noise Scale:{self.noise_scale}")
 
-                message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
+                message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter}"
                 logging.info(message)
 
                 if (self.algorithm == ALGORITHMS.TD3.value):
@@ -264,7 +264,7 @@ class GripperTrainer():
             env_start = time.time()
             next_state, reward, done, truncated = self.environment_step(action_env)
             env_end = time.time()
-            logging.info(f"time to execute environment_step: {env_end-env_start}")
+            logging.debug(f"time to execute environment_step: {env_end-env_start}")
             
             if self.environment.action_type == "velocity":
                 # time between this being called each loop...
@@ -294,7 +294,7 @@ class GripperTrainer():
                             experiences['done']
                         ))
                 end = time.time()
-                logging.info(f"Time to run training loop {end-start} \n")
+                logging.debug(f"Time to run training loop {end-start} \n")
 
                 if episode_reward > best_episode_reward:
                     best_episode_reward = episode_reward
