@@ -5,7 +5,7 @@ logging.basicConfig(level=logging.INFO)
 from cares_lib.dynamixel.Servo import DynamixelServoError
 from pytimedinput import timedInput
 from environments.Environment import EnvironmentError
-from Gripper import GripperError
+from cares_lib.gripper.Gripper import GripperError
 from tools.utils import slack_post_plot
 import cv2
 

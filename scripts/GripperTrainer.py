@@ -15,7 +15,7 @@ from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 
 from environments.Environment import EnvironmentError
-from Gripper import GripperError
+from cares_lib.gripper.Gripper import GripperError
 
 from networks import NetworkFactory
 from cares_reinforcement_learning.memory import MemoryBuffer
@@ -278,6 +278,8 @@ class GripperTrainer():
                 self.memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
 
                 state = next_state
+
+                print(state)
 
                 episode_reward += reward
 

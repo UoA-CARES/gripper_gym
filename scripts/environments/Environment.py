@@ -11,7 +11,7 @@ import numpy as np
 file_path = Path(__file__).parent.resolve()
 
 from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
-from Gripper import Gripper
+from cares_lib.gripper.Gripper import Gripper
 from Objects import MagnetObject, ServoObject, ArucoObject
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
@@ -171,7 +171,7 @@ class Environment(ABC):
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=False)
+                                                                self.camera.camera_distortion, display=True)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
