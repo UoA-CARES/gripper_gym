@@ -279,8 +279,6 @@ class GripperTrainer():
 
                 state = next_state
 
-                print(state)
-
                 episode_reward += reward
 
                 # Regardless if velocity or position based, train every step

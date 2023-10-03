@@ -149,3 +149,13 @@ class RotationEnvironment(Environment):
             done = True
 
         return reward, done
+    
+    def ep_final_distance(self):
+        return self.rotation_min_difference(self.goal_state, self.actual_object_state())
+    
+    def rotation_min_difference(self, a, b):
+        return min(abs(a - b), (360+min(a, b) - max(a, b)))
+    
+    def add_goal(self, state):
+        state.append(self.goal_state)
+        return state

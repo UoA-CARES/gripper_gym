@@ -7,6 +7,7 @@ from scipy.stats import trim_mean
 from pathlib import Path
 from enum import Enum
 import numpy as np
+import cv2
 
 file_path = Path(__file__).parent.resolve()
 
@@ -116,7 +117,10 @@ class Environment(ABC):
 
     @exception_handler("Failed to step")
     def step(self, action):
-        object_state_before = self.actual_object_state()
+        if self.object_observation_mode == "observed":
+            object_state_before = self.observed_object_state()
+        elif self.object_observation_mode == "actual":
+            object_state_before = self.actual_object_state()
         
         if self.action_type == "velocity":
             self.gripper.move_velocity(action, False)
@@ -126,7 +130,10 @@ class Environment(ABC):
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        object_state_after = self.actual_object_state()
+        if self.object_observation_mode == "observed":
+            object_state_after = self.observed_object_state()
+        elif self.object_observation_mode == "actual":
+            object_state_after = self.actual_object_state()
 
         logging.debug(f"New Object State: {object_state_after}")
 
@@ -155,7 +162,7 @@ class Environment(ABC):
         elif self.object_observation_mode == "actual":
             state += self.actual_object_state(yaw_only=False)
 
-        state.append(self.goal_state)
+        state = self.add_goal(state)
 
         return state 
 
@@ -189,7 +196,7 @@ class Environment(ABC):
         # Add the additional yaw information from the object marker (adds to the end)
         state[-1:] = [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
-        state.append(self.goal_state)
+        state = self.add_goal(state)
 
         return state
 
@@ -204,7 +211,7 @@ class Environment(ABC):
         state += servo_state_space
         state += aruco_state_space
 
-        state.append(self.goal_state)
+        state = self.add_goal(state)
 
         return state
 
@@ -307,12 +314,31 @@ class Environment(ABC):
                 servo_max_value = self.gripper.max_values[i]
             action_norm[i]  = (action_gripper[i] - servo_min_value) * (max_range_value - min_range_value) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
-
-    def ep_final_distance(self):
-        return self.rotation_min_difference(self.goal_state, self.actual_object_state())
     
-    def rotation_min_difference(self, a, b):
-        return min(abs(a - b), (360+min(a, b) - max(a, b)))
+    def env_render(self, done=False, step=1, episode=1, mode="Exploration"):
+        image = self.camera.get_frame()
+        color = (0, 255, 0)
+        if done:
+            color = (0, 0, 255)
+
+        target = (int(self.goal_pixel[0]), int(self.goal_pixel[1]))
+        text_in_target = (int(self.goal_pixel[0]) - 15, int(self.goal_pixel[1]) + 3)
+        cv2.circle(image, target, 18, color, -1)
+        cv2.putText(image, 'Target', text_in_target, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Episode : {str(episode)}', (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Steps : {str(step)}', (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Success Counter : {str(self.counter_success)}', (400, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Stage : {mode}', (900, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
+
+    @abstractmethod
+    def ep_final_distance(self):
+        pass
+
+    @abstractmethod
+    def add_goal(self, state):
+        pass
     
     @abstractmethod
     def choose_goal(self):
