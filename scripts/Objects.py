@@ -86,7 +86,7 @@ class ArucoObject(object):
         self.aruco_detector = aruco_detector
         self.object_marker_id = object_marker_id
     
-    def get_yaw(self, blindable=False, detection_attempts=4):
+    def get_yaw(self, blindable=False, detection_attempts=10):
         attempt = 0
         while not blindable or attempt < detection_attempts: 
             attempt += 1

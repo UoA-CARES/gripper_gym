@@ -5,17 +5,18 @@ import numpy as np
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
+from configurations import EnvironmentConfig, ObjectConfig
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 
 class TranslationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
-        self.goal_state = self.observed_object_state()
+        self.goal_state = self.get_object_state()
 
    # overriding method
     def choose_goal(self):
-        position = self.observed_object_state()[0:2]
+        position = self.get_object_state()[0:2]
         position[0] = np.random.randint(225,450)
         position[1] = np.random.randint(150,225)
 
@@ -60,7 +61,7 @@ class TranslationEnvironment(Environment):
         return reward, done
     
     def ep_final_distance(self):
-        return np.linalg.norm(np.array(self.goal_state) - np.array(self.observed_object_state()[0:2]))
+        return np.linalg.norm(np.array(self.goal_state) - np.array(self.get_object_state()[0:2]))
     
     def add_goal(self, state):
         state.append(self.goal_state[0])

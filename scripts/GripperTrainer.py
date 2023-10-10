@@ -15,7 +15,7 @@ from environments.RotationEnvironment import RotationEnvironment
 from environments.TranslationEnvironment import TranslationEnvironment
 
 from environments.Environment import EnvironmentError
-from cares_lib.gripper.Gripper import GripperError
+from cares_lib.dynamixel.Gripper import GripperError
 
 from networks import NetworkFactory
 from cares_reinforcement_learning.memory import MemoryBuffer
@@ -62,6 +62,8 @@ class GripperTrainer():
         self.noise_decay = learning_config.noise_decay
         self.noise_scale = learning_config.noise_scale
         self.algorithm = learning_config.algorithm
+
+        self.action_type = gripper_config.action_type
         
         if env_config.env_type == 0:
             self.environment = RotationEnvironment(env_config, gripper_config, object_config)
@@ -159,7 +161,7 @@ class GripperTrainer():
 
             next_state, reward, done, truncated = self.environment.step(action_env)
 
-            if self.environment.action_type == "velocity":
+            if self.action_type == "velocity":
                 self.environment.step_gripper()
             
             if not truncated:
@@ -266,7 +268,7 @@ class GripperTrainer():
             env_end = time.time()
             logging.debug(f"time to execute environment_step: {env_end-env_start}")
             
-            if self.environment.action_type == "velocity":
+            if self.action_type == "velocity":
                 # time between this being called each loop...
                 self.environment.step_gripper()
                 logging.info(f"Time since step_gripper was last called: {time.time() - prev_time}")

@@ -9,9 +9,9 @@ file_path = Path(__file__).parent.resolve()
 
 import time
 
-from Gripper import Gripper, GripperError
-from configurations import GripperConfig
-from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, ControlMode
+from cares_lib.dynamixel.Gripper import Gripper, GripperError
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, OperatingMode
 
 import dynamixel_sdk as dxl
 

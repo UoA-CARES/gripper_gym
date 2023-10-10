@@ -11,8 +11,9 @@ import cv2
 
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
-from cares_lib.gripper.Gripper import Gripper
+from configurations import EnvironmentConfig, ObjectConfig
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.dynamixel.Gripper import Gripper
 from Objects import MagnetObject, ServoObject, ArucoObject
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
@@ -50,7 +51,8 @@ class Environment(ABC):
         self.camera  = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
 
         self.observation_type = env_config.observation_type
-        self.action_type = env_config.action_type
+        self.action_type = gripper_config.action_type
+        self.servo_type = gripper_config.servo_type
 
         self.blindable = env_config.blindable
 
@@ -117,23 +119,17 @@ class Environment(ABC):
 
     @exception_handler("Failed to step")
     def step(self, action):
-        if self.object_observation_mode == "observed":
-            object_state_before = self.observed_object_state()
-        elif self.object_observation_mode == "actual":
-            object_state_before = self.actual_object_state()
+        object_state_before = self.get_object_state() 
         
         if self.action_type == "velocity":
-            self.gripper.move_velocity(action, False)
+            self.gripper.move_velocity_joint(action)
         else:
             self.gripper.move(action)
         
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        if self.object_observation_mode == "observed":
-            object_state_after = self.observed_object_state()
-        elif self.object_observation_mode == "actual":
-            object_state_after = self.actual_object_state()
+        object_state_after = self.get_object_state()
 
         logging.debug(f"New Object State: {object_state_after}")
 
@@ -155,12 +151,10 @@ class Environment(ABC):
 
         if self.action_type == "velocity":
             state += gripper_state["velocities"]
-            state += gripper_state["loads"]
+            if self.servo_type == "XL-320":
+                state += gripper_state["loads"]
 
-        if self.object_observation_mode == "observed":
-            state += self.observed_object_state()
-        elif self.object_observation_mode == "actual":
-            state += self.actual_object_state(yaw_only=False)
+        state += self.get_object_state(yaw_only=False)
 
         state = self.add_goal(state)
 
@@ -247,7 +241,7 @@ class Environment(ABC):
                 return marker_poses[self.object_marker_id]
         return None
     
-    def observed_object_state(self, marker_only=False):
+    def observed_object_state(self, marker_only=True):
         object_state = self.get_aruco_object_pose(blindable=self.blindable, detection_attempts=5)
         if object_state is not None:
             state = []
@@ -273,6 +267,14 @@ class Environment(ABC):
             angle_offsets = [0, 90, 180, 270]
             state += self.get_object_ends_pose(yaw, angle_offsets)
             return state
+        
+    def get_object_state(self, marker_only=True, yaw_only=True):
+        if self.object_observation_mode == "observed":
+            return self.observed_object_state(marker_only)
+        elif self.object_observation_mode == "actual":
+            return self.actual_object_state(yaw_only)
+        else:
+            raise ValueError("Object Observation Mode unknown")
             
     def get_object_ends_pose(self, center_yaw, angle_offsets, center_x = 0, center_y = 0):
         object_ends = [0]*8
