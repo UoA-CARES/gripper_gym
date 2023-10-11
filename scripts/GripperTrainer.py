@@ -161,8 +161,6 @@ class GripperTrainer():
 
             next_state, reward, done, truncated = self.environment.step(action_env)
 
-            if self.action_type == "velocity":
-                self.environment.step_gripper()
             
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
@@ -267,12 +265,6 @@ class GripperTrainer():
             next_state, reward, done, truncated = self.environment_step(action_env)
             env_end = time.time()
             logging.debug(f"time to execute environment_step: {env_end-env_start}")
-            
-            if self.action_type == "velocity":
-                # time between this being called each loop...
-                self.environment.step_gripper()
-                logging.info(f"Time since step_gripper was last called: {time.time() - prev_time}")
-                prev_time = time.time()
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")

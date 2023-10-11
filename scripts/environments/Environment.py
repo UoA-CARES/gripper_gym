@@ -55,6 +55,7 @@ class Environment(ABC):
         self.servo_type = gripper_config.servo_type
 
         self.blindable = env_config.blindable
+        self.env_type = env_config.env_type
 
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
@@ -171,24 +172,22 @@ class Environment(ABC):
         while True:
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=True)
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
                 break
 
-        # order the markers by ID
-        marker_poses = dict(sorted(marker_poses.items()))
-
-        # Add the XY poses for each of the markers into the state
-        for _, marker_pose in marker_poses.items():
+        # Add the XY poses for each of the markers in marker id into the state
+        for id in marker_ids:
+            marker_pose = marker_poses[id]
             position = marker_pose["position"]
             state.append(position[0])  # X
             state.append(position[1])  # Y
 
-        # Add the additional yaw information from the object marker (adds to the end)
-        state[-1:] = [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
+        if self.env_type == 0:
+            # Add the additional yaw information from the object marker
+            state += [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
         state = self.add_goal(state)
 
