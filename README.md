@@ -17,6 +17,39 @@ Create local directory for gripper local storage, copy and paste the config_exam
 
 Consult the repository [wiki](https://github.com/UoA-CARES/Gripper-Code/wiki) for a guide on how to use the package
 
+## Graphing
+The `graph_results.py` file contains utility functions for graphing benchmarking results. You can use it to visualise data from different files based on specific plot types. Here are the supported values for the `plot_type` parameter:
+
+- `reward`: Plots the data from the `reward.txt` file over a moving window of size 20.
+- `success_rate`: Plots the data from the `success_list.txt` file over a moving window of size 100.
+- `training_evaluation`: Plots data from the evaluation episode, occurring every 10 training episodes, over a moving window of size 20.
+
+### Instructions
+1. Organise your data into a folder structure similar to the following:
+
+```
+folder_path/
+├─ training/
+│  ├─ 1_90/
+│  │  ├─ 08_07_16_58_RobotId2_EnvType0_ObsTypeservo_Seed1_SAC/
+│  │  ├─ 08_07_16_58_RobotId4_EnvType0_ObsTypeservo_Seed10_DDPG/
+│  │  ├─ 09_11_10_09_RobotId2_EnvType0_ObsTypeservo_Seed10_TD3/
+│  ├─ 2_90,180,270/
+│  │  ├─ ...
+│  ├─ 3_30-330/
+│  │  ├─ ...
+├─ eval/
+│  ├─ 1_90/
+│  │  ├─ ...
+│  ├─ 2_90,180,270/
+│  │  ├─ ...
+│  ├─ 3_30-330/
+│  │  ├─ ...
+```
+2. From the `scripts` directory, run the command `python3 graph_results.py --path folder_path --plot_type plot_type`.
+
+3. The resulting graph will be saved in the `graphs` folder located in the root directory.
+
 ## Hardware Setup 
 The current setup uses Dynamixel XL-320 servo motors (4 for Two-Finger and 9 for Three-Finger Gripper), which are being controlled using a [U2D2](https://emanual.robotis.com/docs/en/parts/interface/u2d2/). 
 Below is an example of the wiring setup for the three-fingered gripper. This is easily changed for other configurations, with a maximum of 4 daisy chains coming from the U2D2. 
