@@ -8,12 +8,14 @@ from scipy.stats import trim_mean
 from pathlib import Path
 from enum import Enum
 import numpy as np
+import cv2
 
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
-from Gripper import Gripper
-from Objects import MagnetObject, ServoObject
+from configurations import EnvironmentConfig, ObjectConfig
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.dynamixel.Gripper import Gripper
+from Objects import MagnetObject, ServoObject, ArucoObject
 
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
@@ -51,9 +53,11 @@ class Environment(ABC):
         self.camera  = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
 
         self.observation_type = env_config.observation_type
-        self.action_type = env_config.action_type
+        self.action_type = gripper_config.action_type
+        self.servo_type = gripper_config.servo_type
 
         self.blindable = env_config.blindable
+        self.env_type = env_config.env_type
 
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
@@ -70,9 +74,10 @@ class Environment(ABC):
             for i in range(0, 10):
                 aruco_yaws.append(self.observed_object_state(marker_only=True)[2])
             aruco_yaw = trim_mean(aruco_yaws, 0.1)
-
         self.object_type = object_config.object_type
-        if self.object_type == "magnet":
+        if self.object_type == "aruco":
+            self.target = ArucoObject(self.camera, self.aruco_detector, object_config.object_marker_id)
+        elif self.object_type == "magnet":
             self.target = MagnetObject(object_config, aruco_yaw)
         elif self.object_type == "servo":
             self.target = ServoObject(object_config, VALVE_SERVO_ID)
@@ -134,17 +139,11 @@ class Environment(ABC):
 
     @exception_handler("Failed to step")
     def step(self, action):
-        start = time.time()
-        object_state_before = self.actual_object_state()
-        end = time.time()
-        logging.debug(f"Time to call actual_object_state: {end-start}")
-
-        logging.debug(f"state_before: {object_state_before}")
+        object_state_before = self.get_object_state() 
         
         start = time.time()
         if self.action_type == "velocity":
-            self.gripper.move_velocity(action, False)
-            time.sleep(SLEEP_TIME)
+            self.gripper.move_velocity_joint(action)
         else:
             self.gripper.move(action)
         end = time.time()
@@ -153,10 +152,7 @@ class Environment(ABC):
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        start = time.time()
-        object_state_after = self.actual_object_state()
-        end = time.time()
-        logging.debug(f"Time to call actual_object_state after: {end-start}")
+        object_state_after = self.get_object_state()
 
         logging.debug(f"New Object State: {object_state_after}")
 
@@ -178,14 +174,12 @@ class Environment(ABC):
 
         if self.action_type == "velocity":
             state += gripper_state["velocities"]
-            state += gripper_state["loads"]
+            if self.servo_type == "XL-320":
+                state += gripper_state["loads"]
 
-        if self.object_observation_mode == "observed":
-            state += self.observed_object_state()
-        elif self.object_observation_mode == "actual":
-            state += self.actual_object_state(yaw_only=False)
+        state += self.get_object_state(yaw_only=False)
 
-        state.append(self.goal_state)
+        state = self.add_goal(state)
 
         return state 
 
@@ -200,26 +194,24 @@ class Environment(ABC):
         while True:
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=False)
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
                 break
 
-        # order the markers by ID
-        marker_poses = dict(sorted(marker_poses.items()))
-
-        # Add the XY poses for each of the markers into the state
-        for _, marker_pose in marker_poses.items():
+        # Add the XY poses for each of the markers in marker id into the state
+        for id in marker_ids:
+            marker_pose = marker_poses[id]
             position = marker_pose["position"]
             state.append(position[0])  # X
             state.append(position[1])  # Y
 
-        # Add the additional yaw information from the object marker (adds to the end)
-        state[-1:] = [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
+        if self.env_type == 0:
+            # Add the additional yaw information from the object marker
+            state += [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
-        state.append(self.goal_state)
+        state = self.add_goal(state)
 
         return state
 
@@ -234,7 +226,7 @@ class Environment(ABC):
         state += servo_state_space
         state += aruco_state_space
 
-        state.append(self.goal_state)
+        state = self.add_goal(state)
 
         return state
 
@@ -270,7 +262,7 @@ class Environment(ABC):
                 return marker_poses[self.object_marker_id]
         return None
     
-    def observed_object_state(self, marker_only=False):
+    def observed_object_state(self, marker_only=True):
         object_state = self.get_aruco_object_pose(blindable=self.blindable, detection_attempts=5)
         if object_state is not None:
             state = []
@@ -296,6 +288,14 @@ class Environment(ABC):
             angle_offsets = [0, 90, 180, 270]
             state += self.get_object_ends_pose(yaw, angle_offsets)
             return state
+        
+    def get_object_state(self, marker_only=True, yaw_only=True):
+        if self.object_observation_mode == "observed":
+            return self.observed_object_state(marker_only)
+        elif self.object_observation_mode == "actual":
+            return self.actual_object_state(yaw_only)
+        else:
+            raise ValueError("Object Observation Mode unknown")
             
     def get_object_ends_pose(self, center_yaw, angle_offsets, center_x = 0, center_y = 0):
         object_ends = [0]*8
@@ -337,12 +337,31 @@ class Environment(ABC):
                 servo_max_value = self.gripper.max_values[i]
             action_norm[i]  = (action_gripper[i] - servo_min_value) * (max_range_value - min_range_value) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
-
-    def ep_final_distance(self):
-        return self.rotation_min_difference(self.goal_state, self.actual_object_state())
     
-    def rotation_min_difference(self, a, b):
-        return min(abs(a - b), (360+min(a, b) - max(a, b)))
+    def env_render(self, done=False, step=1, episode=1, mode="Exploration"):
+        image = self.camera.get_frame()
+        color = (0, 255, 0)
+        if done:
+            color = (0, 0, 255)
+
+        target = (int(self.goal_pixel[0]), int(self.goal_pixel[1]))
+        text_in_target = (int(self.goal_pixel[0]) - 15, int(self.goal_pixel[1]) + 3)
+        cv2.circle(image, target, 18, color, -1)
+        cv2.putText(image, 'Target', text_in_target, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Episode : {str(episode)}', (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Steps : {str(step)}', (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Success Counter : {str(self.counter_success)}', (400, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Stage : {mode}', (900, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
+
+    @abstractmethod
+    def ep_final_distance(self):
+        pass
+
+    @abstractmethod
+    def add_goal(self, state):
+        pass
     
     @abstractmethod
     def choose_goal(self):

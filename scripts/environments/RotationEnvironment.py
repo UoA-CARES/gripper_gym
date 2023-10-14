@@ -7,7 +7,8 @@ from enum import Enum
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, GripperConfig, ObjectConfig
+from configurations import EnvironmentConfig, ObjectConfig
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 class REWARD_CONSTANTS(Enum):
     MAX_REWARD = 10
@@ -72,6 +73,7 @@ def relative_goal_90_180_270(object_current_pose):
 class RotationEnvironment(Environment):
     def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
+        self.object_observation_mode = object_config.object_observation_mode
 
     def get_goal_function(self, object_state):
         # Determine which function to call based on passed in goal int value
@@ -93,8 +95,11 @@ class RotationEnvironment(Environment):
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}") # No matching goal found, throw error
 
     # overriding method
-    def choose_goal(self, home_pos):
-        # object_state = self.actual_object_state() 
+    def choose_goal(self):
+        object_state = self.get_object_state() 
+        if self.object_observation_mode == "observed":
+            object_state = object_state[-1]
+
         logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}") # Log selected goal
 
         return self.get_goal_function(home_pos)
@@ -113,8 +118,12 @@ class RotationEnvironment(Environment):
         
         done = False
 
-        yaw_before_rounded = round(yaw_before)
-        yaw_after_rounded = round(yaw_after)
+        if self.object_observation_mode == "observed":
+            yaw_before_rounded = round(yaw_before[-1])
+            yaw_after_rounded = round(yaw_after[-1])
+        elif self.object_observation_mode == "actual":
+            yaw_before_rounded = round(yaw_before)
+            yaw_after_rounded = round(yaw_after)
 
         goal_difference_before = self.rotation_min_difference(target_goal, yaw_before_rounded)
         goal_difference_after = self.rotation_min_difference(target_goal, yaw_after_rounded)
@@ -148,3 +157,16 @@ class RotationEnvironment(Environment):
             done = True
 
         return reward, done
+    
+    def ep_final_distance(self):
+        object_state = self.get_object_state()
+        if self.object_observation_mode == "observed":
+            object_state = object_state[-1]
+        return self.rotation_min_difference(self.goal_state, object_state)
+    
+    def rotation_min_difference(self, a, b):
+        return min(abs(a - b), (360+min(a, b) - max(a, b)))
+    
+    def add_goal(self, state):
+        state.append(self.goal_state)
+        return state
