@@ -1,25 +1,36 @@
 <h1 align="center">CARES Gripper Package</h1>
 
-<h3 align="center">
+<div align="center">
 
 [![Python 3.11.4](https://img.shields.io/badge/python-3.11.4-blue.svg)](https://www.python.org/downloads/release/python-3114/)
+[![Pytorch 1.13.1](https://img.shields.io/badge/pytorch-1.13.1-blue)](https://pytorch.org/)
 
-<a href="https://www.youtube.com/watch?v=0kii1EJjOzw&feature=youtu.be">Video Demo</a>
+</div>
+
+<div align="center">
+<h3>
+<a href="https://www.youtube.com/watch?v=0kii1EJjOzw&feature=youtu.be" target="_blank">Video Demo</a>
 </h3>
+</div>
 
 <div align="center">
 This repository contains the code used to control and test the grippers (Two-finger and Three-Finger) currently being designed and used in the <a href="https://cares.blogs.auckland.ac.nz/">CARES lab</a> at the <a href="https://www.auckland.ac.nz">The University of Auckland</a>. 
 While being written for this specific system, it also intends to be applicable to many dynamixel servo systems with minor changes to the code.
 
 <br/>
+<br/>
 See the gripper in action, learning to rotate the valve by 90 degrees:
+<br/>
+<br/>
 
 | Exploration Phase                                                                      | During Training                                                                     | Final Policy                                                                      |
 | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | <img src="readme_wiki_media/exploration_phase_final.gif" alt="explore" height="500px"> | <img src="readme_wiki_media/during_training_final.gif" alt="during" height="500px"> | <img src="readme_wiki_media/trained_policy_final.gif" alt="final" height="500px"> |
+
 </div>
 
 ## Contents
+
 - [Contents](#contents)
 - [📋 Requirements](#-requirements)
 - [👩‍🏫 Getting Started](#-getting-started)
@@ -36,6 +47,7 @@ See the gripper in action, learning to rotate the valve by 90 degrees:
   - [Files](#files)
 
 ## 📋 Requirements
+
 The repository was tested using Python 3.11.4 on a machine running Ubuntu 22.04.2 LTS with Intel Core i9-10900 CPU and NVIDIA GeForce RTX 3080 GPU. It is recommended to use a Linux machine. The repository relies on [Pytorch](https://pytorch.org/). While the use of [NVIDIA CUDA GPUs](https://developer.nvidia.com/cuda-zone) is supported, it is optional. Instructions for enabling CUDA in Pytorch can be found [here](https://pytorch.org/get-started/locally/).
 
 A comprehensive list of dependencies is available in `requirements.txt`. Ensure that the hardware components for the gripper are turned on and connected to the machine.
@@ -84,14 +96,17 @@ A list of items required to build the grippers can be found in [Grippers BOM](ht
 ![Picture of a CAD assembly that shows a rig that is holding a three-fingered gripper with the fingers hanging down](https://user-images.githubusercontent.com/105029122/205157459-ef70f9fb-dcea-464a-af8a-14d66047497a.png)
 
 ## 🗃️ Results
+
 You can specify the folder to save results in using the `local_results_path ` argument; otherwise, it defaults to `{home_path}/gripper_training`. The folder containing the results is named according to the following convention:
+
 ```
 {date}_{robot_id}_{environment_type}_{observation_type}_{seed}_{algorithm}
 ```
 
 The structure is shown below:
+
 ```
-results_folder_name/
+result_folder_name/
 ├─ configs/
 ├─ data/
 │  ├─ {result_folder_name}_evaluation
@@ -130,6 +145,7 @@ Descriptions of each directory and file are as follows:
 `rolling_reward_average.txt`, `rolling_steps_per_episode_average.txt`, `rolling_success_average`: These files contain the rolling averages over a fixed window size for the recorded rewards, steps per episode, and success rates, respectively.
 
 ## 📈 Benchmarking Graphs
+
 The `graph_results.py` file contains utility functions for graphing benchmarking results. You can use it to visualise data from different files based on specific plot types. Here are the supported values for the `plot_type` parameter:
 
 - `reward`: Plots the data from the `reward.txt` file over a moving window of size 20.
@@ -137,6 +153,7 @@ The `graph_results.py` file contains utility functions for graphing benchmarking
 - `training_evaluation`: Plots data from the evaluation episode, occurring every 10 training episodes, over a moving window of size 20.
 
 ### Instructions
+
 1. Organise your data into a folder structure similar to the following:
 
 ```
@@ -158,10 +175,11 @@ folder_path/
 │  ├─ 3_30-330/
 │  │  ├─ ...
 ```
+
 2. From the `scripts` directory, run the command `python3 graph_results.py --path folder_path --plot_type plot_type`.
 
 3. The resulting graph will be saved in the `graphs` folder located in the root directory.
-   
+
 ## 📦 Package Structure
 
 ```
@@ -200,7 +218,9 @@ cares_gripper_package/scripts/
 ├─ training_loop.py
 ├─ graph_results.py
 ```
+
 ### Folders
+
 `config_examples/`: Various configuration file examples for the environment, gripper, training and camera. Instructions for these configs can be found in [wiki]().
 
 `environments/`: Currently for rotation and translation tasks. Can extend environment class for different tasks by changing choose goal and reward function.
@@ -212,6 +232,7 @@ cares_gripper_package/scripts/
 `tools/`: Includes helper functions for I/O, plotting, and Slack integration in `utils.py`. Functions to handle various gripper errors and Slack monitoring can be found in `error_handlers.py`.
 
 ### Files
+
 `configurations.py`: Pydantic class models for the learning, environment, and object configurations.
 
 `training_loop.py`: Parses configuration files and starts training for the selected algorithm and configs.
