@@ -97,7 +97,7 @@ A list of items required to build the grippers can be found in [Grippers BOM](ht
 
 ## 🗃️ Results
 
-You can specify the folder to save results in using the `local_results_path ` argument; otherwise, it defaults to `{home_path}/gripper_training`. The folder containing the results is named according to the following convention:
+You can specify the folder to save results in using the `local_results_path` argument; otherwise, it defaults to `{home_path}/gripper_training`. The folder containing the results is named according to the following convention:
 
 ```
 {date}_{robot_id}_{environment_type}_{observation_type}_{seed}_{algorithm}
