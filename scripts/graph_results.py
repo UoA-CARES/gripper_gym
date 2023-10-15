@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 import collections
 import pathlib
 
-Z = 1.960 # 95% confidence interval
+Z = 1.960  # 95% confidence interval
 X_VALS_FILE_NAME = "steps_per_episode.txt"
 SUCCESS_FILE = "success_list.txt"
 REWARD_FILE = "reward.txt"
@@ -16,11 +16,13 @@ X_LIMIT = 30000
 CURRENT_DIR = os.getcwd()
 GRAPHS_DIR = os.path.join(os.path.dirname(CURRENT_DIR), 'graphs')
 
+
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument("--folder_path",      type=str)
     parser.add_argument("--plot_type",      type=str)
     return parser.parse_args()
+
 
 def parse_step(step_file, arr):
     curr_step = 0
@@ -31,12 +33,14 @@ def parse_step(step_file, arr):
             curr_step += data
             arr.append(curr_step)
 
+
 def parse_reward(reward_file, arr):
     # parse reward
     with open(reward_file, "r") as file:
         for line in file:
             data = float(line.strip())
             arr.append(data)
+
 
 def parse_success_rate(success_file, arr):
     # parse success rate
@@ -45,19 +49,21 @@ def parse_success_rate(success_file, arr):
             data = float(line.strip())
             arr.append(data)
 
+
 def parse_folder(folder, folders_arr):
     if folder:
         sub_dirs = [f.path for f in os.scandir(folder) if f.is_dir()]
         folders_arr.append(sub_dirs)
+
 
 def plot_reward(datas_map_arr, titles, window_size=20):
     """
     Plot rewards with confidence intervals.
 
     Args:
-    datas_map_arr (list): List of data maps.
-    titles (list): List of titles for subplots.
-    window_size (int, optional): Window size for rolling mean and standard deviation. Defaults to 20.
+        datas_map_arr (list): List of data maps.
+        titles (list): List of titles for subplots.
+        window_size (int, optional): Window size for rolling mean and standard deviation. Defaults to 20.
     """
     plt.ioff()
     sns.set()
@@ -72,21 +78,26 @@ def plot_reward(datas_map_arr, titles, window_size=20):
             df = pd.DataFrame({'x': data['x'], 'y': data['y']})
 
             # Calculate confidence intervals
-            df["avg"] = df[y_label].rolling(window=window_size, min_periods=1).mean()
-            mov_std = df[y_label].rolling(window=window_size, min_periods=1).std()
+            df["avg"] = df[y_label].rolling(
+                window=window_size, min_periods=1).mean()
+            mov_std = df[y_label].rolling(
+                window=window_size, min_periods=1).std()
 
             conf_int_pos = df["avg"] + Z * mov_std / np.sqrt(window_size)
             conf_int_neg = df["avg"] - Z * mov_std / np.sqrt(window_size)
 
             # Plotting
-            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y="avg", label=key)
+            axes[i] = sns.lineplot(ax=axes[i], data=df,
+                                   x=x_label, y="avg", label=key)
             axes[i].set_xlim(1, X_LIMIT)  # Limit graph to specific x value
-            axes[i].fill_between(df[x_label], conf_int_neg, conf_int_pos, alpha=0.2)
+            axes[i].fill_between(df[x_label], conf_int_neg,
+                                 conf_int_pos, alpha=0.2)
 
         axes[i].set_title(titles[i])
         axes[i].set_xlabel("Steps")
         axes[i].set_ylabel("")
-        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0, 0))  # Set x-axis tick labels in scientific notation
+        # Set x-axis tick labels in scientific notation
+        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
 
         sns.move_legend(axes[i], "lower right")
 
@@ -97,6 +108,7 @@ def plot_reward(datas_map_arr, titles, window_size=20):
     figure_path = os.path.join(GRAPHS_DIR, 'reward_plot.png')
     plt.savefig(figure_path)  # Save the figure
     plt.show()
+
 
 def plot_success_rate(datas_map_arr, titles, window_size=100):
     """
@@ -120,21 +132,26 @@ def plot_success_rate(datas_map_arr, titles, window_size=100):
             df = pd.DataFrame({'x': data['x'], 'y': data['y']})
 
             # Calculate confidence intervals
-            df["avg"] = df[y_label].rolling(window=window_size, min_periods=1).mean()
-            mov_std = df[y_label].rolling(window=window_size, min_periods=1).std()
+            df["avg"] = df[y_label].rolling(
+                window=window_size, min_periods=1).mean()
+            mov_std = df[y_label].rolling(
+                window=window_size, min_periods=1).std()
 
             conf_int_pos = df["avg"] + Z * mov_std / np.sqrt(window_size)
             conf_int_neg = df["avg"] - Z * mov_std / np.sqrt(window_size)
 
             # Plotting
-            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y="avg", label=key)
+            axes[i] = sns.lineplot(ax=axes[i], data=df,
+                                   x=x_label, y="avg", label=key)
             axes[i].set_xlim(1, X_LIMIT)  # Limit graph to specific x value
-            axes[i].fill_between(df[x_label], conf_int_neg, conf_int_pos, alpha=0.2)
+            axes[i].fill_between(df[x_label], conf_int_neg,
+                                 conf_int_pos, alpha=0.2)
 
         axes[i].set_title(titles[i])
         axes[i].set_xlabel("Steps")
         axes[i].set_ylabel("")
-        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0, 0))  # Set x-axis tick labels in scientific notation
+        # Set x-axis tick labels in scientific notation
+        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
 
         sns.move_legend(axes[i], "lower right")
 
@@ -145,6 +162,7 @@ def plot_success_rate(datas_map_arr, titles, window_size=100):
     figure_path = os.path.join(GRAPHS_DIR, 'success_rate_plot.png')
     plt.savefig(figure_path)  # Save the figure
     plt.show()
+
 
 def plot_training_evaluation(root_folder):
     """
@@ -186,6 +204,7 @@ def plot_training_evaluation(root_folder):
 
     plot_evals(dataframes, titles)
 
+
 def plot_evals(dataframes, titles, window_size=20):
     """
     Plot evaluation data.
@@ -208,20 +227,25 @@ def plot_evals(dataframes, titles, window_size=20):
             y_label = "avg_episode_reward"
 
             # confidence interval stuff
-            df["avg"] = df[y_label].rolling(window=window_size, min_periods=1).mean()
-            mov_std = df[y_label].rolling(window=window_size, min_periods=1).std()
+            df["avg"] = df[y_label].rolling(
+                window=window_size, min_periods=1).mean()
+            mov_std = df[y_label].rolling(
+                window=window_size, min_periods=1).std()
 
-            conf_int_pos  = df["avg"] + Z * mov_std / np.sqrt(window_size)
-            conf_int_neg  = df["avg"] - Z * mov_std / np.sqrt(window_size)
+            conf_int_pos = df["avg"] + Z * mov_std / np.sqrt(window_size)
+            conf_int_neg = df["avg"] - Z * mov_std / np.sqrt(window_size)
 
-            axes[i] = sns.lineplot(ax=axes[i], data=df, x=x_label, y="avg", label=key)
-            axes[i].set_xlim(1,X_LIMIT) # Limit graph to specific x value
-            axes[i].fill_between(df[x_label], conf_int_neg, conf_int_pos, alpha=0.2)
-            
+            axes[i] = sns.lineplot(ax=axes[i], data=df,
+                                   x=x_label, y="avg", label=key)
+            axes[i].set_xlim(1, X_LIMIT)  # Limit graph to specific x value
+            axes[i].fill_between(df[x_label], conf_int_neg,
+                                 conf_int_pos, alpha=0.2)
+
         axes[i].set_title(titles[i])
         axes[i].set_xlabel("Steps")
         axes[i].set_ylabel("")
-        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0,0))  # Set x-axis tick labels in scientific notation
+        # Set x-axis tick labels in scientific notation
+        axes[i].ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
 
         sns.move_legend(axes[i], "lower right")
 
@@ -232,6 +256,7 @@ def plot_evals(dataframes, titles, window_size=20):
     figure_path = os.path.join(GRAPHS_DIR, 'training_evaluation_plot.png')
     plt.savefig(figure_path)  # Save the figure
     plt.show()
+
 
 def plot_different_algorithms(folder, success_rate):
     """
@@ -282,6 +307,7 @@ def plot_different_algorithms(folder, success_rate):
     else:
         plot_reward(datas_map_arr, titles)
 
+
 def create_graphs_dir(graphs_dir):
     """
     Create the 'graphs' directory if it does not already exist.
@@ -296,6 +322,8 @@ def create_graphs_dir(graphs_dir):
         print(f"Directory '{graphs_dir}' already exists.")
 
 # plot graphs with desired comparison type
+
+
 def main():
     """
     Main function to execute the script for plotting graphs.
@@ -303,7 +331,7 @@ def main():
     args = parse_args()
     graphs_dir = os.path.join(os.path.dirname(os.getcwd()), 'graphs')
     create_graphs_dir(graphs_dir)
-    
+
     if args.plot_type == "reward":
         plot_different_algorithms(args.folder_path, success_rate=False)
     elif args.plot_type == "success_rate":
@@ -312,6 +340,7 @@ def main():
         plot_training_evaluation(args.folder_path)
     else:
         raise ValueError("Invalid plot type")
+
 
 if __name__ == "__main__":
     main()

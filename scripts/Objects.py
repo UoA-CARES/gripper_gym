@@ -13,6 +13,7 @@ from cares_lib.vision.ArucoDetector import ArucoDetector
 
 from cares_lib.dynamixel.Servo import Servo
 
+
 def exception_handler(error_message):
     def decorator(function):
         @wraps(function)
@@ -20,17 +21,21 @@ def exception_handler(error_message):
             try:
                 return function(self, *args, **kwargs)
             except EnvironmentError as error:
-                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
-                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
+                logging.error(
+                    f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
+                raise EnvironmentError(
+                    error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
         return wrapper
     return decorator
+
 
 class Command(Enum):
     GET_YAW = 0
     OFFSET = 1
 
+
 class ServoObject(object):
-    def __init__(self, config : ObjectConfig, servo_id, model="XL330-M077-T") -> None:
+    def __init__(self, config: ObjectConfig, servo_id, model="XL330-M077-T") -> None:
         self.device_name = config.device_name
         self.model = model
 
@@ -44,7 +49,8 @@ class ServoObject(object):
         self.setup_handlers()
         self.servo_id = servo_id
 
-        self.object_servo = Servo(self.port_handler, self.packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+        self.object_servo = Servo(self.port_handler, self.packet_handler,
+                                  2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
 
     def setup_handlers(self):
         if not self.port_handler.openPort():
@@ -65,7 +71,7 @@ class ServoObject(object):
         if yaw < 0:
             yaw += 360
         return yaw
-    
+
     def reset(self):
         reset_home_position = random.randint(self.min, self.max)
         self.object_servo.move(reset_home_position)
@@ -74,22 +80,25 @@ class ServoObject(object):
     @exception_handler("Failed while trying to reset target servo")
     def reset_target_servo(self, home_pos):
         self.object_servo.enable_torque()
-        logging.info(f"Resetting Servo #{self.servo_id} to position: {home_pos}")
+        logging.info(
+            f"Resetting Servo #{self.servo_id} to position: {home_pos}")
         self.object_servo.move(home_pos)
         self.object_servo.disable_torque()
 
+
 class ArucoObject(object):
-    def __init__(self, camera:Camera, aruco_detector:ArucoDetector, object_marker_id:int) -> None:
+    def __init__(self, camera: Camera, aruco_detector: ArucoDetector, object_marker_id: int) -> None:
         self.camera = camera
         self.aruco_detector = aruco_detector
         self.object_marker_id = object_marker_id
-    
+
     def get_yaw(self, blindable=False, detection_attempts=10):
         attempt = 0
-        while not blindable or attempt < detection_attempts: 
+        while not blindable or attempt < detection_attempts:
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-            logging.debug(f"Attempting to detect aruco target: {self.object_marker_id}")
+            logging.debug(
+                f"Attempting to detect aruco target: {self.object_marker_id}")
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
@@ -105,8 +114,9 @@ class ArucoObject(object):
         pass
 
 
+# TODO: Function may be deprecated if not returning to magnetic encoder.
 class MagnetObject(object):
-    def __init__(self, config : ObjectConfig, aruco_yaw = None) -> None:
+    def __init__(self, config: ObjectConfig, aruco_yaw=None) -> None:
         self.serial = Serial(config.device_name, config.baudrate)
         sleep(1)
         if aruco_yaw is not None:
@@ -114,7 +124,7 @@ class MagnetObject(object):
 
     def get_response(self):
         return self.serial.read_until(b'\n').decode().split(",")
-    
+
     def get_yaw(self):
         command = f"{Command.GET_YAW.value},"
         try:
@@ -128,7 +138,8 @@ class MagnetObject(object):
             yaw = float(response[1])
             return yaw
         except (UnicodeDecodeError, ValueError):
-            logging.info("get_yaw: Error reading from serial port, retrying...")
+            logging.info(
+                "get_yaw: Error reading from serial port, retrying...")
 
     def offset(self, aruco_yaw):
         logging.info("Calibrating magnet to aruco reading...")
