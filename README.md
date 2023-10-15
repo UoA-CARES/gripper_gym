@@ -23,11 +23,13 @@ See the gripper in action, learning to rotate the valve by 90 degrees:
 - [Contents](#contents)
 - [📋 Requirements](#-requirements)
 - [👩‍🏫 Getting Started](#-getting-started)
-- [� Usage](#-usage)
+- [📖 Usage](#-usage)
 - [⚙️ Hardware Setup](#️-hardware-setup)
   - [Magnetic Encoder Setup](#magnetic-encoder-setup)
   - [BOM](#bom)
   - [STL files](#stl-files)
+- [📈 Benchmarking Graphs](#-benchmarking-graphs)
+  - [Instructions](#instructions)
 - [📦 Package Structure](#-package-structure)
 
 ## 📋 Requirements
@@ -78,6 +80,40 @@ A list of items required to build the grippers can be found in [Grippers BOM](ht
 
 ![Picture of a CAD assembly that shows a rig that is holding a three-fingered gripper with the fingers hanging down](https://user-images.githubusercontent.com/105029122/205157459-ef70f9fb-dcea-464a-af8a-14d66047497a.png)
 
+
+## 📈 Benchmarking Graphs
+The `graph_results.py` file contains utility functions for graphing benchmarking results. You can use it to visualise data from different files based on specific plot types. Here are the supported values for the `plot_type` parameter:
+
+- `reward`: Plots the data from the `reward.txt` file over a moving window of size 20.
+- `success_rate`: Plots the data from the `success_list.txt` file over a moving window of size 100.
+- `training_evaluation`: Plots data from the evaluation episode, occurring every 10 training episodes, over a moving window of size 20.
+
+### Instructions
+1. Organise your data into a folder structure similar to the following:
+
+```
+folder_path/
+├─ training/
+│  ├─ 1_90/
+│  │  ├─ 08_07_16_58_RobotId2_EnvType0_ObsTypeservo_Seed1_SAC/
+│  │  ├─ 08_07_16_58_RobotId4_EnvType0_ObsTypeservo_Seed10_DDPG/
+│  │  ├─ 09_11_10_09_RobotId2_EnvType0_ObsTypeservo_Seed10_TD3/
+│  ├─ 2_90,180,270/
+│  │  ├─ ...
+│  ├─ 3_30-330/
+│  │  ├─ ...
+├─ eval/
+│  ├─ 1_90/
+│  │  ├─ ...
+│  ├─ 2_90,180,270/
+│  │  ├─ ...
+│  ├─ 3_30-330/
+│  │  ├─ ...
+```
+2. From the `scripts` directory, run the command `python3 graph_results.py --path folder_path --plot_type plot_type`.
+
+3. The resulting graph will be saved in the `graphs` folder located in the root directory.
+   
 ## 📦 Package Structure
 
 ```
