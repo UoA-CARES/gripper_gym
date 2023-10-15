@@ -28,9 +28,12 @@ See the gripper in action, learning to rotate the valve by 90 degrees:
   - [Magnetic Encoder Setup](#magnetic-encoder-setup)
   - [BOM](#bom)
   - [STL files](#stl-files)
+- [🗃️ Results](#️-results)
 - [📈 Benchmarking Graphs](#-benchmarking-graphs)
   - [Instructions](#instructions)
 - [📦 Package Structure](#-package-structure)
+  - [Folders](#folders)
+  - [Files](#files)
 
 ## 📋 Requirements
 The repository was tested using Python 3.11.4 on a machine running Ubuntu 22.04.2 LTS with Intel Core i9-10900 CPU and NVIDIA GeForce RTX 3080 GPU. It is recommended to use a Linux machine. The repository relies on [Pytorch](https://pytorch.org/). While the use of [NVIDIA CUDA GPUs](https://developer.nvidia.com/cuda-zone) is supported, it is optional. Instructions for enabling CUDA in Pytorch can be found [here](https://pytorch.org/get-started/locally/).
@@ -80,6 +83,51 @@ A list of items required to build the grippers can be found in [Grippers BOM](ht
 
 ![Picture of a CAD assembly that shows a rig that is holding a three-fingered gripper with the fingers hanging down](https://user-images.githubusercontent.com/105029122/205157459-ef70f9fb-dcea-464a-af8a-14d66047497a.png)
 
+## 🗃️ Results
+You can specify the folder to save results in using the `local_results_path ` argument; otherwise, it defaults to `{home_path}/gripper_training`. The folder containing the results is named according to the following convention:
+```
+{date}_{robot_id}_{environment_type}_{observation_type}_{seed}_{algorithm}
+```
+
+The structure is shown below:
+```
+results_folder_name/
+├─ configs/
+├─ data/
+│  ├─ {result_folder_name}_evaluation
+│  ├─ distance.txt
+│  ├─ reward.txt
+│  ├─ steps_per_episode.txt
+│  ├─ success_list.txt
+│  ├─ time.txt
+│  ├─ rolling_reward_average.txt
+│  ├─ rolling_steps_per_episode_average.txt
+│  ├─ rolling_success_average.txt
+├─ models/
+├─ ...
+```
+
+Descriptions of each directory and file are as follows:
+
+`configs/`: Contains source config files used during the model training.
+
+`data/`: Stores raw data produced during the training process.
+
+`models/`: Stores files for the best models obtained based on reward, primarily used for evaluation purposes.
+
+`{result_folder_name}_evaluation`: Represents a CSV file containing data from the evaluation episodes during the training phase.
+
+`distance.txt`: Provides the recorded distance between the current valve angle and the goal angle at the end of each episode.
+
+`reward.txt`: Captures the raw reward value at the conclusion of each episode.
+
+`steps_per_episode.txt`: Documents the number of steps taken per episode.
+
+`success_list.txt`: Contains a binary indicator; 1 denotes successful completion of the goal, while 0 indicates failure for each episode.
+
+`time.txt`: Records the time taken to complete each episode.
+
+`rolling_reward_average.txt`, `rolling_steps_per_episode_average.txt`, `rolling_success_average`: These files contain the rolling averages over a fixed window size for the recorded rewards, steps per episode, and success rates, respectively.
 
 ## 📈 Benchmarking Graphs
 The `graph_results.py` file contains utility functions for graphing benchmarking results. You can use it to visualise data from different files based on specific plot types. Here are the supported values for the `plot_type` parameter:
@@ -150,8 +198,9 @@ cares_gripper_package/scripts/
 ├─ GripperTrainer.py
 ├─ Objects.py
 ├─ training_loop.py
+├─ graph_results.py
 ```
-
+### Folders
 `config_examples/`: Various configuration file examples for the environment, gripper, training and camera. Instructions for these configs can be found in [wiki]().
 
 `environments/`: Currently for rotation and translation tasks. Can extend environment class for different tasks by changing choose goal and reward function.
@@ -161,3 +210,18 @@ cares_gripper_package/scripts/
 `magnetic_encoder_object/`: Currently only contains arduino code for the magnetic encoder.
 
 `tools/`: Includes helper functions for I/O, plotting, and Slack integration in `utils.py`. Functions to handle various gripper errors and Slack monitoring can be found in `error_handlers.py`.
+
+### Files
+`configurations.py`: Pydantic class models for the learning, environment, and object configurations.
+
+`training_loop.py`: Parses configuration files and starts training for the selected algorithm and configs.
+
+`evaluation_loop.py`: Parses configuration files and the trained model for the **final policy** and evaluates it.
+
+`graph_results.py`: Various graphing functions for benchmarking the performance of RL algorithms side by side
+
+`gripper_example.py`: Example of moving the Gripper
+
+`GripperTrainer.py`: Class initialising necessary components for training an RL algorithm and controlling the gripper. Logs information, and performs training and evaluation loops with Slack messaging for updates during the process.
+
+`Objects.py`: Class definitions for Servo, Aruco, and Magnet objects.
