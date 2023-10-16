@@ -338,6 +338,13 @@ class GripperTrainer():
 
         success_window_size = 100  # episodes
         steps_per_episode_window_size = 5  # episodes
+
+        env_end = time.time()
+        time_period = 0.15
+        
+        success_window_size = 100 #episodes
+        steps_per_episode_window_size = 5 #episodes
+
         rolling_success_rate = deque(maxlen=success_window_size)
         rolling_reward_rate = deque(maxlen=success_window_size)
         rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
@@ -385,9 +392,14 @@ class GripperTrainer():
                 action_env = self.environment.denormalize(action)  # gripper range
 
             env_start = time.time()
+            delay = time_period-(env_start-env_end)
+            if delay > 0:
+               time.sleep(delay)
+            logging.debug(f"time to execute training loop (excluding environment_step): {time.time()-env_end}")
+
             next_state, reward, done, truncated = self.environment_step(action_env)
+            
             env_end = time.time()
-            logging.debug(f"time to execute environment_step: {env_end-env_start}")
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
