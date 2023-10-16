@@ -361,8 +361,6 @@ class GripperTrainer():
 
         state = self.environment_reset()
 
-        prev_time = time.time()
-
         for total_step_counter in range(int(self.max_steps_training)):
             episode_timesteps += 1
 
@@ -377,7 +375,7 @@ class GripperTrainer():
             else:
                 self.noise_scale *= self.noise_decay
                 self.noise_scale = max(self.min_noise, self.noise_scale)
-                # logging.info(f"Noise Scale:{self.noise_scale}")
+                logging.debug(f"Noise Scale:{self.noise_scale}")
 
                 message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter}"
                 logging.info(message)
