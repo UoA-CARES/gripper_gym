@@ -139,22 +139,19 @@ class RotationEnvironment(Environment):
         Returns:
         float: Chosen goal state.
         """
-        object_state = self.get_object_state()
-        if self.object_observation_mode == "observed":
-            object_state = object_state[-1]
-
         # Log selected goal
         logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}")
         
         if self.object_type == "servo":
             # random home pos
             home_pos = random.randint(0, 4095)
-            home_angle = self.get_home_angle(home_pos)
-
             self.target.reset_target_servo(home_pos)
 
-            logging.info(f"New Home Angle Generated: {home_angle}")
-            object_state = home_angle
+            logging.info(f"New Home Angle Generated: {self.get_home_angle(home_pos)}")
+
+        object_state = self.get_object_state()
+        if self.object_observation_mode == "observed":
+            object_state = object_state[-1]
 
         return self.get_goal_function(object_state)
     

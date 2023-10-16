@@ -264,8 +264,7 @@ class GripperTrainer():
 
             if (self.algorithm == ALGORITHMS.TD3.value):
                 # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                action = self.agent.select_action_from_policy(
-                    state, noise_scale=self.noise_scale)
+                action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)
             else:
                 action = self.agent.select_action_from_policy(state)
 
@@ -307,7 +306,7 @@ class GripperTrainer():
                 rolling_steps_per_episode.append(steps_per_episode)
 
                 rolling_steps_per_episode_average = sum(rolling_steps_per_episode)/len(rolling_steps_per_episode)
-                utils.store_data(rolling_steps_per_episode_average,self.file_path, "rolling_steps_per_episode_average")
+                utils.store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
 
                 episode_reward = 0
                 episode_timesteps = 0

@@ -21,10 +21,8 @@ def exception_handler(error_message):
             try:
                 return function(self, *args, **kwargs)
             except EnvironmentError as error:
-                logging.error(
-                    f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
-                raise EnvironmentError(
-                    error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
+                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
+                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
         return wrapper
     return decorator
 

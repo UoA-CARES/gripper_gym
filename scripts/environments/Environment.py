@@ -30,10 +30,8 @@ def exception_handler(error_message):
             try:
                 return function(self, *args, **kwargs)
             except EnvironmentError as error:
-                logging.error(
-                    f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
-                raise EnvironmentError(
-                    error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
+                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
+                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
         return wrapper
     return decorator
 
@@ -163,13 +161,10 @@ class Environment(ABC):
         """
         object_state_before = self.get_object_state()
 
-        start = time.time()
         if self.action_type == "velocity":
             self.gripper.move_velocity_joint(action)
         else:
             self.gripper.move(action)
-        end = time.time()
-        logging.debug(f"Time to call move_velocity: {end-start}")
 
         state = self.get_state()
         logging.debug(f"New State: {state}")
