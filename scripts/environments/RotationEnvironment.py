@@ -54,10 +54,9 @@ def fixed_goals(object_current_pose, noise_tolerance):
     Returns:
         float: Target angle.
     """
-    current_yaw = object_current_pose
 
     target_angle = fixed_goal()
-    while abs(current_yaw - target_angle) < noise_tolerance:
+    while abs(object_current_pose - target_angle) < noise_tolerance:
         target_angle = fixed_goal()
     return target_angle
 
@@ -147,23 +146,17 @@ class RotationEnvironment(Environment):
         # Log selected goal
         logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}")
         
-        # random home pos
-        home_pos = random.randint(0, 4095)
-        home_angle = self.get_home_angle(home_pos)
-
-         # compare home and goal angles
-        while (self.rotation_min_difference(home_angle, self.goal_state) < 30):
-            logging.info(f"goal angle too close to target, goal: {self.goal_state}, home_angle: {home_angle}")
+        if self.object_type == "servo":
+            # random home pos
             home_pos = random.randint(0, 4095)
             home_angle = self.get_home_angle(home_pos)
-            self.goal_state = self.choose_goal(home_angle)
 
-        # only reset if using new servos
-        self.target.reset_target_servo(home_pos)
+            self.target.reset_target_servo(home_pos)
 
-        logging.info(f"New Home Angle Generated: {home_angle}")
+            logging.info(f"New Home Angle Generated: {home_angle}")
+            object_state = home_angle
 
-        return self.get_goal_function(home_pos)
+        return self.get_goal_function(object_state)
     
 
     # overriding method

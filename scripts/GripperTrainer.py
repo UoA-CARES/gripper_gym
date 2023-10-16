@@ -392,11 +392,11 @@ class GripperTrainer():
                 action_env = self.environment.denormalize(action)  # gripper range
 
             env_start = time.time()
+            logging.debug(f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay")
             delay = time_period-(env_start-env_end)
             if delay > 0:
                time.sleep(delay)
-            logging.debug(f"time to execute training loop (excluding environment_step): {time.time()-env_end}")
-
+            
             next_state, reward, done, truncated = self.environment_step(action_env)
             
             env_end = time.time()
