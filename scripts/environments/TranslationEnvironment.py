@@ -68,4 +68,23 @@ class TranslationEnvironment(Environment):
         state.append(self.goal_state[1])
         return state
     
+    def env_render(self, done=False, step=1, episode=1, mode="Exploration"):
+        image = self.camera.get_frame()
+        color = (0, 255, 0)
+        if done:
+            color = (0, 0, 255)
+
+        target = (int(self.goal_pixel[0]), int(self.goal_pixel[1]))
+        text_in_target = (
+            int(self.goal_pixel[0]) - 15, int(self.goal_pixel[1]) + 3)
+        cv2.circle(image, target, 18, color, -1)
+        cv2.putText(image, 'Target', text_in_target,cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Episode : {str(episode)}', (30, 40),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Steps : {str(step)}', (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Success Counter : {str(self.counter_success)}', (400, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f'Stage : {mode}', (900, 60),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
+
+    
 

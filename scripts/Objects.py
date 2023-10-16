@@ -49,8 +49,7 @@ class ServoObject(object):
         self.setup_handlers()
         self.servo_id = servo_id
 
-        self.object_servo = Servo(self.port_handler, self.packet_handler,
-                                  2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+        self.object_servo = Servo(self.port_handler, self.packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
 
     def setup_handlers(self):
         if not self.port_handler.openPort():
@@ -80,8 +79,7 @@ class ServoObject(object):
     @exception_handler("Failed while trying to reset target servo")
     def reset_target_servo(self, home_pos):
         self.object_servo.enable_torque()
-        logging.info(
-            f"Resetting Servo #{self.servo_id} to position: {home_pos}")
+        logging.info(f"Resetting Servo #{self.servo_id} to position: {home_pos}")
         self.object_servo.move(home_pos)
         self.object_servo.disable_torque()
 
@@ -97,8 +95,7 @@ class ArucoObject(object):
         while not blindable or attempt < detection_attempts:
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-            logging.debug(
-                f"Attempting to detect aruco target: {self.object_marker_id}")
+            logging.debug(f"Attempting to detect aruco target: {self.object_marker_id}")
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
@@ -138,8 +135,7 @@ class MagnetObject(object):
             yaw = float(response[1])
             return yaw
         except (UnicodeDecodeError, ValueError):
-            logging.info(
-                "get_yaw: Error reading from serial port, retrying...")
+            logging.info("get_yaw: Error reading from serial port, retrying...")
 
     def offset(self, aruco_yaw):
         logging.info("Calibrating magnet to aruco reading...")

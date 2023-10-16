@@ -5,6 +5,7 @@ from environments.Environment import Environment
 import logging
 import numpy as np
 from enum import Enum
+import random
 
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
@@ -130,8 +131,7 @@ class RotationEnvironment(Environment):
             return relative_goal_90_180_270(object_state)
 
         # No matching goal found, throw error
-        raise ValueError(
-            f"Goal selection method unknown: {self.goal_selection_method}")
+        raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
 
     # overriding method
     def choose_goal(self):
@@ -145,10 +145,26 @@ class RotationEnvironment(Environment):
             object_state = object_state[-1]
 
         # Log selected goal
-        logging.info(
-            f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}")
+        logging.info(f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_selection_method).name}")
+        
+        # random home pos
+        home_pos = random.randint(0, 4095)
+        home_angle = self.get_home_angle(home_pos)
+
+         # compare home and goal angles
+        while (self.rotation_min_difference(home_angle, self.goal_state) < 30):
+            logging.info(f"goal angle too close to target, goal: {self.goal_state}, home_angle: {home_angle}")
+            home_pos = random.randint(0, 4095)
+            home_angle = self.get_home_angle(home_pos)
+            self.goal_state = self.choose_goal(home_angle)
+
+        # only reset if using new servos
+        self.target.reset_target_servo(home_pos)
+
+        logging.info(f"New Home Angle Generated: {home_angle}")
 
         return self.get_goal_function(home_pos)
+    
 
     # overriding method
     def reward_function(self, target_goal, yaw_before, yaw_after):
@@ -190,14 +206,12 @@ class RotationEnvironment(Environment):
         # Current yaw_before might not equal yaw_after in prev step, hence need to check before as well to see if it has reached the goal already
         if (goal_difference_before <= precision_tolerance):
             logging.info("----------Reached the Goal!----------")
-            logging.info(
-                "Warning: Yaw before in current step not equal to Yaw after in prev step")
+            logging.info("Warning: Yaw before in current step not equal to Yaw after in prev step")
             reward = 10
             done = True
             return reward, done
 
-        delta_changes = self.rotation_min_difference(
-            target_goal, yaw_before_rounded) - self.rotation_min_difference(target_goal, yaw_after_rounded)
+        delta_changes = self.rotation_min_difference(target_goal, yaw_before_rounded) - self.rotation_min_difference(target_goal, yaw_after_rounded)
 
         logging.info(f"Yaw = {yaw_after_rounded}")
 
@@ -257,3 +271,18 @@ class RotationEnvironment(Environment):
         """
         state.append(self.goal_state)
         return state
+    
+    def get_home_angle(self, home_pos):
+        """
+        Converts the given home position to its corresponding angle in degrees.
+
+        Parameters:
+        home_pos: The home position to be converted.
+
+        Returns:
+        Angle corresponding to the provided home position.
+        """
+        angle_ratio = 4096/360
+        # 0 in decimal is 180 degrees so need to add offset
+        home_pos_angle = (home_pos/angle_ratio + 180) % 360
+        return home_pos_angle

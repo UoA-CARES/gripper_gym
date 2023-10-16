@@ -64,8 +64,7 @@ class Environment(ABC):
     def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
 
         self.gripper = Gripper(gripper_config)
-        self.camera = Camera(
-            env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
+        self.camera = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)
 
         self.observation_type = env_config.observation_type
         self.action_type = gripper_config.action_type
@@ -88,8 +87,7 @@ class Environment(ABC):
         if self.object_observation_mode == "observed":
             aruco_yaws = []
             for i in range(0, 10):
-                aruco_yaws.append(
-                    self.observed_object_state(marker_only=True)[2])
+                aruco_yaws.append(self.observed_object_state(marker_only=True)[2])
             aruco_yaw = trim_mean(aruco_yaws, 0.1)
         self.object_type = object_config.object_type
         if self.object_type == "aruco":
@@ -104,20 +102,7 @@ class Environment(ABC):
 
         self.goal_state = self.actual_object_state()
 
-    def get_home_angle(self, home_pos):
-        """
-        Converts the given home position to its corresponding angle in degrees.
 
-        Parameters:
-        home_pos: The home position to be converted.
-
-        Returns:
-        Angle corresponding to the provided home position.
-        """
-        angle_ratio = 4096/360
-        # 0 in decimal is 180 degrees so need to add offset
-        home_pos_angle = (home_pos/angle_ratio + 180) % 360
-        return home_pos_angle
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -125,7 +110,7 @@ class Environment(ABC):
         Resets the environment for a new episode.
 
         This method wiggles the gripper to its home position, generates a random home
-        position (angle) for the gripper, chooses a new goal angle (ensuring it's not
+        position (angle) for the object, chooses a new goal angle (ensuring it's not
         too close to the home angle), and resets the target servo position if necessary.
 
         Returns:
@@ -136,27 +121,12 @@ class Environment(ABC):
 
         logging.debug(state)
 
-        # random home pos
-        home_pos = random.randint(0, 4095)
-        home_angle = self.get_home_angle(home_pos)
-
         # choose goal will crash if not home
-        self.goal_state = self.choose_goal(home_angle)
+        self.goal_state = self.choose_goal()
 
-        # compare home and goal angles
-        while (self.rotation_min_difference(home_angle, self.goal_state) < 30):
-            logging.info(
-                f"goal angle too close to target, goal: {self.goal_state}, home_angle: {home_angle}")
-            home_pos = random.randint(0, 4095)
-            home_angle = self.get_home_angle(home_pos)
-            self.goal_state = self.choose_goal(home_angle)
-
-        # only reset if using new servos
-        self.target.reset_target_servo(home_pos)
-
-        logging.info(f"New Home Angle Generated: {home_angle}")
         logging.info(f"New Goal Generated: {self.goal_state}")
         return state
+    
 
     def sample_action(self):
         if self.action_type == "velocity":
@@ -174,8 +144,7 @@ class Environment(ABC):
     def sample_action_velocity(self):
         action = []
         for i in range(0, self.gripper.num_motors):
-            action.append(random.randint(
-                self.gripper.velocity_min, self.gripper.velocity_max))
+            action.append(random.randint(self.gripper.velocity_min, self.gripper.velocity_max))
         return action
 
     @exception_handler("Failed to step")
@@ -209,8 +178,7 @@ class Environment(ABC):
 
         logging.debug(f"New Object State: {object_state_after}")
 
-        reward, done = self.reward_function(
-            self.goal_state, object_state_before, object_state_after)
+        reward, done = self.reward_function(self.goal_state, object_state_before, object_state_after)
 
         truncated = False
         return state, reward, done, truncated
@@ -262,8 +230,7 @@ class Environment(ABC):
         while True:
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(
-                frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
 
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
@@ -278,8 +245,7 @@ class Environment(ABC):
 
         if self.env_type == 0:
             # Add the additional yaw information from the object marker
-            state += [marker_poses[self.object_marker_id]
-                      ["orientation"][2]]  # Yaw
+            state += [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
         state = self.add_goal(state)
 
@@ -330,8 +296,7 @@ class Environment(ABC):
         while not blindable or attempt < detection_attempts:
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-            logging.debug(
-                f"Attempting to detect aruco target: {self.object_marker_id}")
+            logging.debug(f"Attempting to detect aruco target: {self.object_marker_id}")
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
@@ -354,8 +319,7 @@ class Environment(ABC):
 
             if not marker_only:
                 angle_offsets = [45, 135, 225, 315]
-                state += self.get_object_ends_pose(
-                    orientation[2], angle_offsets, center_x=position[0], center_y=position[1])
+                state += self.get_object_ends_pose(orientation[2], angle_offsets, center_x=position[0], center_y=position[1])
             return state
         return [0]*11
 
@@ -384,10 +348,8 @@ class Environment(ABC):
 
         for i in range(4):
             angle = center_yaw + angle_offsets[i]
-            object_ends[i*2] = center_x + \
-                np.sin(np.deg2rad(angle)) * ends_distance
-            object_ends[i*2+1] = center_y + \
-                np.cos(np.deg2rad(angle)) * ends_distance
+            object_ends[i*2] = center_x + np.sin(np.deg2rad(angle)) * ends_distance
+            object_ends[i*2+1] = center_y + np.cos(np.deg2rad(angle)) * ends_distance
 
         return object_ends
 
@@ -403,8 +365,7 @@ class Environment(ABC):
             else:
                 servo_min_value = self.gripper.min_values[i]
                 servo_max_value = self.gripper.max_values[i]
-            action_gripper[i] = int((action_norm[i] - min_value_in) * (
-                servo_max_value - servo_min_value) / (max_value_in - min_value_in) + servo_min_value)
+            action_gripper[i] = int((action_norm[i] - min_value_in) * (servo_max_value - servo_min_value) / (max_value_in - min_value_in) + servo_min_value)
         return action_gripper
 
     def normalize(self, action_gripper):
@@ -419,32 +380,8 @@ class Environment(ABC):
             else:
                 servo_min_value = self.gripper.min_values[i]
                 servo_max_value = self.gripper.max_values[i]
-            action_norm[i] = (action_gripper[i] - servo_min_value) * (max_range_value -
-                                                                      min_range_value) / (servo_max_value - servo_min_value) + min_range_value
+            action_norm[i] = (action_gripper[i] - servo_min_value) * (max_range_value - min_range_value) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
-
-    def env_render(self, done=False, step=1, episode=1, mode="Exploration"):
-        image = self.camera.get_frame()
-        color = (0, 255, 0)
-        if done:
-            color = (0, 0, 255)
-
-        target = (int(self.goal_pixel[0]), int(self.goal_pixel[1]))
-        text_in_target = (
-            int(self.goal_pixel[0]) - 15, int(self.goal_pixel[1]) + 3)
-        cv2.circle(image, target, 18, color, -1)
-        cv2.putText(image, 'Target', text_in_target,
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Episode : {str(episode)}', (30, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Steps : {str(step)}', (30, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Success Counter : {str(self.counter_success)}', (
-            400, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Stage : {mode}', (900, 60),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
 
     @abstractmethod
     def ep_final_distance(self):
