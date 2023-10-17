@@ -16,6 +16,7 @@ class LearningConfig(BaseModel):
 
     max_steps_exploration: int
     max_steps_training: int
+    step_time_period: Optional[float]
 
     actor_lr: Optional[float]
     critic_lr: float

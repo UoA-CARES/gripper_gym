@@ -61,6 +61,7 @@ class GripperTrainer():
 
         self.max_steps_exploration = learning_config.max_steps_exploration
         self.max_steps_training = learning_config.max_steps_training
+        self.step_time_period = learning_config.step_time_period
 
         self.actor_lr = learning_config.actor_lr
         self.critic_lr = learning_config.critic_lr
@@ -196,7 +197,12 @@ class GripperTrainer():
 
             action_env = self.environment.denormalize(action)  # gripper range
 
+            if self.action_type == "velocity":
+                self.dynamic_sleep(env_end)
+            
             next_state, reward, done, truncated = self.environment_step(action_env)
+            
+            env_end = time.time()
 
             if self.environment.action_type == "velocity":
                 try:
@@ -271,7 +277,12 @@ class GripperTrainer():
 
             action_env = self.environment.denormalize(action)  # gripper range
 
+            if self.action_type == "velocity":
+                self.dynamic_sleep(env_end)
+            
             next_state, reward, done, truncated = self.environment_step(action_env)
+            
+            env_end = time.time()
 
             if not truncated:
                 logging.info(f"Reward of this step:{reward}\n")
@@ -323,6 +334,14 @@ class GripperTrainer():
 
         self.environment.gripper.close()
 
+    def dynamic_sleep(self, env_end):
+        env_start = time.time()
+        logging.debug(f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay")
+        
+        delay = self.step_time_period-(env_start-env_end)
+        if delay > 0:
+            time.sleep(delay)
+    
     def train(self):
         """
         This method is the main training loop that is called to start training the agent a given environment.
@@ -340,7 +359,6 @@ class GripperTrainer():
         steps_per_episode_window_size = 5  # episodes
 
         env_end = time.time()
-        time_period = 0.15
         
         success_window_size = 100 #episodes
         steps_per_episode_window_size = 5 #episodes
@@ -389,13 +407,8 @@ class GripperTrainer():
 
                 action_env = self.environment.denormalize(action)  # gripper range
 
-            env_start = time.time()
-            logging.debug(f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay")
-
             if self.action_type == "velocity":
-                delay = time_period-(env_start-env_end)
-                if delay > 0:
-                    time.sleep(delay)
+                self.dynamic_sleep(env_end)
             
             next_state, reward, done, truncated = self.environment_step(action_env)
             
