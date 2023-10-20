@@ -4,7 +4,6 @@
     "camera_id": 0,
     "blindable": 1,
     "observation_type": 2,
-    "action_type": "velocity",
     
     "goal_selection_method": 0,
 

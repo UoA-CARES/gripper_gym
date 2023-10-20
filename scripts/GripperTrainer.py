@@ -179,6 +179,7 @@ class GripperTrainer():
 
         state = self.environment_reset()
         historical_episode_reward_evaluation = []
+        env_end = time.time()
 
         for total_step_counter in range(max_steps_evaluation):
             episode_timesteps += 1
@@ -257,6 +258,7 @@ class GripperTrainer():
         previous_T_step = 0
 
         state = self.environment_reset()
+        env_end = time.time()
 
         max_steps_evaluation = 1000
         episode_horizont_evaluation = 50
@@ -333,14 +335,6 @@ class GripperTrainer():
                     slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {average_success_message}{average_reward_message}{average_steps_per_episode_message}")
 
         self.environment.gripper.close()
-
-    def dynamic_sleep(self, env_end):
-        env_start = time.time()
-        logging.debug(f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay")
-        
-        delay = self.step_time_period-(env_start-env_end)
-        if delay > 0:
-            time.sleep(delay)
     
     def train(self):
         """
@@ -523,3 +517,11 @@ class GripperTrainer():
         utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
         self.agent.save_models(self.file_name, self.file_path)
         self.environment.gripper.close()
+
+    def dynamic_sleep(self, env_end):
+        env_start = time.time()
+        logging.debug(f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay")
+        
+        delay = self.step_time_period-(env_start-env_end)
+        if delay > 0:
+            time.sleep(delay)
