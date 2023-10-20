@@ -3,12 +3,14 @@
     "gripper_id": 3,
     "device_name": "/dev/ttyUSB0",
     "baudrate": 1000000,
+    "servo_type": "XL-320",
+    "action_type": "velocity",
 
     "torque_limit": 200,
     "speed_limit": 200,
     
-    "velocity_min": -10,
-    "velocity_max": 10,
+    "velocity_min": -100,
+    "velocity_max": 100,
 
     "num_motors": 9,
     "min_values": [100, 250, 130, 100, 198, 152, 100, 250, 140],

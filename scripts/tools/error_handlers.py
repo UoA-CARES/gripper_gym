@@ -5,11 +5,12 @@ logging.basicConfig(level=logging.INFO)
 from cares_lib.dynamixel.Servo import DynamixelServoError
 from pytimedinput import timedInput
 from environments.Environment import EnvironmentError
-from Gripper import GripperError
+from cares_lib.dynamixel.Gripper import GripperError
 from tools.utils import slack_post_plot
 import cv2
 
-WAIT_TIME = 10 # wait 10 seconds for auto sequences
+WAIT_TIME = 5 # wait 5 seconds for auto sequences
+NUM_REPEAT = 8
 
 def auto_reboot_sequence(environment, slack_bot):
     try: 
@@ -88,19 +89,21 @@ def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
 
         return True
     except (EnvironmentError , GripperError):
-        # Try auto reboot first 
-        if auto_reboot_sequence(environment, slack_bot):
-            logging.info(f"#{environment.gripper.gripper_id}: Auto Reboot Sequence success")
-            return True
-        
-        reboot_failed_message = f"#{environment.gripper.gripper_id}: Auto Reboot Sequence failed"
-        logging.warning(reboot_failed_message)
-        slack_bot.post_message("#bot_terminal", reboot_failed_message)
+        # Repeat this sequence n times before resorting to manual error handler
+        for _ in range(NUM_REPEAT):
+            # Try auto reboot first 
+            if auto_reboot_sequence(environment, slack_bot):
+                logging.info(f"#{environment.gripper.gripper_id}: Auto Reboot Sequence success")
+                return True
+            
+            reboot_failed_message = f"#{environment.gripper.gripper_id}: Auto Reboot Sequence failed"
+            logging.warning(reboot_failed_message)
+            slack_bot.post_message("#bot_terminal", reboot_failed_message)
 
-        # Try auto wiggle if auto reboot fails
-        if auto_wiggle_sequence(environment, slack_bot):
-            logging.info(f"#{environment.gripper.gripper_id}: Auto Wiggle Sequence success")
-            return True
+            # Try auto wiggle if auto reboot fails
+            if auto_wiggle_sequence(environment, slack_bot):
+                logging.info(f"#{environment.gripper.gripper_id}: Auto Wiggle Sequence success")
+                return True
         
         warning_message = f"#{environment.gripper.gripper_id}: Auto Reboot and Wiggle both failed, going to manual error handler"
         logging.warning(warning_message)

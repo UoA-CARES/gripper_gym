@@ -1,7 +1,7 @@
 import os
 import shutil
 import matplotlib.pyplot as plt
-from pathlib import Path
+import pandas as pd
 
 def create_directories(local_results_path, folder_name):
     if not os.path.exists(local_results_path):
@@ -88,3 +88,10 @@ def slack_post_plot(environment, slack_bot, file_path, plots):
             slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: {plot_name}", f"{file_path}/", f"{plot_name}.png")
         else:
             slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: {plot_name} plot not ready yet or doesn't exist")
+
+def save_evaluation_values(data_eval_reward, filename, file_path):
+    data = pd.DataFrame.from_dict(data_eval_reward)
+    data.to_csv(f"{file_path}/data/{filename}_evaluation", index=False)
+    data.plot(x='step', y='avg_episode_reward', title="Evaluation Reward Curve")
+    plt.savefig(f"{file_path}/data/{filename}_evaluation.png")
+    plt.close()
