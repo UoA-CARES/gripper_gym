@@ -98,8 +98,7 @@ class Environment(ABC):
         else:
             raise ValueError("Object Type unknown")
 
-        self.goal_state = self.actual_object_state()
-
+        self.object_state_before = self.goal_state = self.get_object_state()
 
 
     @exception_handler("Environment failed to reset")
@@ -159,7 +158,6 @@ class Environment(ABC):
         done: Whether the episode is done or not.
         truncated: Whether the step was truncated or not.
         """
-        object_state_before = self.get_object_state()
 
         if self.action_type == "velocity":
             self.gripper.move_velocity_joint(action)
@@ -173,7 +171,9 @@ class Environment(ABC):
 
         logging.debug(f"New Object State: {object_state_after}")
 
-        reward, done = self.reward_function(self.goal_state, object_state_before, object_state_after)
+        reward, done = self.reward_function(self.goal_state, self.object_state_before, object_state_after)
+
+        self.object_state_before = object_state_after
 
         truncated = False
         return state, reward, done, truncated
