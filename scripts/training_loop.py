@@ -55,6 +55,10 @@ def main():
 
     #TODO: reconcile the multiple seeds
     logging.info("Setting up Seeds")
+    
+    if len(training_config.seeds) > 1:
+        logging.warning("Multiple seeds are not yet supported. Using the first seed.")
+
     torch.manual_seed(training_config.seeds[0])
     np.random.seed(training_config.seeds[0])
     random.seed(training_config.seeds[0])

@@ -2,10 +2,13 @@ from enum import Enum
 from cares_lib.slack_bot.SlackBot import SlackBot
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_reinforcement_learning.util.NetworkFactory import NetworkFactory
+from cares_reinforcement_learning.util.configurations import AlgorithmConfig, TrainingConfig
 from cares_lib.dynamixel.Gripper import GripperError
 from environments.Environment import EnvironmentError
 from environments.TranslationEnvironment import TranslationEnvironment
 from environments.RotationEnvironment import RotationEnvironment
+from configurations import GripperEnvironmentConfig, ObjectConfig
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from collections import deque
 from datetime import datetime
 import tools.error_handlers as erh
@@ -38,7 +41,13 @@ class ALGORITHMS(Enum):
 
 
 class GripperTrainer():
-    def __init__(self, env_config, training_config, alg_config, gripper_config, object_config) -> None:
+    def __init__(self, 
+                 env_config: GripperEnvironmentConfig, 
+                 training_config: TrainingConfig, 
+                 alg_config: AlgorithmConfig, 
+                 gripper_config: GripperConfig, 
+                 object_config: ObjectConfig
+                 ) -> None:
         """
         Initializes the GripperTrainer class for training gripper actions in various environments.
 
@@ -51,31 +60,33 @@ class GripperTrainer():
 
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
         """
-        self.seed = learning_config.seed
-        self.batch_size = learning_config.batch_size
-        self.buffer_capacity = learning_config.buffer_capacity
-        self.episode_horizont = learning_config.episode_horizont
 
-        self.G = learning_config.G
-        self.plot_freq = learning_config.plot_freq
+        self.seed = training_config.seeds[0] # TODO: reconcile the multiple seeds
+        self.batch_size = training_config.batch_size
+        self.buffer_capacity = training_config.buffer_size
+        self.episode_horizont = env_config.episode_horizon
 
-        self.max_steps_exploration = learning_config.max_steps_exploration
-        self.max_steps_training = learning_config.max_steps_training
-        self.step_time_period = learning_config.step_time_period
+        self.G = training_config.G
+        self.plot_freq = training_config.plot_frequency
 
-        self.actor_lr = learning_config.actor_lr
-        self.critic_lr = learning_config.critic_lr
-        self.gamma = learning_config.gamma
-        self.tau = learning_config.tau
+        self.max_steps_exploration = training_config.max_steps_exploration
+        self.max_steps_training = training_config.max_steps_training
+        self.number_steps_per_evaluation = training_config.number_steps_per_evaluation
+        self.number_eval_episodes = training_config.number_eval_episodes
 
-        self.min_noise = learning_config.min_noise
-        self.noise_decay = learning_config.noise_decay
-        self.noise_scale = learning_config.noise_scale
-        self.algorithm = learning_config.algorithm
+        self.step_time_period = env_config.step_length
+
+        self.actor_lr = alg_config.actor_lr
+        self.critic_lr = alg_config.critic_lr
+        self.gamma = alg_config.gamma
+        self.tau = alg_config.tau
+
+        self.min_noise = env_config.min_noise
+        self.noise_decay = env_config.noise_decay
+        self.noise_scale = env_config.noise_scale
+        self.algorithm = alg_config.algorithm
 
         self.action_type = gripper_config.action_type
-
-        self.eval_freq = 10  # evaluate every 10 episodes
 
         # TODO: extract into environment factory
         match env_config.task:
@@ -100,18 +111,10 @@ class GripperTrainer():
         logging.info(message)
         slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
-        logging.info("Setting up Network")
         network_factory = NetworkFactory()
+        self.agent = network_factory.create_network(observation_size, action_num, alg_config)
 
-        logging.info("Setting up Memory")
-        self.memory = MemoryBuffer(learning_config.buffer_capacity)
-
-        logging.info("Setting RL Algorithm")
-        logging.info(f"Chosen algorithm: {self.algorithm}")
-        self.agent = network_factory.create_network(observation_size, action_num, learning_config)
-
-        self.file_path = file_path
-        self.file_name = self.file_path.split("/")[-1]
+        self.memory = MemoryBuffer(training_config.buffer_size)
 
     def environment_reset(self):
         """

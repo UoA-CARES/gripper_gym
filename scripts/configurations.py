@@ -17,7 +17,7 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     camera_distortion: str
 
     min_noise: float = 0.01
-    noise_tolerance: float = 0.9999
+    noise_decay: float = 0.9999
     noise_scale: float = 0.1
 
     episode_horizon: int = 50
