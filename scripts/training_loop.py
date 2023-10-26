@@ -12,11 +12,11 @@ from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
 
-from configurations import LearningConfig, EnvironmentConfig, ObjectConfig
+from configurations import LearningConfig, GripperEnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from GripperTrainer import GripperTrainer
 
-from cares_reinforcement_learning.util import Record, NetworkFactory
+from cares_reinforcement_learning.util import Record, NetworkFactory, RLParser
 
 def parse_args():
     parser = ArgumentParser()
@@ -32,18 +32,18 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    parser = RLParser(GripperEnvironmentConfig)
+    parser.add_configuration("gripper_config", GripperConfig)
+    parser.add_configuration("object_config", ObjectConfig)
 
-    args = parse_args()
-    parent_path = Path(args.env_config).parent.absolute()
+    configurations = parser.parse_args()
+    env_config = configurations["env_config"] 
+    training_config = configurations["training_config"]
+    alg_config = configurations["algorithm_config"]
+    gripper_config = configurations["gripper_config"]
+    object_config = configurations["object_config"]
 
-    env_config      = pydantic.parse_file_as(path=args.env_config,      type_=EnvironmentConfig)
-    gripper_config  = pydantic.parse_file_as(path=args.gripper_config,  type_=GripperConfig)
-    learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
-    object_config   = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
-    local_results_path = args.local_results_path
-    is_debug = args.debug
-
-    if is_debug:
+    if env_config.is_debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
     logging.info("Setting up Seeds")

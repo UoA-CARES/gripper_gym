@@ -27,7 +27,7 @@ class LearningConfig(BaseModel):
     noise_decay: float
     noise_scale: float
 
-class EnvironmentConfig(BaseModel):
+class GripperEnvironmentConfig(BaseModel):
     task: str
 
     camera_id: int
@@ -41,6 +41,8 @@ class EnvironmentConfig(BaseModel):
 
     camera_matrix: str
     camera_distortion: str
+
+    is_debug: False
 
 class ObjectConfig(BaseModel):
     object_type: str
