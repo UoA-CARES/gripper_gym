@@ -82,6 +82,9 @@ class Environment(ABC):
 
         aruco_yaw = None
 
+        self.step_counter = 0
+        self.episode_horizon = env_config.episode_horizon
+
         if self.object_observation_mode == "observed":
             aruco_yaws = []
             for i in range(0, 10):
@@ -113,6 +116,8 @@ class Environment(ABC):
         Returns:
         list: The initial state of the environment.
         """
+        self.step_counter = 0
+
         self.gripper.wiggle_home()
         state = self.get_state()
 
@@ -158,6 +163,7 @@ class Environment(ABC):
         done: Whether the episode is done or not.
         truncated: Whether the step was truncated or not.
         """
+        self.step_counter += 1
 
         if self.action_type == "velocity":
             self.gripper.move_velocity_joint(action)
@@ -175,7 +181,8 @@ class Environment(ABC):
 
         self.object_state_before = object_state_after
 
-        truncated = False
+        truncated = self.step_counter >= self.episode_horizon
+        
         return state, reward, done, truncated
 
     @exception_handler("Failed to step gripper")
