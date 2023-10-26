@@ -6,3 +6,4 @@ slack_token.txt
 *.png
 gripper_example_local.py
 servo_errors
+gripper-training/
