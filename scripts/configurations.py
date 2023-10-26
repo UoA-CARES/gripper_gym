@@ -1,8 +1,4 @@
-from pathlib import Path
-file_path = Path(__file__).parent.resolve()
-
-from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional
 from cares_reinforcement_learning.util import configurations as cares_cfg
 
 class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
