@@ -1,7 +1,7 @@
 from enum import Enum
 from cares_lib.slack_bot.SlackBot import SlackBot
 from cares_reinforcement_learning.memory import MemoryBuffer
-from cares_reinforcement_learning.util.NetworkFactory import NetworkFactory
+from cares_reinforcement_learning.util import Record, NetworkFactory
 from cares_reinforcement_learning.util.configurations import AlgorithmConfig, TrainingConfig
 from cares_lib.dynamixel.Gripper import GripperError
 from environments.Environment import EnvironmentError
@@ -116,6 +116,15 @@ class GripperTrainer():
 
         self.memory = MemoryBuffer(training_config.buffer_size)
 
+        self.record = Record(
+            glob_log_dir='../gripper-training',
+            log_dir=f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}',
+            algorithm=self.algorithm,
+            task=env_config.task,
+            plot_frequency=self.plot_freq,
+            network=self.agent,
+        )
+
     def environment_reset(self):
         """
         Attempts to reset the environment and handle any encountered errors.
@@ -168,7 +177,7 @@ class GripperTrainer():
                 self.agent.save_models(self.file_name, self.file_path)
                 exit(1)
 
-    def evaluation_loop(self, total_counter, file_name, historical_reward_evaluation):
+    def evaluation_loop(self, total_counter):
         """
         Executes an evaluation loop to assess the agent's performance.
 
@@ -185,23 +194,20 @@ class GripperTrainer():
         episode_num = 0
 
         state = self.environment_reset()
-        historical_episode_reward_evaluation = []
         env_end = time.time()
 
-        for total_step_counter in range(max_steps_evaluation):
+        for _ in range(max_steps_evaluation):
             episode_timesteps += 1
-            message = f"EVALUATION | Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter} \n"
-            logging.info(message)
 
             self.noise_scale *= self.noise_decay
             self.noise_scale = max(self.min_noise, self.noise_scale)
 
-            if (self.algorithm == ALGORITHMS.TD3.value):
+            if (self.algorithm == 'TD3'):
                 # returns a 1D array with range [-1, 1], only TD3 has noise scale
                 action = self.agent.select_action_from_policy(
-                    state, noise_scale=self.noise_scale)
+                    state, noise_scale=self.noise_scale, evaluation=True)
             else:
-                action = self.agent.select_action_from_policy(state)
+                action = self.agent.select_action_from_policy(state, evaluation=True)
 
             action_env = self.environment.denormalize(action)  # gripper range
 
@@ -218,132 +224,24 @@ class GripperTrainer():
                 except (EnvironmentError, GripperError):
                     continue
 
-            if not truncated:
-                logging.info(f"EVALUATION | Reward of this step:{reward}\n")
-                state = next_state
-                episode_reward += reward
+            state = next_state
+            episode_reward += reward
 
-            if done or truncated or episode_timesteps >= max_steps_evaluation:
-                logging.info(f"EVALUATION | Eval Episode {episode_num + 1} was completed with {episode_timesteps} steps | Reward= {episode_reward:.3f}")
-                historical_episode_reward_evaluation.append(episode_reward)
+            if done or truncated:
+                
+                self.record.log_eval(
+                    total_steps=total_counter + 1,
+                    episode=episode_num,
+                    episode_steps=episode_timesteps,
+                    episode_reward=episode_reward,
+                    display=True
+                )
 
                 state = self.environment_reset()
                 episode_reward = 0
                 episode_timesteps = 0
                 episode_num += 1
 
-        # at end of evaluation, save the data
-        mean_reward_evaluation = np.round(np.mean(historical_episode_reward_evaluation), 2)
-        historical_reward_evaluation["avg_episode_reward"].append(mean_reward_evaluation)
-        historical_reward_evaluation["step"].append(total_counter)
-        utils.save_evaluation_values(historical_reward_evaluation, file_name, self.file_path)
-
-    # TODO remove this as redudent to evaluate_loop
-    def evaluate_at_end(self, model_path):
-        """
-        Evaluates the performance of an agent model at the end of training.
-
-        Args:
-        model_path (str): Path to the trained model to be evaluated.
-
-        The method is intended for post-training evaluation, providing insights on the agent's performance.
-        """
-        logging.info("Starting Evaluation Loop")
-
-        model_name = f"best_{os.path.basename(os.path.normpath(model_path))}"
-        self.agent.load_models(model_path, model_name)
-
-        episode_timesteps = 0
-        episode_reward = 0
-        episode_num = 0
-
-        success_window_size = 100  # episodes
-        steps_per_episode_window_size = 5  # episodes
-        rolling_success_rate = deque(maxlen=success_window_size)
-        rolling_reward_rate = deque(maxlen=success_window_size)
-        rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
-        plots = ["reward", "distance", "rolling_success_average", "rolling_reward_average", "rolling_steps_per_episode_average"]
-        previous_T_step = 0
-
-        state = self.environment_reset()
-        env_end = time.time()
-
-        max_steps_evaluation = 1000
-        episode_horizont_evaluation = 50
-
-        for total_step_counter in range(max_steps_evaluation):
-            episode_timesteps += 1
-            message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter}"
-            logging.info(message)
-
-            self.noise_scale *= self.noise_decay
-            self.noise_scale = max(self.min_noise, self.noise_scale)
-
-            if (self.algorithm == ALGORITHMS.TD3.value):
-                # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)
-            else:
-                action = self.agent.select_action_from_policy(state)
-
-            action_env = self.environment.denormalize(action)  # gripper range
-
-            if self.action_type == "velocity":
-                self.dynamic_sleep(env_end)
-            
-            next_state, reward, done, truncated = self.environment_step(action_env)
-            
-            env_end = time.time()
-
-            if not truncated:
-                logging.info(f"Reward of this step:{reward}\n")
-                state = next_state
-                episode_reward += reward
-
-            if done or truncated or episode_timesteps >= episode_horizont_evaluation:
-                logging.info(f"EVALUATION | Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}")
-
-                state = self.environment_reset()
-
-                # --- Storing success data ---
-                if done:
-                    rolling_success_rate.append(1)
-                    utils.store_data("1", self.file_path, "success_list")
-                else:
-                    rolling_success_rate.append(0)
-                    utils.store_data("0", self.file_path, "success_list")
-                rolling_success_average = sum(rolling_success_rate)/len(rolling_success_rate)
-                utils.store_data(rolling_success_average, self.file_path, "rolling_success_average")
-
-                # --- Storing reward data ---
-                utils.store_data(episode_reward, self.file_path, "reward")
-                rolling_reward_rate.append(episode_reward)
-
-                rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
-                utils.store_data(rolling_reward_average,self.file_path, "rolling_reward_average")
-
-                # --- Storing steps per episode data ---
-                steps_per_episode = total_step_counter - previous_T_step
-                previous_T_step = total_step_counter
-                utils.store_data(steps_per_episode,self.file_path, "steps_per_episode")
-                rolling_steps_per_episode.append(steps_per_episode)
-
-                rolling_steps_per_episode_average = sum(rolling_steps_per_episode)/len(rolling_steps_per_episode)
-                utils.store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
-
-                episode_reward = 0
-                episode_timesteps = 0
-                episode_num += 1
-
-                if episode_num % self.plot_freq == 0:
-                    average_success_message = f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes\n"
-                    average_reward_message = f"Average Reward: {rolling_reward_average} over last {success_window_size} episodes\n"
-                    average_steps_per_episode_message = f"Average Steps Per Episode: {rolling_steps_per_episode_average} over last {steps_per_episode_window_size} episodes\n"
-
-                    logging.info(f"\n{average_success_message}{average_reward_message}{average_steps_per_episode_message}")
-                    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {average_success_message}{average_reward_message}{average_steps_per_episode_message}")
-
-        self.environment.gripper.close()
-    
     def train(self):
         """
         This method is the main training loop that is called to start training the agent a given environment.
@@ -355,30 +253,11 @@ class GripperTrainer():
         episode_timesteps = 0
         episode_reward = 0
         episode_num = 0
+        evaluation = False
+
         start_time = datetime.now()
 
-        success_window_size = 100  # episodes
-        steps_per_episode_window_size = 5  # episodes
-
         env_end = time.time()
-        
-        success_window_size = 100 #episodes
-        steps_per_episode_window_size = 5 #episodes
-
-        rolling_success_rate = deque(maxlen=success_window_size)
-        rolling_reward_rate = deque(maxlen=success_window_size)
-        rolling_steps_per_episode = deque(maxlen=steps_per_episode_window_size)
-        plots = ["reward", "distance", "rolling_success_average","rolling_reward_average", "rolling_steps_per_episode_average"]
-        time_plots = ["reward_average_vs_time"]
-
-        historical_reward_evaluation = {"step": [], "avg_episode_reward": []}
-
-        # To store zero at the beginning
-        historical_reward_evaluation["step"].append(0)
-        historical_reward_evaluation["avg_episode_reward"].append(0)
-
-        best_episode_reward = -np.inf
-        previous_T_step = 0
 
         state = self.environment_reset()
 
@@ -398,9 +277,6 @@ class GripperTrainer():
                 self.noise_scale = max(self.min_noise, self.noise_scale)
                 logging.debug(f"Noise Scale:{self.noise_scale}")
 
-                message = f"Taking step {episode_timesteps} of Episode {episode_num} with Total T {total_step_counter}"
-                logging.info(message)
-
                 if (self.algorithm == ALGORITHMS.TD3.value):
                     # returns a 1D array with range [-1, 1], only TD3 has noise scale
                     action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)
@@ -416,115 +292,51 @@ class GripperTrainer():
             
             env_end = time.time()
 
-            if not truncated:
-                logging.info(f"Reward of this step:{reward}\n")
+            self.memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
 
-                self.memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
+            state = next_state
+            episode_reward += reward
 
-                state = next_state
+            # Regardless if velocity or position based, train every step
+            start = time.time()
+            if total_step_counter >= self.max_steps_exploration:
+                for _ in range(self.G):
+                    experiences = self.memory.sample(self.batch_size)
+                    info = self.agent.train_policy((
+                        experiences['state'],
+                        experiences['action'],
+                        experiences['reward'],
+                        experiences['next_state'],
+                        experiences['done']
+                    ))
+            end = time.time()
+            logging.debug(f"Time to run training loop {end-start} \n")
 
-                episode_reward += reward
-
-                # Regardless if velocity or position based, train every step
-                start = time.time()
-                if total_step_counter >= self.max_steps_exploration:
-                    for _ in range(self.G):
-                        experiences = self.memory.sample(self.batch_size)
-                        info = self.agent.train_policy((
-                            experiences['state'],
-                            experiences['action'],
-                            experiences['reward'],
-                            experiences['next_state'],
-                            experiences['done']
-                        ))
-                end = time.time()
-                logging.debug(f"Time to run training loop {end-start} \n")
-
-                if episode_reward > best_episode_reward:
-                    best_episode_reward = episode_reward
-                    self.agent.save_models(f"best_{self.file_name}", self.file_path)
-
-            if done or truncated or episode_timesteps >= self.episode_horizont:
-                message = f"#{self.environment.gripper.gripper_id} - Total T:{total_step_counter + 1} Episode {episode_num + 1} was completed with {episode_timesteps} steps taken and a Reward= {episode_reward:.3f}"
-                logging.info(message)
+            if total_step_counter % self.number_steps_per_evaluation == 0:
+                evaluation = True
+            
+            if done or truncated:
                 slack_bot.post_message("#bot_terminal", message)
-
-                # --- Storing success data ---
-                if done:
-                    rolling_success_rate.append(1)
-                    utils.store_data("1", self.file_path, "success_list")
-                else:
-                    rolling_success_rate.append(0)
-                    utils.store_data("0", self.file_path, "success_list")
-                rolling_success_average = sum(rolling_success_rate)/len(rolling_success_rate)
-                utils.store_data(rolling_success_average, self.file_path, "rolling_success_average")
-
-                # --- Storing reward data ---
-                utils.store_data(episode_reward, self.file_path, "reward")
-                rolling_reward_rate.append(episode_reward)
-
-                rolling_reward_average = sum(rolling_reward_rate)/len(rolling_reward_rate)
-                utils.store_data(rolling_reward_average, self.file_path, "rolling_reward_average")
-
-                # --- Storing time data ---
-                episode_time = datetime.now() - start_time
-                # Stores time in seconds since beginning training
-                utils.store_data(round(episode_time.total_seconds()), self.file_path, "time")
-
-                # --- Storing distance data ---
-                episode_distance = self.environment.ep_final_distance()
-                utils.store_data(episode_distance, self.file_path, "distance")
-
-                # --- Storing steps per episode data ---
-                steps_per_episode = total_step_counter - previous_T_step
-                previous_T_step = total_step_counter
-                utils.store_data(steps_per_episode, self.file_path, "steps_per_episode")
-                rolling_steps_per_episode.append(steps_per_episode)
-
-                rolling_steps_per_episode_average = sum(rolling_steps_per_episode)/len(rolling_steps_per_episode)
-                utils.store_data(rolling_steps_per_episode_average, self.file_path, "rolling_steps_per_episode_average")
-
-                if episode_reward > best_episode_reward:
-                    best_episode_reward = episode_reward
-                    self.agent.save_models(self.file_name, self.file_path)
-
-                state = self.environment_reset()
+                
+                self.record.log_train(
+                    total_steps=total_step_counter,
+                    episode=episode_num,
+                    episode_steps=episode_timesteps,
+                    episode_reward=episode_reward,
+                    display=True
+                )
 
                 episode_reward = 0
                 episode_timesteps = 0
                 episode_num += 1
 
-                if episode_num % self.eval_freq == 0:
+                if evaluation:
                     logging.info("*************--Evaluation Loop--*************")
-                    self.evaluation_loop(total_step_counter, self.file_name, historical_reward_evaluation)
-                    # reset env at end of evaluation before continuing
-                    state = self.environment_reset()
+                    self.evaluation_loop(total_step_counter)
+                    evaluation = False
                     logging.info("--------------------------------------------")
 
-                if episode_num % (self.plot_freq*10) == 0:
-                    utils.plot_data(self.file_path, "reward")
-                    utils.plot_data(self.file_path, "distance")
-
-                    utils.slack_post_plot(self.environment, slack_bot, self.file_path, plots)
-                    utils.slack_post_plot(self.environment, slack_bot, self.file_path, time_plots)
-
-                if episode_num % self.plot_freq == 0:
-                    utils.plot_data(self.file_path, "rolling_success_average")
-                    utils.plot_data(self.file_path, "rolling_reward_average")
-                    utils.plot_data(self.file_path, "rolling_steps_per_episode_average")
-                    utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
-
-                    average_success_message = f"Average Success Rate: {rolling_success_average} over last {success_window_size} episodes\n"
-                    average_reward_message = f"Average Reward: {rolling_reward_average} over last {success_window_size} episodes\n"
-                    average_steps_per_episode_message = f"Average Steps Per Episode: {rolling_steps_per_episode_average} over last {steps_per_episode_window_size} episodes\n"
-
-                    logging.info(f"\n{average_success_message}{average_reward_message}{average_steps_per_episode_message}")
-                    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {average_success_message}{average_reward_message}{average_steps_per_episode_message}")
-
-        utils.plot_data(self.file_path, plots)
-        utils.plot_data_time(self.file_path, "time", "rolling_reward_average", "time")
-        self.agent.save_models(self.file_name, self.file_path)
-        self.environment.gripper.close()
+                state = self.environment_reset()
 
     def dynamic_sleep(self, env_end):
         env_start = time.time()
