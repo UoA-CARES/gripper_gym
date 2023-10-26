@@ -3,7 +3,7 @@ from cares_lib.vision.ArucoDetector import ArucoDetector
 from Objects import MagnetObject, ServoObject, ArucoObject
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from configurations import EnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig, ObjectConfig
 from abc import ABC, abstractmethod
 
 import logging
@@ -59,7 +59,7 @@ class Environment(ABC):
     object_config: Configuration specific to the object in the environment.
     """
 
-    def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
+    def __init__(self, env_config: GripperEnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
 
         self.gripper = Gripper(gripper_config)
         self.camera = Camera(env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion)

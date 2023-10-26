@@ -16,6 +16,13 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     camera_matrix: str
     camera_distortion: str
 
+    min_noise: float = 0.01
+    noise_tolerance: float = 0.9999
+    noise_scale: float = 0.1
+
+    episode_horizon: int = 50
+    step_length: float = 0.2
+
     is_debug = False
 
 # TODO find a better name for 'object'

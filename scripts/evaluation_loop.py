@@ -12,7 +12,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
 
-from configurations import LearningConfig, EnvironmentConfig, ObjectConfig
+from configurations import LearningConfig, GripperEnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from GripperTrainer import GripperTrainer
         

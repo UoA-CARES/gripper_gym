@@ -1,5 +1,5 @@
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from configurations import EnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig, ObjectConfig
 from environments.Environment import Environment
 
 import logging
@@ -101,7 +101,7 @@ def relative_goal_90_180_270(object_current_pose):
 
 class RotationEnvironment(Environment):
 
-    def __init__(self, env_config: EnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
+    def __init__(self, env_config: GripperEnvironmentConfig, gripper_config: GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
         self.object_observation_mode = object_config.object_observation_mode
 

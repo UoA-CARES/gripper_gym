@@ -38,7 +38,7 @@ class ALGORITHMS(Enum):
 
 
 class GripperTrainer():
-    def __init__(self, env_config, gripper_config, learning_config, object_config, file_path) -> None:
+    def __init__(self, env_config, training_config, alg_config, gripper_config, object_config) -> None:
         """
         Initializes the GripperTrainer class for training gripper actions in various environments.
 

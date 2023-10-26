@@ -5,12 +5,12 @@ import numpy as np
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
-from configurations import EnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 
 class TranslationEnvironment(Environment):
-    def __init__(self, env_config : EnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
+    def __init__(self, env_config : GripperEnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
         self.goal_state = self.get_object_state()
 
