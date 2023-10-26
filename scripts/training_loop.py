@@ -18,18 +18,6 @@ from GripperTrainer import GripperTrainer
 
 from cares_reinforcement_learning.util import Record, NetworkFactory, RLParser
 
-def parse_args():
-    parser = ArgumentParser()
-    
-    parser.add_argument("--learning_config", type=str)
-    parser.add_argument("--env_config",      type=str)
-    parser.add_argument("--gripper_config",  type=str)
-    parser.add_argument("--object_config",   type=str)
-    parser.add_argument("--debug",      type=bool)
-
-    home_path = os.path.expanduser('~')
-    parser.add_argument("--local_results_path",  type=str, default=f"{home_path}/gripper_training")
-    return parser.parse_args()
 
 def main():
     parser = RLParser(GripperEnvironmentConfig)
@@ -51,6 +39,7 @@ def main():
     np.random.seed(learning_config.seed)
     random.seed(learning_config.seed)
 
+    # Replace with Record
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_path  = f"{date_time_str}_"
     file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.task}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
@@ -58,7 +47,7 @@ def main():
     file_path = utils.create_directories(local_results_path, file_path)
     utils.store_configs(file_path, str(parent_path))
 
-    gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, object_config, file_path)
+    gripper_trainer = GripperTrainer(env_config, gripper_config, training_config, object_config, file_path)
     gripper_trainer.train()
 
 if __name__ == '__main__':

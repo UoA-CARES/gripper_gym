@@ -4,29 +4,31 @@ file_path = Path(__file__).parent.resolve()
 from pydantic import BaseModel
 from typing import List, Optional
 
-class LearningConfig(BaseModel):
-    algorithm: str
-    seed: int
-    batch_size: int
-    buffer_capacity: int
-    episode_horizont: int
+# Replace with TrainingConfig from CARES_RL
+# class LearningConfig(BaseModel):
+#     algorithm: str
+#     seed: int
+#     batch_size: int
+#     buffer_capacity: int
+#     episode_horizont: int
 
-    G: int
-    plot_freq: Optional[int] = 10
+#     G: int
+#     plot_freq: Optional[int] = 10
 
-    max_steps_exploration: int
-    max_steps_training: int
-    step_time_period: Optional[float]
+#     max_steps_exploration: int
+#     max_steps_training: int
+#     step_time_period: Optional[float]
 
-    actor_lr: Optional[float]
-    critic_lr: float
-    gamma: float
-    tau: float
+#     actor_lr: Optional[float]
+#     critic_lr: float
+#     gamma: float
+#     tau: float
 
-    min_noise: float
-    noise_decay: float
-    noise_scale: float
+#     min_noise: float
+#     noise_decay: float
+#     noise_scale: float
 
+# TODO Extend from EnvironmentConfig in CARES_RL
 class GripperEnvironmentConfig(BaseModel):
     task: str
 
@@ -44,6 +46,7 @@ class GripperEnvironmentConfig(BaseModel):
 
     is_debug: False
 
+# TODO find a better name for 'object'
 class ObjectConfig(BaseModel):
     object_type: str
     object_observation_mode: str

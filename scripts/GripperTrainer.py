@@ -235,6 +235,7 @@ class GripperTrainer():
         historical_reward_evaluation["step"].append(total_counter)
         utils.save_evaluation_values(historical_reward_evaluation, file_name, self.file_path)
 
+    # TODO remove this as redudent to evaluate_loop
     def evaluate_at_end(self, model_path):
         """
         Evaluates the performance of an agent model at the end of training.
