@@ -31,5 +31,5 @@ class ObjectConfig(cares_cfg.SubscriptableClass):
     object_observation_mode: str
     object_marker_id: int
 
-    device_name: str
-    baudrate: Optional[int] = 115200
+    object_device_name: str
+    object_baudrate: Optional[int] = 115200
