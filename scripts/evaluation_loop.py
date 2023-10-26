@@ -47,7 +47,7 @@ def main():
 
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_path  = f"{date_time_str}_"
-    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
+    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.task}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
     file_path = utils.create_directories(local_results_path, file_path)
     gripper_trainer = GripperTrainer(env_config, gripper_config, learning_config, object_config, file_path)
     utils.store_configs(file_path, str(parent_path))

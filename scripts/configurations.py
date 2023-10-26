@@ -28,7 +28,7 @@ class LearningConfig(BaseModel):
     noise_scale: float
 
 class EnvironmentConfig(BaseModel):
-    env_type: int
+    task: str
 
     camera_id: int
     blindable: bool

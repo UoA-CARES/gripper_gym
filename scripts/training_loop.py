@@ -15,7 +15,9 @@ from pathlib import Path
 from configurations import LearningConfig, EnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from GripperTrainer import GripperTrainer
-        
+
+from cares_reinforcement_learning.util import Record, NetworkFactory
+
 def parse_args():
     parser = ArgumentParser()
     
@@ -51,7 +53,7 @@ def main():
 
     date_time_str = datetime.now().strftime("%m_%d_%H_%M")
     file_path  = f"{date_time_str}_"
-    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.env_type}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
+    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.task}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
 
     file_path = utils.create_directories(local_results_path, file_path)
     utils.store_configs(file_path, str(parent_path))

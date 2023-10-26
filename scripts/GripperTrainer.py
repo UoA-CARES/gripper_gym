@@ -1,7 +1,7 @@
 from enum import Enum
 from cares_lib.slack_bot.SlackBot import SlackBot
 from cares_reinforcement_learning.memory import MemoryBuffer
-from networks import NetworkFactory
+from cares_reinforcement_learning.util.NetworkFactory import NetworkFactory
 from cares_lib.dynamixel.Gripper import GripperError
 from environments.Environment import EnvironmentError
 from environments.TranslationEnvironment import TranslationEnvironment
@@ -77,10 +77,14 @@ class GripperTrainer():
 
         self.eval_freq = 10  # evaluate every 10 episodes
 
-        if env_config.env_type == 0:
-            self.environment = RotationEnvironment(env_config, gripper_config, object_config)
-        elif env_config.env_type == 1:
-            self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
+        # TODO: extract into environment factory
+        match env_config.task:
+            case "rotation":
+                self.environment = RotationEnvironment(env_config, gripper_config, object_config)
+            case "translation":
+                self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
+            case _:
+                raise ValueError(f"Invalid environment task: {env_config.task}")
 
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
@@ -104,7 +108,7 @@ class GripperTrainer():
 
         logging.info("Setting RL Algorithm")
         logging.info(f"Chosen algorithm: {self.algorithm}")
-        self.agent = network_factory.create_network(self.algorithm, observation_size, action_num, learning_config, DEVICE)
+        self.agent = network_factory.create_network(observation_size, action_num, learning_config)
 
         self.file_path = file_path
         self.file_name = self.file_path.split("/")[-1]

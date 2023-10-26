@@ -69,7 +69,7 @@ class Environment(ABC):
         self.servo_type = gripper_config.servo_type
 
         self.blindable = env_config.blindable
-        self.env_type = env_config.env_type
+        self.task = env_config.task
 
         self.goal_selection_method = env_config.goal_selection_method
         self.noise_tolerance = env_config.noise_tolerance
@@ -238,7 +238,7 @@ class Environment(ABC):
             state.append(position[0])  # X
             state.append(position[1])  # Y
 
-        if self.env_type == 0:
+        if self.task == 'rotation':
             # Add the additional yaw information from the object marker
             state += [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
