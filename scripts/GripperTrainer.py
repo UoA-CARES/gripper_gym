@@ -125,6 +125,12 @@ class GripperTrainer():
             network=self.agent,
         )
 
+        self.record.save_config(env_config, 'env_config')
+        self.record.save_config(alg_config, 'alg_config')
+        self.record.save_config(training_config, 'training_config')
+        self.record.save_config(gripper_config, 'gripper_config')
+        self.record.save_config(object_config, 'object_config')
+
     def environment_reset(self):
         """
         Attempts to reset the environment and handle any encountered errors.
