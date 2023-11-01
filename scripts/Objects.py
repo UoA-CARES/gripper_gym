@@ -34,13 +34,13 @@ class Command(Enum):
 
 class ServoObject(object):
     def __init__(self, config: ObjectConfig, servo_id, model="XL330-M077-T") -> None:
-        self.device_name = config.device_name
+        self.device_name = config.object_device_name
         self.model = model
 
         self.min = 0
         self.max = 4095
         self.protocol = 2
-        self.baudrate = config.baudrate
+        self.baudrate = config.object_baudrate
 
         self.port_handler = dxl.PortHandler(self.device_name)
         self.packet_handler = dxl.PacketHandler(self.protocol)
