@@ -1,7 +1,9 @@
 from enum import Enum
 from cares_lib.slack_bot.SlackBot import SlackBot
 from cares_reinforcement_learning.memory import MemoryBuffer
-from cares_reinforcement_learning.util import Record, NetworkFactory
+from cares_reinforcement_learning.util import Record
+from networks.TD3 import Actor
+from networks.NetworkFactory import NetworkFactory 
 from cares_reinforcement_learning.util.configurations import AlgorithmConfig, TrainingConfig
 from cares_lib.dynamixel.Gripper import GripperError
 from environments.Environment import EnvironmentError
