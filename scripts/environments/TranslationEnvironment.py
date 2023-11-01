@@ -1,7 +1,7 @@
 from environments.Environment import Environment
 import logging
 import numpy as np
-
+import math
 from pathlib import Path
 file_path = Path(__file__).parent.resolve()
 
@@ -31,11 +31,13 @@ class TranslationEnvironment(Environment):
             logging.debug("Final Marker Pose is None")
             return 0, True
         done = False
+        
+        reward = 0
 
-        target_goal = np.array(target_goal[0:2])
-        goal_after_array = np.array(goal_after[0:2])
-        goal_difference = np.linalg.norm(target_goal - goal_after_array)
-    
+        goal_distance_before = math.dist(target_goal[:2], goal_before[:2])
+        goal_distance_after = math.dist(target_goal[:2], goal_after[:2])
+
+        goal_progress = goal_distance_before - goal_distance_after
 
         # The following step might improve the performance.
 
@@ -49,14 +51,14 @@ class TranslationEnvironment(Environment):
         #     #reward = reward if reward > 0 else 0
 
         # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
-        if goal_difference <= self.noise_tolerance:
+        if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
             done = True
             reward = 500
         else:
-            reward = -goal_difference
-            
-        logging.info(f"Reward: {reward}, Goal after: {goal_after_array}")
+            reward += goal_progress
+
+        logging.info(f"Reward: {reward}, Goal after: {goal_after[:2]}")
 
         return reward, done
     
