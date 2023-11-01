@@ -118,9 +118,11 @@ class GripperTrainer():
 
         self.memory = MemoryBuffer(training_config.buffer_size)
 
+        # TODO: reconcile deep file_path dependency
+        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}'
         self.record = Record(
             glob_log_dir='../gripper-training',
-            log_dir=f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}',
+            log_dir= self.file_path,
             algorithm=self.algorithm,
             task=env_config.task,
             plot_frequency=self.plot_freq,
