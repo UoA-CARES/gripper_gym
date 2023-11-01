@@ -155,7 +155,7 @@ class GripperTrainer():
                 return self.environment_reset()  # might keep looping if it keep having issues
             else:
                 self.environment.gripper.close()
-                self.agent.save_models(self.file_name, self.file_path)
+                self.agent.save_models('error_models', self.file_path)
                 exit(1)
 
     def environment_step(self, action_env):
@@ -184,7 +184,7 @@ class GripperTrainer():
                 return state, 0, False, False
             else:
                 self.environment.gripper.close()
-                self.agent.save_models(self.file_name, self.file_path)
+                self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
     def evaluation_loop(self, total_counter):
