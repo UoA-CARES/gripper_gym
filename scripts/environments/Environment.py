@@ -76,7 +76,6 @@ class Environment(ABC):
 
         self.gripper.wiggle_home()
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-
         self.object_marker_id = object_config.object_marker_id
         self.object_observation_mode = object_config.object_observation_mode
 
@@ -229,15 +228,19 @@ class Environment(ABC):
         num_markers = self.gripper.num_motors + 3
         # maker_ids match servo ids (counting from 1)
         marker_ids = [id for id in range(1, num_markers + 1)]
+
+        goal = []
+        self.add_goal(goal)
+
         while True:
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
-
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True, goal=goal)
+            
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
                 break
-
+        
         # Add the XY poses for each of the markers in marker id into the state
         for id in marker_ids:
             marker_pose = marker_poses[id]

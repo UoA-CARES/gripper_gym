@@ -3,8 +3,8 @@ import logging
 import numpy as np
 import math
 from pathlib import Path
+import random
 file_path = Path(__file__).parent.resolve()
-
 from configurations import GripperEnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
@@ -14,13 +14,51 @@ class TranslationEnvironment(Environment):
         super().__init__(env_config, gripper_config, object_config)
         self.goal_state = self.get_object_state()
 
+        # Setting max and min values for the target goals
+
+        self.gripper.move(self.gripper.max_values)
+
+        # Just the x and y position of the box
+        self.goal_max = self.get_object_state()[:2]
+
+        self.gripper.move(self.gripper.min_values)
+        self.goal_min = self.get_object_state()[:2]
+
+        print(f'Goal Max: {self.goal_max}')
+        print(f'Goal Min: {self.goal_min}')
+
    # overriding method
     def choose_goal(self):
-        position = self.get_object_state()[0:2]
-        position[0] = np.random.randint(225,450)
-        position[1] = np.random.randint(150,225)
+        x1, y1 = self.goal_max
+        x2, y2 = self.goal_min
 
-        return position
+        # Distance away from the centre
+        n = self.noise_tolerance * 2
+
+        # Calculate the center point
+        center_x = (x1 + x2) / 2
+        center_y = (y1 + y2) / 2
+        # Calculate the direction vector along the line
+        dx = x2 - x1
+        dy = y2 - y1
+        
+        # Normalize the direction vector
+        length = (dx**2 + dy**2)**0.5
+
+
+        dx /= length
+        dy /= length
+        # Generate a random point along the line segment
+        random_point = (random.uniform(0, 1) * length, random.uniform(0, 1) * length)
+        # Ensure it is at least 'n' units away from the center point
+        while (random_point[0] - length / 2) ** 2 + (random_point[1] - length / 2) ** 2 < n ** 2:
+            random_point = (random.uniform(0, 1) * length, random.uniform(0, 1) * length)
+        # Calculate the final point on the line segment
+        final_x = center_x + random_point[0] * dx
+        final_y = center_y + random_point[1] * dy
+
+        print(f'New Goal: {final_x}, {final_y}')
+        return [final_x, final_y]
 
     def reward_function(self, target_goal, goal_before, goal_after):
         if goal_before is None:
