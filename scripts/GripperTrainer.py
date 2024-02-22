@@ -91,14 +91,21 @@ class GripperTrainer():
         self.action_type = gripper_config.action_type
 
         # TODO: extract into environment factory
-        match env_config.task:
-            case "rotation":
-                self.environment = RotationEnvironment(env_config, gripper_config, object_config)
-            case "translation":
-                self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
-            case _:
-                raise ValueError(f"Invalid environment task: {env_config.task}")
+        # match env_config.task:
+        #     case "rotation":
+        #         self.environment = RotationEnvironment(env_config, gripper_config, object_config)
+        #     case "translation":
+        #         self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
+        #     case _:
+        #         raise ValueError(f"Invalid environment task: {env_config.task}")
 
+        if env_config.task == "rotation":
+            self.environment = RotationEnvironment(env_config, gripper_config, object_config)
+        elif env_config.task == "translation":
+            self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
+        else:
+            raise ValueError(f"Invalid environment task: {env_config.task}")
+        
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
         state = self.environment.reset()
