@@ -30,9 +30,9 @@ else:
     DEVICE = torch.device('cpu')
     logging.info("Working with CPU")
 
-with open('slack_token.txt') as file:
-    slack_token = file.read()
-slack_bot = SlackBot(slack_token=slack_token)
+#with open('slack_token.txt') as file:
+#    slack_token = file.read()
+#slack_bot = SlackBot(slack_token=slack_token)
 
 
 class ALGORITHMS(Enum):
@@ -104,14 +104,14 @@ class GripperTrainer():
         state = self.environment.reset()
 
         logging.info(f"State: {state}")
-        slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: Reset Terminal. \nState: {state}")
+        #slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: Reset Terminal. \nState: {state}")
 
         # This wont work for multi-dimension arrays
         observation_size = len(state)
         action_num = gripper_config.num_motors
         message = f"Observation Space: {observation_size} Action Space: {action_num}"
         logging.info(message)
-        slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
+        #slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
         network_factory = NetworkFactory()
         self.agent = network_factory.create_network(observation_size, action_num, alg_config)
@@ -277,8 +277,8 @@ class GripperTrainer():
             if total_step_counter < self.max_steps_exploration:
                 message = f"Running Exploration Steps {total_step_counter}/{self.max_steps_exploration}"
                 logging.info(message)
-                if total_step_counter % 50 == 0:
-                    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
+                #if total_step_counter % 50 == 0:
+                #    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
                 action_env = self.environment.sample_action()
                 action = self.environment.normalize(action_env)  # algorithm range [-1, 1]
@@ -302,7 +302,7 @@ class GripperTrainer():
             
             env_end = time.time()
 
-            self.memory.add(state=state, action=action, reward=reward, next_state=next_state, done=done)
+            self.memory.add(state, action, reward, next_state, done)
 
             state = next_state
             episode_reward += reward
@@ -312,13 +312,7 @@ class GripperTrainer():
             if total_step_counter >= self.max_steps_exploration:
                 for _ in range(self.G):
                     experiences = self.memory.sample(self.batch_size)
-                    info = self.agent.train_policy((
-                        experiences['state'],
-                        experiences['action'],
-                        experiences['reward'],
-                        experiences['next_state'],
-                        experiences['done']
-                    ))
+                    info = self.agent.train_policy(experiences)
             end = time.time()
             logging.debug(f"Time to run training loop {end-start} \n")
 
@@ -326,7 +320,7 @@ class GripperTrainer():
                 evaluation = True
             
             if done or truncated:
-                slack_bot.post_message("#bot_terminal", message)
+                #slack_bot.post_message("#bot_terminal", message)
                 
                 self.record.log_train(
                     total_steps=total_step_counter,
