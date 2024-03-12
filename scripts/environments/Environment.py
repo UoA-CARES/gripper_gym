@@ -89,7 +89,9 @@ class Environment(ABC):
             for i in range(0, 10):
                 aruco_yaws.append(self.observed_object_state(marker_only=True)[2])
             aruco_yaw = trim_mean(aruco_yaws, 0.1)
+        
         self.object_type = object_config.object_type
+        
         if self.object_type == "aruco":
             self.target = ArucoObject(
                 self.camera, self.aruco_detector, object_config.object_marker_id)
@@ -220,8 +222,9 @@ class Environment(ABC):
 
         Returns:
         A list representing the state of the environment.
+
+        X-Y Servos + X-Y Finger-tips + X-Y-Yaw Object + Goal
         """
-        # X-Y Servo + X-Y Finger-tips + X-Y-Yaw Object + Goal
         state = []
 
         # Servos + Finger Tips (2) + Object (1)
@@ -235,23 +238,30 @@ class Environment(ABC):
         while True:
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True, goal=goal)
+            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
             
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in marker_ids):
                 break
         
+        # Pose to normalise the other positions against - consider (0,0)
+        reference_marker_id = 1 # TODO make this a hyperparameter
+
+        # The reference position normalises the positions regardless of the camera position
+        reference_position = marker_poses[reference_marker_id]["position"]
+
         # Add the XY poses for each of the markers in marker id into the state
         for id in marker_ids:
             marker_pose = marker_poses[id]
             position = marker_pose["position"]
-            state.append(position[0])  # X
-            state.append(position[1])  # Y
+            state.append(position[0] - reference_position[0])  # X
+            state.append(position[1] - reference_position[1])  # Y
 
         if self.task == 'rotation':
             # Add the additional yaw information from the object marker
             state += [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
 
+        # Goal State - X Y 
         state = self.add_goal(state)
 
         return state
@@ -305,7 +315,7 @@ class Environment(ABC):
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=False)
+                                                                self.camera.camera_distortion, display=True)
             if self.object_marker_id in marker_poses:
                 return marker_poses[self.object_marker_id]
         return None
@@ -314,6 +324,7 @@ class Environment(ABC):
         # A list representing the state of the observed object.
         object_state = self.get_aruco_object_pose(
             blindable=self.blindable, detection_attempts=5)
+        
         if object_state is not None:
             state = []
             position = object_state["position"]

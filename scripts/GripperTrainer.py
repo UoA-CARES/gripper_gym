@@ -281,7 +281,9 @@ class GripperTrainer():
                 #    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
                 action_env = self.environment.sample_action()
-                action = self.environment.normalize(action_env)  # algorithm range [-1, 1]
+                
+                # algorithm range [-1, 1]
+                action = self.environment.normalize(action_env)  
             else:
                 self.noise_scale *= self.noise_decay
                 self.noise_scale = max(self.min_noise, self.noise_scale)
@@ -293,7 +295,8 @@ class GripperTrainer():
                 else:
                     action = self.agent.select_action_from_policy(state)
 
-                action_env = self.environment.denormalize(action)  # gripper range
+                # gripper range
+                action_env = self.environment.denormalize(action)  
 
             if self.action_type == "velocity":
                 self.dynamic_sleep(env_end)

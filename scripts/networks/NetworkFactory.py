@@ -49,7 +49,7 @@ def create_TD3(observation_size, action_num, learning_config):
     from networks.TD3 import Actor
     from networks.TD3 import Critic
 
-    actor  = Actor(observation_size, action_num, learning_config.actor_lr)
+    actor  = Actor(observation_size, action_num)
     critic = Critic(observation_size, action_num)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

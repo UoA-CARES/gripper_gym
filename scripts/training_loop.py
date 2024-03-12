@@ -19,7 +19,7 @@ def main():
     parser.add_configuration("object_config", ObjectConfig)
 
     configurations = parser.parse_args()
-    env_config: GripperEnvironmentConfig = configurations["env_config"] 
+    env_config: GripperEnvironmentConfig = configurations["env_config"]
     training_config: cares_cfg.TrainingConfig = configurations["training_config"]
     alg_config: cares_cfg.AlgorithmConfig = configurations["algorithm_config"]
     gripper_config: GripperConfig = configurations["gripper_config"]

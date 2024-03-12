@@ -3,7 +3,8 @@ import logging
 import numpy as np
 import math
 from pathlib import Path
-import random
+from random import randrange
+
 file_path = Path(__file__).parent.resolve()
 from configurations import GripperEnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
@@ -12,53 +13,23 @@ from cares_lib.dynamixel.gripper_configuration import GripperConfig
 class TranslationEnvironment(Environment):
     def __init__(self, env_config : GripperEnvironmentConfig, gripper_config : GripperConfig, object_config: ObjectConfig):
         super().__init__(env_config, gripper_config, object_config)
-        self.goal_state = self.get_object_state()
 
-        # Setting max and min values for the target goals
-
-        self.gripper.move(self.gripper.max_values)
-
-        # Just the x and y position of the box
-        self.goal_max = self.get_object_state()[:2]
-
-        self.gripper.move(self.gripper.min_values)
-        self.goal_min = self.get_object_state()[:2]
-
-        print(f'Goal Max: {self.goal_max}')
-        print(f'Goal Min: {self.goal_min}')
+        # These bounds are respective to the reference marker in Environment
+        self.goal_min = [-30.0, 60.0]
+        self.goal_max = [120.0, 120.0]
+        logging.info(f'Goal Max: {self.goal_max}')
+        logging.info(f'Goal Min: {self.goal_min}')
 
    # overriding method
     def choose_goal(self):
-        x1, y1 = self.goal_max
-        x2, y2 = self.goal_min
+        x1, y1 = self.goal_min
+        x2, y2 = self.goal_max
 
-        # Distance away from the centre
-        n = self.noise_tolerance * 2
+        goal_x = randrange(x1, x2)
+        goal_y = randrange(y1, y2)
 
-        # Calculate the center point
-        center_x = (x1 + x2) / 2
-        center_y = (y1 + y2) / 2
-        # Calculate the direction vector along the line
-        dx = x2 - x1
-        dy = y2 - y1
-        
-        # Normalize the direction vector
-        length = (dx**2 + dy**2)**0.5
-
-
-        dx /= length
-        dy /= length
-        # Generate a random point along the line segment
-        random_point = (random.uniform(0, 1) * length, random.uniform(0, 1) * length)
-        # Ensure it is at least 'n' units away from the center point
-        while (random_point[0] - length / 2) ** 2 + (random_point[1] - length / 2) ** 2 < n ** 2:
-            random_point = (random.uniform(0, 1) * length, random.uniform(0, 1) * length)
-        # Calculate the final point on the line segment
-        final_x = center_x + random_point[0] * dx
-        final_y = center_y + random_point[1] * dy
-
-        print(f'New Goal: {final_x}, {final_y}')
-        return [final_x, final_y]
+        logging.info(f'New Goal: {goal_x}, {goal_y}')
+        return [goal_x, goal_y]
 
     def reward_function(self, target_goal, goal_before, goal_after):
         if goal_before is None:
@@ -68,6 +39,7 @@ class TranslationEnvironment(Environment):
         if goal_after is None:
             logging.debug("Final Marker Pose is None")
             return 0, True
+        
         done = False
         
         reward = 0
@@ -96,7 +68,7 @@ class TranslationEnvironment(Environment):
         else:
             reward += goal_progress
 
-        logging.info(f"Reward: {reward}, Goal after: {goal_after[:2]}")
+        logging.info(f"Marker Pose: {goal_after[:2]} Goal Pose: {target_goal} Reward: {reward}")
 
         return reward, done
     
