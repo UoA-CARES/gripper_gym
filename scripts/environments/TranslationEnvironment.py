@@ -29,8 +29,6 @@ class TranslationEnvironment(Environment):
         goal_x = randrange(x1, x2)
         goal_y = randrange(y1, y2)
 
-        goal_x = 25
-        goal_y = 130
         logging.info(f'New Goal: {goal_x}, {goal_y}')
         return [goal_x, goal_y]
 

@@ -1,6 +1,6 @@
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.ArucoDetector import ArucoDetector
-from Objects import MagnetObject, ServoObject, ArucoObject
+from Objects import ServoObject, ArucoObject
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from configurations import GripperEnvironmentConfig, ObjectConfig
