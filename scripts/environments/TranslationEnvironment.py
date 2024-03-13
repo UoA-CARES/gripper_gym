@@ -1,3 +1,4 @@
+import cv2
 from environments.Environment import Environment
 import logging
 import numpy as np
@@ -16,7 +17,7 @@ class TranslationEnvironment(Environment):
 
         # These bounds are respective to the reference marker in Environment
         self.goal_min = [-30.0, 60.0]
-        self.goal_max = [120.0, 120.0]
+        self.goal_max = [120.0, 110.0]
         logging.info(f'Goal Max: {self.goal_max}')
         logging.info(f'Goal Min: {self.goal_min}')
 
@@ -28,6 +29,8 @@ class TranslationEnvironment(Environment):
         goal_x = randrange(x1, x2)
         goal_y = randrange(y1, y2)
 
+        goal_x = 25
+        goal_y = 130
         logging.info(f'New Goal: {goal_x}, {goal_y}')
         return [goal_x, goal_y]
 
@@ -80,23 +83,45 @@ class TranslationEnvironment(Environment):
         state.append(self.goal_state[1])
         return state
     
-    def env_render(self, done=False, step=1, episode=1, mode="Exploration"):
-        image = self.camera.get_frame()
-        color = (0, 255, 0)
-        if done:
-            color = (0, 0, 255)
+    def env_render(self, reference_position, marker_poses):
 
-        target = (int(self.goal_pixel[0]), int(self.goal_pixel[1]))
-        text_in_target = (
-            int(self.goal_pixel[0]) - 15, int(self.goal_pixel[1]) + 3)
-        cv2.circle(image, target, 18, color, -1)
-        cv2.putText(image, 'Target', text_in_target,cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Episode : {str(episode)}', (30, 40),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Steps : {str(step)}', (30, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Success Counter : {str(self.counter_success)}', (400, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, f'Stage : {mode}', (900, 60),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+        image = self.camera.get_frame()
+
+        image = cv2.undistort(
+            image, self.camera.camera_matrix, self.camera.camera_distortion
+        )
+
+        color = (0, 255, 0)
+
+        bounds_min_x, bounds_min_y = self._position_to_pixel(self.goal_min, reference_position, self.camera.camera_matrix)
+        bounds_max_x, bounds_max_y = self._position_to_pixel(self.goal_max, reference_position, self.camera.camera_matrix)
+    
+        cv2.rectangle(
+            image,
+            (int(bounds_min_x), int(bounds_min_y)),
+            (int(bounds_max_x), int(bounds_max_y)),
+            color,
+            2,
+        )
+
+        for marker_pose in marker_poses.values():
+            marker_pixel = self._position_to_pixel(marker_pose["position"], [0,0,marker_pose["position"][2]], self.camera.camera_matrix)
+            cv2.circle(image, marker_pixel, 9, color, -1)
+
+        object_reference_position = [reference_position[0], reference_position[1], marker_poses[self.object_marker_id]["position"][2]]
+        goal_pixel = self._position_to_pixel(self.goal_state, object_reference_position, self.camera.camera_matrix)
+
+        cv2.circle(image, goal_pixel, 9, color, -1)
+
+        cv2.putText(
+            image,
+            "Target",
+            goal_pixel,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.3,
+            (255, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
         cv2.imshow("State Image", image)
         cv2.waitKey(10)
-
-    
-

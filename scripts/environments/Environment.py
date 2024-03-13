@@ -18,9 +18,8 @@ import cv2
 
 file_path = Path(__file__).parent.resolve()
 
-
+# TODO make these parameters 
 VALVE_SERVO_ID = 10
-SLEEP_TIME = 0.5  # in seconds
 
 
 def exception_handler(error_message):
@@ -79,31 +78,26 @@ class Environment(ABC):
         self.object_marker_id = object_config.object_marker_id
         self.object_observation_mode = object_config.object_observation_mode
 
-        aruco_yaw = None
-
         self.step_counter = 0
         self.episode_horizon = env_config.episode_horizon
-
-        if self.object_observation_mode == "observed":
-            aruco_yaws = []
-            for i in range(0, 10):
-                aruco_yaws.append(self.observed_object_state(marker_only=True)[2])
-            aruco_yaw = trim_mean(aruco_yaws, 0.1)
         
         self.object_type = object_config.object_type
         
         if self.object_type == "aruco":
             self.target = ArucoObject(
                 self.camera, self.aruco_detector, object_config.object_marker_id)
-        elif self.object_type == "magnet":
-            self.target = MagnetObject(object_config, aruco_yaw)
         elif self.object_type == "servo":
             self.target = ServoObject(object_config, VALVE_SERVO_ID)
         else:
             raise ValueError("Object Type unknown")
 
-        self.object_state_before = self.goal_state = self.get_object_state()
+        # Pose to normalise the other positions against - consider (0,0)
+        self.reference_marker_id = 1 # TODO make this a hyperparameter        
 
+        # The reference position normalises the positions regardless of the camera position
+        self.reference_position = self.get_aruco_pose(self.reference_marker_id, blindable=self.blindable, detection_attempts=5)["position"]
+
+        self.object_state_before = self.goal_state = self.get_object_state()
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -184,6 +178,10 @@ class Environment(ABC):
 
         truncated = self.step_counter >= self.episode_horizon
         
+        frame = self.camera.get_frame()
+        marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix, self.camera.camera_distortion, display=True)
+        self.env_render(self.reference_position, marker_poses)
+
         return state, reward, done, truncated
 
     @exception_handler("Failed to step gripper")
@@ -232,9 +230,6 @@ class Environment(ABC):
         # maker_ids match servo ids (counting from 1)
         marker_ids = [id for id in range(1, num_markers + 1)]
 
-        goal = []
-        self.add_goal(goal)
-
         while True:
             logging.debug(f"Attempting to Detect State")
             frame = self.camera.get_frame()
@@ -244,18 +239,12 @@ class Environment(ABC):
             if all(ids in marker_poses for ids in marker_ids):
                 break
         
-        # Pose to normalise the other positions against - consider (0,0)
-        reference_marker_id = 1 # TODO make this a hyperparameter
-
-        # The reference position normalises the positions regardless of the camera position
-        reference_position = marker_poses[reference_marker_id]["position"]
-
         # Add the XY poses for each of the markers in marker id into the state
         for id in marker_ids:
             marker_pose = marker_poses[id]
             position = marker_pose["position"]
-            state.append(position[0] - reference_position[0])  # X
-            state.append(position[1] - reference_position[1])  # Y
+            state.append(position[0] - self.reference_position[0])  # X
+            state.append(position[1] - self.reference_position[1])  # Y
 
         if self.task == 'rotation':
             # Add the additional yaw information from the object marker
@@ -306,31 +295,30 @@ class Environment(ABC):
 
         raise ValueError(f"Observation Type unknown: {self.observation_type}")
 
-    def get_aruco_object_pose(self, blindable=False, detection_attempts=4):
+    def get_aruco_pose(self, aruco_marker_id, blindable=False, detection_attempts=4):
         attempt = 0
         while not blindable or attempt < detection_attempts:
             attempt += 1
             msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-            logging.debug(f"Attempting to detect aruco target: {self.object_marker_id}")
+            logging.debug(f"Attempting to detect aruco target: {aruco_marker_id} {msg}")
 
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
                                                                 self.camera.camera_distortion, display=True)
-            if self.object_marker_id in marker_poses:
-                return marker_poses[self.object_marker_id]
+            if aruco_marker_id in marker_poses:
+                return marker_poses[aruco_marker_id]
         return None
 
     def observed_object_state(self, marker_only=True):
         # A list representing the state of the observed object.
-        object_state = self.get_aruco_object_pose(
-            blindable=self.blindable, detection_attempts=5)
+        object_state = self.get_aruco_pose(self.object_marker_id, blindable=self.blindable, detection_attempts=5)
         
         if object_state is not None:
             state = []
             position = object_state["position"]
             orientation = object_state["orientation"]
-            state.append(position[0])  # X
-            state.append(position[1])  # Y
+            state.append(position[0] - self.reference_position[0])  # X
+            state.append(position[1] - self.reference_position[1])  # Y
             state.append(orientation[2])  # Yaw
 
             if not marker_only:
@@ -413,4 +401,15 @@ class Environment(ABC):
 
     @abstractmethod
     def reward_function(self, target, start_target_pose, final_target_pose):
+        pass
+
+    # TODO shift this to a general helper/util function in cares_lib
+    def _position_to_pixel(self, position, reference_position, camera_matrix):
+        # pixel_n = f * N / Z + c_n
+        pixel_x = camera_matrix[0, 0] * (position[0] + reference_position[0]) / reference_position[2] + camera_matrix[0,2]
+        pixel_y = camera_matrix[1, 1] * (position[1] + reference_position[1]) / reference_position[2] + camera_matrix[1,2]
+        return int(pixel_x), int(pixel_y)
+
+    @abstractmethod
+    def env_render(self, reference_position):
         pass

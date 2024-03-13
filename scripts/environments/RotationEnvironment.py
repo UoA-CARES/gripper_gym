@@ -1,3 +1,4 @@
+import cv2
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from configurations import GripperEnvironmentConfig, ObjectConfig
 from environments.Environment import Environment
@@ -273,3 +274,47 @@ class RotationEnvironment(Environment):
         # 0 in decimal is 180 degrees so need to add offset
         home_pos_angle = (home_pos/angle_ratio + 180) % 360
         return home_pos_angle
+
+    # TODO add the target angle of the goal object
+    def env_render(self, reference_position, marker_poses):
+
+        image = self.camera.get_frame()
+
+        image = cv2.undistort(
+            image, self.camera.camera_matrix, self.camera.camera_distortion
+        )
+
+        color = (0, 255, 0)
+
+        bounds_min_x, bounds_min_y = self._position_to_pixel(self.goal_min, reference_position, self.camera.camera_matrix)
+        bounds_max_x, bounds_max_y = self._position_to_pixel(self.goal_max, reference_position, self.camera.camera_matrix)
+    
+        cv2.rectangle(
+            image,
+            (int(bounds_min_x), int(bounds_min_y)),
+            (int(bounds_max_x), int(bounds_max_y)),
+            color,
+            2,
+        )
+
+        for marker_pose in marker_poses.values():
+            marker_pixel = self._position_to_pixel(marker_pose["position"], [0,0,marker_pose["position"][2]], self.camera.camera_matrix)
+            cv2.circle(image, marker_pixel, 9, color, -1)
+
+        object_reference_position = [reference_position[0], reference_position[1], marker_poses[self.object_marker_id]["position"][2]]
+        goal_pixel = self._position_to_pixel(self.goal_state, object_reference_position, self.camera.camera_matrix)
+
+        cv2.circle(image, goal_pixel, 9, color, -1)
+
+        cv2.putText(
+            image,
+            "Target",
+            goal_pixel,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.3,
+            (255, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
