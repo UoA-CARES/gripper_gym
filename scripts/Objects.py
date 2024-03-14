@@ -21,9 +21,16 @@ def exception_handler(error_message):
             try:
                 return function(self, *args, **kwargs)
             except EnvironmentError as error:
-                logging.error(f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}")
-                raise EnvironmentError(error.gripper, f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}") from error
+                logging.error(
+                    f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}"
+                )
+                raise EnvironmentError(
+                    error.gripper,
+                    f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}",
+                ) from error
+
         return wrapper
+
     return decorator
 
 
@@ -32,7 +39,7 @@ class Command(Enum):
     OFFSET = 1
 
 
-class ServoObject(object):
+class ServoObject:
     def __init__(self, config: ObjectConfig, servo_id, model="XL330-M077-T") -> None:
         self.device_name = config.object_device_name
         self.model = model
@@ -47,7 +54,18 @@ class ServoObject(object):
         self.setup_handlers()
         self.servo_id = servo_id
 
-        self.object_servo = Servo(self.port_handler, self.packet_handler, 2.0, servo_id, 0, 200, 200, self.max, self.min, self.model)
+        self.object_servo = Servo(
+            self.port_handler,
+            self.packet_handler,
+            2.0,
+            servo_id,
+            0,
+            200,
+            200,
+            self.max,
+            self.min,
+            self.model,
+        )
 
     def setup_handlers(self):
         if not self.port_handler.openPort():
@@ -62,7 +80,7 @@ class ServoObject(object):
             raise IOError(error_message)
         logging.info(f"Succeeded to change the baudrate to {self.baudrate}")
 
-    def get_yaw(self):
+    def get_state(self):
         current_position = self.object_servo.current_position()
         yaw = self.object_servo.step_to_angle(current_position)
         if yaw < 0:
@@ -80,30 +98,3 @@ class ServoObject(object):
         logging.info(f"Resetting Servo #{self.servo_id} to position: {home_pos}")
         self.object_servo.move(home_pos)
         self.object_servo.disable_torque()
-
-
-class ArucoObject(object):
-    def __init__(self, camera: Camera, aruco_detector: ArucoDetector, object_marker_id: int) -> None:
-        self.camera = camera
-        self.aruco_detector = aruco_detector
-        self.object_marker_id = object_marker_id
-
-    def get_yaw(self, blindable=False, detection_attempts=10):
-        attempt = 0
-        while not blindable or attempt < detection_attempts:
-            attempt += 1
-            msg = f"{attempt}/{detection_attempts}" if blindable else f"{attempt}"
-            logging.debug(f"Attempting to detect aruco target: {self.object_marker_id}")
-
-            frame = self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(frame, self.camera.camera_matrix,
-                                                                self.camera.camera_distortion, display=False)
-            if self.object_marker_id in marker_poses:
-                return marker_poses[self.object_marker_id]["orientation"][2]
-        return None
-
-    def reset(self):
-        pass
-
-    def reset_target_servo(self):
-        pass

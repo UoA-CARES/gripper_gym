@@ -3,8 +3,11 @@ from cares_lib.slack_bot.SlackBot import SlackBot
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_reinforcement_learning.util import Record
 from networks.TD3 import Actor
-from networks.NetworkFactory import NetworkFactory 
-from cares_reinforcement_learning.util.configurations import AlgorithmConfig, TrainingConfig
+from networks.NetworkFactory import NetworkFactory
+from cares_reinforcement_learning.util.configurations import (
+    AlgorithmConfig,
+    TrainingConfig,
+)
 from cares_lib.dynamixel.Gripper import GripperError
 from environments.Environment import EnvironmentError
 from environments.TranslationEnvironment import TranslationEnvironment
@@ -20,19 +23,20 @@ import os
 import torch
 import time
 import logging
+
 logging.basicConfig(level=logging.INFO)
 
 
 if torch.cuda.is_available():
-    DEVICE = torch.device('cuda')
+    DEVICE = torch.device("cuda")
     logging.info("Working with GPU")
 else:
-    DEVICE = torch.device('cpu')
+    DEVICE = torch.device("cpu")
     logging.info("Working with CPU")
 
-#with open('slack_token.txt') as file:
+# with open('slack_token.txt') as file:
 #    slack_token = file.read()
-#slack_bot = SlackBot(slack_token=slack_token)
+# slack_bot = SlackBot(slack_token=slack_token)
 
 
 class ALGORITHMS(Enum):
@@ -42,14 +46,15 @@ class ALGORITHMS(Enum):
     STC_TD3 = "STC_TD3"
 
 
-class GripperTrainer():
-    def __init__(self, 
-                 env_config: GripperEnvironmentConfig, 
-                 training_config: TrainingConfig, 
-                 alg_config: AlgorithmConfig, 
-                 gripper_config: GripperConfig, 
-                 object_config: ObjectConfig
-                 ) -> None:
+class GripperTrainer:
+    def __init__(
+        self,
+        env_config: GripperEnvironmentConfig,
+        training_config: TrainingConfig,
+        alg_config: AlgorithmConfig,
+        gripper_config: GripperConfig,
+        object_config: ObjectConfig,
+    ) -> None:
         """
         Initializes the GripperTrainer class for training gripper actions in various environments.
 
@@ -63,7 +68,7 @@ class GripperTrainer():
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
         """
 
-        self.seed = training_config.seeds[0] # TODO: reconcile the multiple seeds
+        self.seed = training_config.seeds[0]  # TODO: reconcile the multiple seeds
         self.batch_size = training_config.batch_size
         self.buffer_capacity = training_config.buffer_size
         self.episode_horizont = env_config.episode_horizon
@@ -93,9 +98,13 @@ class GripperTrainer():
         # TODO: extract into environment factory
         match env_config.task:
             case "rotation":
-                self.environment = RotationEnvironment(env_config, gripper_config, object_config)
+                self.environment = RotationEnvironment(
+                    env_config, gripper_config, object_config
+                )
             case "translation":
-                self.environment = TranslationEnvironment(env_config, gripper_config, object_config)
+                self.environment = TranslationEnvironment(
+                    env_config, gripper_config, object_config
+                )
             case _:
                 raise ValueError(f"Invalid environment task: {env_config.task}")
 
@@ -104,36 +113,38 @@ class GripperTrainer():
         state = self.environment.reset()
 
         logging.info(f"State: {state}")
-        #slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: Reset Terminal. \nState: {state}")
+        # slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: Reset Terminal. \nState: {state}")
 
         # This wont work for multi-dimension arrays
         observation_size = len(state)
         action_num = gripper_config.num_motors
         message = f"Observation Space: {observation_size} Action Space: {action_num}"
         logging.info(message)
-        #slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
+        # slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
         network_factory = NetworkFactory()
-        self.agent = network_factory.create_network(observation_size, action_num, alg_config)
+        self.agent = network_factory.create_network(
+            observation_size, action_num, alg_config
+        )
 
         self.memory = MemoryBuffer(training_config.buffer_size)
 
         # TODO: reconcile deep file_path dependency
         self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}'
         self.record = Record(
-            glob_log_dir='../gripper-training',
-            log_dir= self.file_path,
+            glob_log_dir="../gripper-training",
+            log_dir=self.file_path,
             algorithm=self.algorithm,
             task=env_config.task,
             plot_frequency=self.plot_freq,
             network=self.agent,
         )
 
-        self.record.save_config(env_config, 'env_config')
-        self.record.save_config(alg_config, 'alg_config')
-        self.record.save_config(training_config, 'training_config')
-        self.record.save_config(gripper_config, 'gripper_config')
-        self.record.save_config(object_config, 'object_config')
+        self.record.save_config(env_config, "env_config")
+        self.record.save_config(alg_config, "alg_config")
+        self.record.save_config(training_config, "training_config")
+        self.record.save_config(gripper_config, "gripper_config")
+        self.record.save_config(object_config, "object_config")
 
     def environment_reset(self):
         """
@@ -151,11 +162,15 @@ class GripperTrainer():
         except (EnvironmentError, GripperError) as error:
             error_message = f"Failed to reset with message: {error}"
             logging.error(error_message)
-            if erh.handle_gripper_error_home(self.environment, error_message, slack_bot, self.file_path):
-                return self.environment_reset()  # might keep looping if it keep having issues
+            if erh.handle_gripper_error_home(
+                self.environment, error_message, slack_bot, self.file_path
+            ):
+                return (
+                    self.environment_reset()
+                )  # might keep looping if it keep having issues
             else:
                 self.environment.gripper.close()
-                self.agent.save_models('error_models', self.file_path)
+                self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
     def environment_step(self, action_env):
@@ -178,8 +193,10 @@ class GripperTrainer():
         except (EnvironmentError, GripperError) as error:
             error_message = f"Failed to step environment with message: {error}"
             logging.error(error_message)
-            if erh.handle_gripper_error_home(self.environment, error_message, slack_bot, self.file_path):
-                state = self.environment.get_state()
+            if erh.handle_gripper_error_home(
+                self.environment, error_message, slack_bot, self.file_path
+            ):
+                state = self.environment.get_object_pose()
                 # Truncated should be false to prevent skipping the entire episode
                 return state, 0, False, False
             else:
@@ -212,10 +229,11 @@ class GripperTrainer():
             self.noise_scale *= self.noise_decay
             self.noise_scale = max(self.min_noise, self.noise_scale)
 
-            if (self.algorithm == 'TD3'):
+            if self.algorithm == "TD3":
                 # returns a 1D array with range [-1, 1], only TD3 has noise scale
                 action = self.agent.select_action_from_policy(
-                    state, noise_scale=self.noise_scale, evaluation=True)
+                    state, noise_scale=self.noise_scale, evaluation=True
+                )
             else:
                 action = self.agent.select_action_from_policy(state, evaluation=True)
 
@@ -223,9 +241,9 @@ class GripperTrainer():
 
             if self.action_type == "velocity":
                 self.dynamic_sleep(env_end)
-            
+
             next_state, reward, done, truncated = self.environment_step(action_env)
-            
+
             env_end = time.time()
 
             if self.environment.action_type == "velocity":
@@ -238,13 +256,13 @@ class GripperTrainer():
             episode_reward += reward
 
             if done or truncated:
-                
+
                 self.record.log_eval(
                     total_steps=total_counter + 1,
                     episode=episode_num,
                     episode_steps=episode_timesteps,
                     episode_reward=episode_reward,
-                    display=True
+                    display=True,
                 )
 
                 state = self.environment_reset()
@@ -277,32 +295,34 @@ class GripperTrainer():
             if total_step_counter < self.max_steps_exploration:
                 message = f"Running Exploration Steps {total_step_counter}/{self.max_steps_exploration}"
                 logging.info(message)
-                #if total_step_counter % 50 == 0:
+                # if total_step_counter % 50 == 0:
                 #    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
                 action_env = self.environment.sample_action()
-                
+
                 # algorithm range [-1, 1]
-                action = self.environment.normalize(action_env)  
+                action = self.environment.normalize(action_env)
             else:
                 self.noise_scale *= self.noise_decay
                 self.noise_scale = max(self.min_noise, self.noise_scale)
                 logging.debug(f"Noise Scale:{self.noise_scale}")
 
-                if (self.algorithm == ALGORITHMS.TD3.value):
+                if self.algorithm == ALGORITHMS.TD3.value:
                     # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                    action = self.agent.select_action_from_policy(state, noise_scale=self.noise_scale)
+                    action = self.agent.select_action_from_policy(
+                        state, noise_scale=self.noise_scale
+                    )
                 else:
                     action = self.agent.select_action_from_policy(state)
 
                 # gripper range
-                action_env = self.environment.denormalize(action)  
+                action_env = self.environment.denormalize(action)
 
             if self.action_type == "velocity":
                 self.dynamic_sleep(env_end)
-            
+
             next_state, reward, done, truncated = self.environment_step(action_env)
-            
+
             env_end = time.time()
 
             self.memory.add(state, action, reward, next_state, done)
@@ -321,16 +341,16 @@ class GripperTrainer():
 
             if total_step_counter % self.number_steps_per_evaluation == 0:
                 evaluation = True
-            
+
             if done or truncated:
-                #slack_bot.post_message("#bot_terminal", message)
-                
+                # slack_bot.post_message("#bot_terminal", message)
+
                 self.record.log_train(
                     total_steps=total_step_counter,
                     episode=episode_num,
                     episode_steps=episode_timesteps,
                     episode_reward=episode_reward,
-                    display=True
+                    display=True,
                 )
 
                 episode_reward = 0
@@ -347,8 +367,10 @@ class GripperTrainer():
 
     def dynamic_sleep(self, env_end):
         env_start = time.time()
-        logging.debug(f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay")
-        
-        delay = self.step_time_period-(env_start-env_end)
+        logging.debug(
+            f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay"
+        )
+
+        delay = self.step_time_period - (env_start - env_end)
         if delay > 0:
             time.sleep(delay)
