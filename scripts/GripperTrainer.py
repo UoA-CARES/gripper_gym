@@ -10,7 +10,7 @@ from cares_reinforcement_learning.util.configurations import (
 )
 from cares_lib.dynamixel.Gripper import GripperError
 from environments.Environment import EnvironmentError
-from environments.TranslationEnvironment import TranslationEnvironment
+from environments.TwoFinger import TwoFingerTranslation
 from environments.RotationEnvironment import RotationEnvironment
 from configurations import GripperEnvironmentConfig, ObjectConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
@@ -102,7 +102,7 @@ class GripperTrainer:
                     env_config, gripper_config, object_config
                 )
             case "translation":
-                self.environment = TranslationEnvironment(
+                self.environment = TwoFingerTranslation(
                     env_config, gripper_config, object_config
                 )
             case _:

@@ -3,26 +3,47 @@ import shutil
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
+def position_to_pixel(position, reference_position, camera_matrix):
+    # pixel_n = f * N / Z + c_n
+    pixel_x = (
+        camera_matrix[0, 0]
+        * (position[0] + reference_position[0])
+        / reference_position[2]
+        + camera_matrix[0, 2]
+    )
+    pixel_y = (
+        camera_matrix[1, 1]
+        * (position[1] + reference_position[1])
+        / reference_position[2]
+        + camera_matrix[1, 2]
+    )
+    return int(pixel_x), int(pixel_y)
+
+
 def create_directories(local_results_path, folder_name):
     if not os.path.exists(local_results_path):
         os.makedirs(local_results_path)
 
     file_path = f"{local_results_path}/{folder_name}"
-    
+
     if not os.path.exists(file_path):
         os.makedirs(file_path)
     if not os.path.exists(f"{file_path}/data"):
         os.makedirs(f"{file_path}/data")
-    if not os.path.exists("servo_errors"): #servo error still here because it's used by servo.py which shouldn't know the local storage
+    if not os.path.exists(
+        "servo_errors"
+    ):  # servo error still here because it's used by servo.py which shouldn't know the local storage
         os.makedirs("servo_errors")
     return file_path
 
-def store_configs(file_path, parent_path, folder_name = "configs"):
+
+def store_configs(file_path, parent_path, folder_name="configs"):
     if not os.path.isdir(f"{file_path + '/' + folder_name}"):
-        os.mkdir(file_path + '/' + folder_name)
+        os.mkdir(file_path + "/" + folder_name)
 
     for file_name in os.listdir(parent_path):
-    # construct full file path
+        # construct full file path
         source = parent_path + "/" + file_name
 
         destination = file_path + "/" + folder_name + "/" + file_name
@@ -31,12 +52,13 @@ def store_configs(file_path, parent_path, folder_name = "configs"):
         # copy only files
         if os.path.isfile(source):
             shutil.copy(source, destination)
-            print('copied', file_name)
+            print("copied", file_name)
 
 
 def store_data(data, file_path, file_name):
     with open(f"{file_path}/data/{file_name}.txt", "a") as f:
         f.write(str(data) + "\n")
+
 
 def plot_data(file_path, files):
     if type(files) is not list:
@@ -56,6 +78,7 @@ def plot_data(file_path, files):
         plt.savefig(f"{file_path}/{file_name}")
         plt.close()
 
+
 def plot_data_time(file_path, files, file_name_average_reward, file_name_time):
     average_reward = []
     time = []
@@ -70,14 +93,15 @@ def plot_data_time(file_path, files, file_name_average_reward, file_name_time):
     with open(f"{file_path}/data/{file_name_time}.txt", "r") as file:
         for line in file:
             data = float(line.strip())
-            time.append(data)            
+            time.append(data)
 
         plt.plot(time, average_reward)
         plt.xlabel("Time")
         plt.ylabel(f"{file_name_average_reward}")
         plt.title("Average Reward vs Time")
         plt.savefig(f"{file_path}/reward_average_vs_time")
-        plt.close()        
+        plt.close()
+
 
 def slack_post_plot(environment, slack_bot, file_path, plots):
     if type(plots) is not list:
@@ -85,13 +109,22 @@ def slack_post_plot(environment, slack_bot, file_path, plots):
 
     for plot_name in plots:
         if os.path.exists(f"{file_path}/{plot_name}.png"):
-            slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: {plot_name}", f"{file_path}/", f"{plot_name}.png")
+            slack_bot.upload_file(
+                "#cares-chat-bot",
+                f"#{environment.gripper.gripper_id}: {plot_name}",
+                f"{file_path}/",
+                f"{plot_name}.png",
+            )
         else:
-            slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: {plot_name} plot not ready yet or doesn't exist")
+            slack_bot.post_message(
+                "#cares-chat-bot",
+                f"#{environment.gripper.gripper_id}: {plot_name} plot not ready yet or doesn't exist",
+            )
+
 
 def save_evaluation_values(data_eval_reward, filename, file_path):
     data = pd.DataFrame.from_dict(data_eval_reward)
     data.to_csv(f"{file_path}/data/{filename}_evaluation", index=False)
-    data.plot(x='step', y='avg_episode_reward', title="Evaluation Reward Curve")
+    data.plot(x="step", y="avg_episode_reward", title="Evaluation Reward Curve")
     plt.savefig(f"{file_path}/data/{filename}_evaluation.png")
     plt.close()

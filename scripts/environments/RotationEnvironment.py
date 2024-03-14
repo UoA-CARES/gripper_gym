@@ -146,7 +146,7 @@ class RotationEnvironment(Environment):
         raise ValueError(f"Goal selection method unknown: {self.goal_selection_method}")
 
     # overriding method
-    def choose_goal(self):
+    def _choose_goal(self):
         """
         Chooses a goal for the current environment state.
         Returns:
@@ -171,7 +171,7 @@ class RotationEnvironment(Environment):
         return self.get_goal_function(object_state)
 
     # overriding method
-    def reward_function(self, target_goal, yaw_before, yaw_after):
+    def _reward_function(self, target_goal, yaw_before, yaw_after):
         """
         Computes the reward based on the target goal and the change in yaw.
 
@@ -255,7 +255,7 @@ class RotationEnvironment(Environment):
         object_state = self.get_object_pose()
         if self.object_observation_mode == "observed":
             object_state = object_state[-1]
-        return self.rotation_min_difference(self.goal_state, object_state)
+        return self.rotation_min_difference(self.goal, object_state)
 
     def rotation_min_difference(self, a, b):
         """
@@ -280,7 +280,7 @@ class RotationEnvironment(Environment):
         Returns:
         list: The updated state list with the added goal state.
         """
-        state.append(self.goal_state)
+        state.append(self.goal)
         return state
 
     def get_home_angle(self, home_pos):
@@ -299,7 +299,7 @@ class RotationEnvironment(Environment):
         return home_pos_angle
 
     # TODO add the target angle of the goal object
-    def env_render(self, reference_position, marker_poses):
+    def _env_render(self, reference_position, marker_poses):
 
         image = self.camera.get_frame()
 
@@ -338,7 +338,7 @@ class RotationEnvironment(Environment):
             marker_poses[self.object_marker_id]["position"][2],
         ]
         goal_pixel = self._position_to_pixel(
-            self.goal_state, object_reference_position, self.camera.camera_matrix
+            self.goal, object_reference_position, self.camera.camera_matrix
         )
 
         cv2.circle(image, goal_pixel, 9, color, -1)

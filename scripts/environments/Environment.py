@@ -77,8 +77,6 @@ class Environment(ABC):
         self.observation_type = env_config.observation_type
         self.action_type = gripper_config.action_type
 
-        self.noise_tolerance = env_config.noise_tolerance
-
         self.gripper.wiggle_home()
 
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
@@ -96,8 +94,8 @@ class Environment(ABC):
         )[self.reference_marker_id]
         self.reference_position = self.reference_pose["position"]
 
-        object_pose = self.get_object_pose()
-        self.object_state_before = self.goal_state = self._pose_to_state(object_pose)
+        self.goal = []
+        self.previous_environment_info = self.reset()
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -114,20 +112,15 @@ class Environment(ABC):
         self.step_counter = 0
 
         self.gripper.wiggle_home()
-        state = self.get_state()
+        state = self._get_environment_info()
 
         logging.debug(f"{state}")
 
         # choose goal will crash if not home
-        self.goal_state = self.choose_goal()
+        self.goal = self._choose_goal()
 
-        logging.info(f"New Goal Generated: {self.goal_state}")
+        logging.info(f"New Goal Generated: {self.goal}")
         return state
-
-    def sample_action(self):
-        if self.action_type == "velocity":
-            return self.sample_action_velocity()
-        return self.sample_action_position()
 
     def sample_action_position(self):
         action = []
@@ -139,11 +132,16 @@ class Environment(ABC):
 
     def sample_action_velocity(self):
         action = []
-        for i in range(0, self.gripper.num_motors):
+        for _ in range(0, self.gripper.num_motors):
             action.append(
                 random.randint(self.gripper.velocity_min, self.gripper.velocity_max)
             )
         return action
+
+    def sample_action(self):
+        if self.action_type == "velocity":
+            return self.sample_action_velocity()
+        return self.sample_action_position()
 
     @exception_handler("Failed to step")
     def step(self, action):
@@ -166,19 +164,15 @@ class Environment(ABC):
         else:
             self.gripper.move(action)
 
-        state = self.get_state()
-        logging.debug(f"New State: {state}")
+        current_environment_info = self._get_environment_info()
 
-        object_pose = self.get_object_pose()
-        object_state_after = self._pose_to_state(object_pose)
+        state = self._environment_info_to_state(current_environment_info)
 
-        logging.debug(f"New Object State: {object_state_after}")
-
-        reward, done = self.reward_function(
-            self.goal_state, self.object_state_before, object_state_after
+        reward, done = self._reward_function(
+            self.previous_environment_info, current_environment_info
         )
 
-        self.object_state_before = object_state_after
+        self.previous_environment_info = current_environment_info
 
         truncated = self.step_counter >= self.episode_horizon
 
@@ -188,109 +182,12 @@ class Environment(ABC):
     def step_gripper(self):
         self.gripper.step()
 
-    @exception_handler("Failed to get servo states")
-    def _servo_state_space(self):
-        """
-        Gets the current state of the environment when using servo observations.
-
-        Returns:
-        A list representing the state of the environment: Servo Angle + X-Y-Yaw Object + Goal
-        """
-        state = []
-        gripper_state = self.gripper.state()
-        state += gripper_state["positions"]
-
-        if self.action_type == "velocity":
-            state += gripper_state["velocities"]
-
-        object_pose = self.get_object_pose()
-        state += self._pose_to_state(object_pose)
-
-        state = self.add_goal(state)
-
-        return state
-
     def _pose_to_state(self, pose):
         state = []
         position = pose["position"]
         state.append(position[0] - self.reference_position[0])  # X
         state.append(position[1] - self.reference_position[1])  # Y
         return state
-
-    def _aruco_state_space(self):
-        """
-        Gets the current state of the environment when using Aruco marker observations.
-
-        Returns:
-        A list representing the state of the environment.
-
-        X-Y Servos + X-Y Finger-tips + X-Y-Yaw Object + Goal
-        """
-        state = []
-
-        # Servos + Finger Tips (2) + Object (1)
-        num_markers = self.gripper.num_motors + 3
-        # maker_ids match servo ids (counting from 1)
-        marker_ids = [id for id in range(1, num_markers + 1)]
-
-        marker_poses = self._get_marker_poses(marker_ids, blindable=False)
-
-        # Add the XY poses for each of the markers in marker id into the state
-        for marker_id in marker_ids:
-            marker_pose = marker_poses[marker_id]
-            marker_state = self._pose_to_state(marker_pose)
-            state += marker_state
-
-        if self.task == "rotation":
-            # Add the additional yaw information from the object marker
-            state += [marker_poses[self.object_marker_id]["orientation"][2]]  # Yaw
-
-        # Goal State - X Y
-        state = self.add_goal(state)
-
-        self.env_render(state, marker_poses)
-
-        return state
-
-    @exception_handler("Failed to get servo and aruco states")
-    def _servo_aruco_state_space(self):
-        # Servo (Position/Velocity/Load) + Servo XY + Target XY-Yaw + Goal
-        state = []
-        # remove the redundent target XY-Yaw + goal from the end
-        servo_state_space = self._servo_state_space()[:-4]
-        # remove the goal from the end
-        aruco_state_space = self._aruco_state_space()[:-1]
-
-        state += servo_state_space
-        state += aruco_state_space
-
-        state = self.add_goal(state)
-
-        return state
-
-    # TODO implement function
-    def _image_state_space(self):
-        # Note should store the stacked frame somewhere...
-        raise NotImplementedError("Requires implementation")
-
-    @exception_handler("Failed to get state")
-    def get_state(self):
-        """
-        Gets the current state of the environment based on the configured observation type (4 different options).
-
-        Returns:
-        A list representing the state of the environment.
-        """
-        if self.observation_type == OBSERVATION_TYPE.SERVO.value:
-            return self._servo_state_space()
-        elif self.observation_type == OBSERVATION_TYPE.ARUCO.value:
-            return self._aruco_state_space()
-        elif self.observation_type == OBSERVATION_TYPE.SERVO_ARUCO.value:
-            return self._servo_aruco_state_space()
-        elif self.observation_type == OBSERVATION_TYPE.IMAGE.value:
-            return self._image_state_space()
-
-        raise ValueError(f"Observation Type unknown: {self.observation_type}")
 
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo
@@ -347,42 +244,21 @@ class Environment(ABC):
         return marker_poses
 
     @abstractmethod
-    def get_object_pose(self):
+    def _get_environment_info(self):
         pass
 
     @abstractmethod
-    def ep_final_distance(self):
+    def _environment_info_to_state(self, environment_info):
         pass
 
     @abstractmethod
-    def add_goal(self, state):
+    def _choose_goal(self):
         pass
 
     @abstractmethod
-    def choose_goal(self):
+    def _reward_function(self, previous_state, current_state):
         pass
 
     @abstractmethod
-    def reward_function(self, target, start_target_pose, final_target_pose):
-        pass
-
-    # TODO shift this to a general helper/util function in cares_lib
-    def _position_to_pixel(self, position, reference_position, camera_matrix):
-        # pixel_n = f * N / Z + c_n
-        pixel_x = (
-            camera_matrix[0, 0]
-            * (position[0] + reference_position[0])
-            / reference_position[2]
-            + camera_matrix[0, 2]
-        )
-        pixel_y = (
-            camera_matrix[1, 1]
-            * (position[1] + reference_position[1])
-            / reference_position[2]
-            + camera_matrix[1, 2]
-        )
-        return int(pixel_x), int(pixel_y)
-
-    @abstractmethod
-    def env_render(self, state, marker_poses):
+    def _env_render(self, state, environment_info):
         pass
