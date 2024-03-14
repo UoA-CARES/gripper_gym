@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from configurations import GripperEnvironmentConfig, ObjectConfig
 from environments.Environment import Environment
-from Objects import CubeObject, ServoObject
+from Objects import ServoObject
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 

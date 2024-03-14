@@ -169,7 +169,8 @@ class Environment(ABC):
         state = self.get_state()
         logging.debug(f"New State: {state}")
 
-        object_state_after = self.get_object_pose()
+        object_pose = self.get_object_pose()
+        object_state_after = self._pose_to_state(object_pose)
 
         logging.debug(f"New Object State: {object_state_after}")
 
@@ -202,7 +203,8 @@ class Environment(ABC):
         if self.action_type == "velocity":
             state += gripper_state["velocities"]
 
-        state += self.get_object_pose()
+        object_pose = self.get_object_pose()
+        state += self._pose_to_state(object_pose)
 
         state = self.add_goal(state)
 
@@ -233,10 +235,9 @@ class Environment(ABC):
 
         marker_poses = self._get_marker_poses(marker_ids, blindable=False)
 
-        self.env_render(self.reference_position, marker_poses)
-
         # Add the XY poses for each of the markers in marker id into the state
-        for marker_pose in marker_ids.values():
+        for marker_id in marker_ids:
+            marker_pose = marker_poses[marker_id]
             marker_state = self._pose_to_state(marker_pose)
             state += marker_state
 
@@ -246,6 +247,8 @@ class Environment(ABC):
 
         # Goal State - X Y
         state = self.add_goal(state)
+
+        self.env_render(state, marker_poses)
 
         return state
 
@@ -381,5 +384,5 @@ class Environment(ABC):
         return int(pixel_x), int(pixel_y)
 
     @abstractmethod
-    def env_render(self, reference_position, marker_poses):
+    def env_render(self, state, marker_poses):
         pass

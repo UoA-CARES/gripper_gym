@@ -99,7 +99,7 @@ class TranslationEnvironment(Environment):
         state.append(self.goal_state[1])
         return state
 
-    def env_render(self, reference_position, marker_poses):
+    def env_render(self, state, marker_poses):
 
         image = self.camera.get_frame()
 
@@ -107,51 +107,62 @@ class TranslationEnvironment(Environment):
             image, self.camera.camera_matrix, self.camera.camera_distortion
         )
 
-        color = (0, 255, 0)
-
+        # Draw the goal boundry
+        bounds_color = (0, 255, 0)
         bounds_min_x, bounds_min_y = self._position_to_pixel(
-            self.goal_min, reference_position, self.camera.camera_matrix
+            self.goal_min, self.reference_position, self.camera.camera_matrix
         )
         bounds_max_x, bounds_max_y = self._position_to_pixel(
-            self.goal_max, reference_position, self.camera.camera_matrix
+            self.goal_max, self.reference_position, self.camera.camera_matrix
         )
-
         cv2.rectangle(
             image,
             (int(bounds_min_x), int(bounds_min_y)),
             (int(bounds_max_x), int(bounds_max_y)),
-            color,
+            bounds_color,
             2,
         )
 
-        for marker_pose in marker_poses.values():
-            marker_pixel = self._position_to_pixel(
-                marker_pose["position"],
-                [0, 0, marker_pose["position"][2]],
+        # Draw object position
+        object_color = (0,255,0)
+        object_pose = marker_poses[self.object_marker_id]
+        object_pixel = self._position_to_pixel(
+                object_pose["position"],
+                [0, 0, object_pose["position"][2]],
                 self.camera.camera_matrix,
             )
-            cv2.circle(image, marker_pixel, 9, color, -1)
+        cv2.circle(image, object_pixel, 9, object_color, -1)
 
-        object_reference_position = [
-            reference_position[0],
-            reference_position[1],
+        # Draw goal position - note the reference Z is relative to the Marker ID of the target for proper math purposes
+        goal_color = (0,0,255)
+        goal_reference_position = [
+            self.reference_position[0],
+            self.reference_position[1],
             marker_poses[self.object_marker_id]["position"][2],
         ]
         goal_pixel = self._position_to_pixel(
-            self.goal_state, object_reference_position, self.camera.camera_matrix
+            self.goal_state, goal_reference_position, self.camera.camera_matrix
         )
+        cv2.circle(image, goal_pixel, 9, goal_color, -1)
 
-        cv2.circle(image, goal_pixel, 9, color, -1)
+        num_gripper_markers = self.gripper.num_motors + 2
+        
+        for i in range(0, num_gripper_markers):
+            x = state[i*2]
+            y = state[i*2+1]
+            position = [x, y, marker_poses[i+1]["position"][2]]
 
-        cv2.putText(
-            image,
-            "Target",
-            goal_pixel,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.3,
-            (255, 0, 0),
-            1,
-            cv2.LINE_AA,
-        )
+            reference = self.reference_position
+            reference[2] = position[2]
+            marker_pixel = self._position_to_pixel(
+                position,
+                reference,
+                self.camera.camera_matrix,
+            )
+            cv2.circle(image, marker_pixel, 9, (0,0,255), -1)
+
+            cv2.putText(image, f"{i+1}", marker_pixel, cv2.FONT_HERSHEY_SIMPLEX ,  
+                   1, (255,0,0), 2, cv2.LINE_AA) 
+
         cv2.imshow("State Image", image)
         cv2.waitKey(10)
