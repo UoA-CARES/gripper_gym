@@ -48,7 +48,7 @@ class TwoFingerTask(Environment):
         marker_poses = self._get_marker_poses(marker_ids, blindable=False)
 
         poses["gripper"] = dict(
-            (i, marker_poses[i]) for i in range(1, num_gripper_markers + 1)
+            [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
         )
         poses["object"] = marker_poses[self.object_marker_id]
 
@@ -80,7 +80,14 @@ class TwoFingerTask(Environment):
     def _reward_function(self, previous_state, current_state, goal_state):
         pass
 
-    def _env_render(self, state, environment_state):
+    def _pose_to_state(self, pose):
+        state = []
+        position = pose["position"]
+        state.append(position[0] - self.reference_position[0])  # X
+        state.append(position[1] - self.reference_position[1])  # Y
+        return state
+
+    def _render_envrionment(self, state, environment_state):
 
         image = self.camera.get_frame()
 
@@ -128,9 +135,12 @@ class TwoFingerTask(Environment):
 
         num_gripper_markers = self.gripper.num_motors + 2
 
+        # account for servo position and velocity values in state
+        base_index = self.gripper.num_motors + (self.gripper.num_motors if self.action_type == "velocity" else 0)
         for i in range(0, num_gripper_markers):
-            x = state[i * 2]
-            y = state[i * 2 + 1]
+            x = state[base_index + i * 2]
+            y = state[base_index + i * 2 + 1]
+
             position = [
                 x,
                 y,
@@ -144,7 +154,7 @@ class TwoFingerTask(Environment):
                 reference,
                 self.camera.camera_matrix,
             )
-            cv2.circle(image, marker_pixel, 9, (0, 0, 255), -1)
+            cv2.circle(image, marker_pixel, 9, (0, 255, 0), -1)
 
             cv2.putText(
                 image,
@@ -199,12 +209,13 @@ class TwoFingerTranslation(TwoFingerTask):
         if self.action_type == "velocity":
             state += environment_info["gripper"]["velocities"]
 
-        # Servo - X Y mm
-        for i in range(1, self.gripper.num_motors + 1):
-            state += environment_info["poses"]["gripper"][i]["position"][0:2]
+        # Servo + Two Finger Tips - X Y mm
+        for i in range(1, self.gripper.num_motors + 3):
+            servo_position = environment_info["poses"]["gripper"][i]
+            state += self._pose_to_state(servo_position)
 
         # Object - X Y mm
-        state += environment_info["poses"]["object"]["position"][0:2]
+        state += self._pose_to_state(environment_info["poses"]["object"])
 
         # Goal State - X Y mm
         state += self.goal
@@ -218,8 +229,8 @@ class TwoFingerTranslation(TwoFingerTask):
 
         target_goal = current_environment_info["goal"]
 
-        object_previous = previous_environment_info["poses"]["object"]["position"]
-        object_current = current_environment_info["poses"]["object"]["position"]
+        object_previous = previous_environment_info["poses"]["object"]["position"][0:2] # X Y
+        object_current = current_environment_info["poses"]["object"]["position"][0:2] # X Y
 
         goal_distance_before = math.dist(target_goal, object_previous)
         goal_distance_after = math.dist(target_goal, object_current)

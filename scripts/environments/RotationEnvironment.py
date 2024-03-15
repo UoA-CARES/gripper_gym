@@ -299,7 +299,7 @@ class RotationEnvironment(Environment):
         return home_pos_angle
 
     # TODO add the target angle of the goal object
-    def _env_render(self, reference_position, marker_poses):
+    def _render_envrionment(self, reference_position, marker_poses):
 
         image = self.camera.get_frame()
 

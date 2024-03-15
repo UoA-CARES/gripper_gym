@@ -95,7 +95,8 @@ class Environment(ABC):
         self.reference_position = self.reference_pose["position"]
 
         self.goal = []
-        self.previous_environment_info = self.reset()
+        self.previous_environment_info = {}
+        self.reset()
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -112,9 +113,10 @@ class Environment(ABC):
         self.step_counter = 0
 
         self.gripper.wiggle_home()
-        state = self._get_environment_info()
+        self.previous_environment_info = current_environment_info = self._get_environment_info()
+        state = self._environment_info_to_state(current_environment_info)
 
-        logging.debug(f"{state}")
+        logging.debug(f"{current_environment_info}")
 
         # choose goal will crash if not home
         self.goal = self._choose_goal()
@@ -165,7 +167,6 @@ class Environment(ABC):
             self.gripper.move(action)
 
         current_environment_info = self._get_environment_info()
-
         state = self._environment_info_to_state(current_environment_info)
 
         reward, done = self._reward_function(
@@ -176,18 +177,13 @@ class Environment(ABC):
 
         truncated = self.step_counter >= self.episode_horizon
 
+        self._render_envrionment(state, current_environment_info)
+
         return state, reward, done, truncated
 
     @exception_handler("Failed to step gripper")
     def step_gripper(self):
         self.gripper.step()
-
-    def _pose_to_state(self, pose):
-        state = []
-        position = pose["position"]
-        state.append(position[0] - self.reference_position[0])  # X
-        state.append(position[1] - self.reference_position[1])  # Y
-        return state
 
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo
@@ -260,5 +256,5 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def _env_render(self, state, environment_info):
+    def _render_envrionment(self, state, environment_info):
         pass
