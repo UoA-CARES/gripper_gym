@@ -12,7 +12,7 @@ from cares_reinforcement_learning.util.configurations import (
     TrainingConfig,
 )
 from configurations import GripperEnvironmentConfig, ObjectConfig
-from environments.environment import EnvironmnetFactory
+from environments.environment_factory import EnvironmnetFactory
 from networks.NetworkFactory import NetworkFactory
 
 logging.basicConfig(level=logging.INFO)
@@ -85,7 +85,7 @@ class GripperTrainer:
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
-            algorithm=self.algorithm,
+            algorithm=alg_config.algorithm,
             task=env_config.task,
             plot_frequency=self.plot_freq,
             network=self.agent,

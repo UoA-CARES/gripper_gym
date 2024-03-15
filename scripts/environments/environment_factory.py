@@ -9,7 +9,7 @@ class EnvironmnetFactory:
     def __init__(self):
         pass
 
-    def create_environment(env_config, gripper_config, object_config):
+    def create_environment(self, env_config, gripper_config, object_config):
         """
         Create an environment based on the domain and task.
 
