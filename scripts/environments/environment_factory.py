@@ -1,4 +1,7 @@
-from environments.two_finger.translation import TwoFingerFlat
+from environments.two_finger.translation import (
+    TwoFingerTranslationFlat,
+    TwoFingerTranslationSuspended,
+)
 from environments.two_finger.rotation import TwoFingerRotationTask
 
 
@@ -23,7 +26,13 @@ class EnvironmnetFactory:
         environment = None
         if domain == "two_finger":
             if task == "translation":
-                environment = TwoFingerFlat(env_config, gripper_config, object_config)
+                environment = TwoFingerTranslationFlat(
+                    env_config, gripper_config, object_config
+                )
+            elif task == "suspended_translation":
+                environment = TwoFingerTranslationSuspended(
+                    env_config, gripper_config, object_config
+                )
             elif task == "rotation":
                 environment = TwoFingerRotationTask(
                     env_config, gripper_config, object_config

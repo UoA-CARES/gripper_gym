@@ -101,7 +101,7 @@ class TwoFingerTranslation(TwoFingerTask):
         return reward, done
 
 
-class TwoFingerFlat(TwoFingerTranslation):
+class TwoFingerTranslationFlat(TwoFingerTranslation):
     def __init__(
         self,
         env_config: GripperEnvironmentConfig,
@@ -115,7 +115,7 @@ class TwoFingerFlat(TwoFingerTranslation):
         self.gripper.wiggle_home()
 
 
-class TwoFingerSuspended(TwoFingerTranslation):
+class TwoFingerTranslationSuspended(TwoFingerTranslation):
     def __init__(
         self,
         env_config: GripperEnvironmentConfig,
