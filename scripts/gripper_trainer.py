@@ -1,49 +1,21 @@
-from enum import Enum
-from cares_lib.slack_bot.SlackBot import SlackBot
+import logging
+import time
+from datetime import datetime
+
+import tools.error_handlers as erh
+from cares_lib.dynamixel.Gripper import GripperError
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_reinforcement_learning.memory import MemoryBuffer
 from cares_reinforcement_learning.util import Record
-from networks.TD3 import Actor
-from networks.NetworkFactory import NetworkFactory
 from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
 )
-from cares_lib.dynamixel.Gripper import GripperError
-from environments.Environment import EnvironmentError
-from environments.TwoFinger import TwoFingerTranslation
-from environments.RotationEnvironment import RotationEnvironment
 from configurations import GripperEnvironmentConfig, ObjectConfig
-from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from collections import deque
-from datetime import datetime
-import tools.error_handlers as erh
-import tools.utils as utils
-import numpy as np
-import os
-import torch
-import time
-import logging
+from environments.environment import EnvironmnetFactory
+from networks.NetworkFactory import NetworkFactory
 
 logging.basicConfig(level=logging.INFO)
-
-
-if torch.cuda.is_available():
-    DEVICE = torch.device("cuda")
-    logging.info("Working with GPU")
-else:
-    DEVICE = torch.device("cpu")
-    logging.info("Working with CPU")
-
-# with open('slack_token.txt') as file:
-#    slack_token = file.read()
-# slack_bot = SlackBot(slack_token=slack_token)
-
-
-class ALGORITHMS(Enum):
-    TD3 = "TD3"
-    SAC = "SAC"
-    DDPG = "DDPG"
-    STC_TD3 = "STC_TD3"
 
 
 class GripperTrainer:
@@ -70,8 +42,6 @@ class GripperTrainer:
 
         self.seed = training_config.seeds[0]  # TODO: reconcile the multiple seeds
         self.batch_size = training_config.batch_size
-        self.buffer_capacity = training_config.buffer_size
-        self.episode_horizont = env_config.episode_horizon
 
         self.G = training_config.G
         self.plot_freq = training_config.plot_frequency
@@ -83,44 +53,25 @@ class GripperTrainer:
 
         self.step_time_period = env_config.step_length
 
-        self.actor_lr = alg_config.actor_lr
-        self.critic_lr = alg_config.critic_lr
-        self.gamma = alg_config.gamma
-        self.tau = alg_config.tau
-
-        self.min_noise = env_config.min_noise
-        self.noise_decay = env_config.noise_decay
-        self.noise_scale = env_config.noise_scale
-        self.algorithm = alg_config.algorithm
-
         self.action_type = gripper_config.action_type
 
-        # TODO: extract into environment factory
-        match env_config.task:
-            case "rotation":
-                self.environment = RotationEnvironment(
-                    env_config, gripper_config, object_config
-                )
-            case "translation":
-                self.environment = TwoFingerTranslation(
-                    env_config, gripper_config, object_config
-                )
-            case _:
-                raise ValueError(f"Invalid environment task: {env_config.task}")
+        env_factory = EnvironmnetFactory()
+        self.environment = env_factory.create_environment(
+            env_config, gripper_config, object_config
+        )
 
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
         state = self.environment.reset()
 
         logging.info(f"State: {state}")
-        # slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: Reset Terminal. \nState: {state}")
 
         # This wont work for multi-dimension arrays
         observation_size = len(state)
         action_num = gripper_config.num_motors
-        message = f"Observation Space: {observation_size} Action Space: {action_num}"
-        logging.info(message)
-        # slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
+        logging.info(
+            f"Observation Space: {observation_size} Action Space: {action_num}"
+        )
 
         network_factory = NetworkFactory()
         self.agent = network_factory.create_network(
@@ -163,7 +114,7 @@ class GripperTrainer:
             error_message = f"Failed to reset with message: {error}"
             logging.error(error_message)
             if erh.handle_gripper_error_home(
-                self.environment, error_message, slack_bot, self.file_path
+                self.environment, error_message, self.file_path
             ):
                 return (
                     self.environment_reset()
@@ -194,7 +145,7 @@ class GripperTrainer:
             error_message = f"Failed to step environment with message: {error}"
             logging.error(error_message)
             if erh.handle_gripper_error_home(
-                self.environment, error_message, slack_bot, self.file_path
+                self.environment, error_message, self.file_path
             ):
                 state = self.environment.get_object_pose()
                 # Truncated should be false to prevent skipping the entire episode
@@ -295,8 +246,6 @@ class GripperTrainer:
             if total_step_counter < self.max_steps_exploration:
                 message = f"Running Exploration Steps {total_step_counter}/{self.max_steps_exploration}"
                 logging.info(message)
-                # if total_step_counter % 50 == 0:
-                #    slack_bot.post_message("#bot_terminal", f"#{self.environment.gripper.gripper_id}: {message}")
 
                 action_env = self.environment.sample_action()
 
@@ -343,8 +292,6 @@ class GripperTrainer:
                 evaluation = True
 
             if done or truncated:
-                # slack_bot.post_message("#bot_terminal", message)
-
                 self.record.log_train(
                     total_steps=total_step_counter,
                     episode=episode_num,

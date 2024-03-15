@@ -1,21 +1,14 @@
 import logging
 import random
-import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import wraps
-from pathlib import Path
-
-import cv2
-import numpy as np
-from configurations import GripperEnvironmentConfig, ObjectConfig
 
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
-
-file_path = Path(__file__).parent.resolve()
+from configurations import GripperEnvironmentConfig, ObjectConfig
 
 
 def exception_handler(error_message):
@@ -112,8 +105,11 @@ class Environment(ABC):
         """
         self.step_counter = 0
 
-        self.gripper.wiggle_home()
-        self.previous_environment_info = current_environment_info = self._get_environment_info()
+        self._reset()
+
+        self.previous_environment_info = current_environment_info = (
+            self._get_environment_info()
+        )
         state = self._environment_info_to_state(current_environment_info)
 
         logging.debug(f"{current_environment_info}")
@@ -238,6 +234,10 @@ class Environment(ABC):
                 break
 
         return marker_poses
+
+    @abstractmethod
+    def _reset(self):
+        pass
 
     @abstractmethod
     def _get_environment_info(self):

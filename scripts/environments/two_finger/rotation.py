@@ -1,17 +1,12 @@
 import logging
 import random
 from enum import Enum
-from pathlib import Path
 
-import cv2
 import numpy as np
 from configurations import GripperEnvironmentConfig, ObjectConfig
-from environments.Environment import Environment
-from Objects import ServoObject
+from environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-
-file_path = Path(__file__).parent.resolve()
 
 
 class REWARD_CONSTANTS(Enum):
@@ -103,7 +98,7 @@ def relative_goal_90_180_270(object_current_pose):
     return (current_yaw + diff) % 360
 
 
-class RotationEnvironment(Environment):
+class TwoFingerRotationTask(TwoFingerTask):
 
     def __init__(
         self,
@@ -245,18 +240,6 @@ class RotationEnvironment(Environment):
 
         return reward, done
 
-    def ep_final_distance(self):
-        """
-        Computes the final distance from the goal state.
-
-        Returns:
-        float: The difference between the goal state and the object state.
-        """
-        object_state = self.get_object_pose()
-        if self.object_observation_mode == "observed":
-            object_state = object_state[-1]
-        return self.rotation_min_difference(self.goal, object_state)
-
     def rotation_min_difference(self, a, b):
         """
         Formula that calculates the minimum difference between two angles.
@@ -297,61 +280,3 @@ class RotationEnvironment(Environment):
         # 0 in decimal is 180 degrees so need to add offset
         home_pos_angle = (home_pos / angle_ratio + 180) % 360
         return home_pos_angle
-
-    # TODO add the target angle of the goal object
-    def _render_envrionment(self, reference_position, marker_poses):
-
-        image = self.camera.get_frame()
-
-        image = cv2.undistort(
-            image, self.camera.camera_matrix, self.camera.camera_distortion
-        )
-
-        color = (0, 255, 0)
-
-        bounds_min_x, bounds_min_y = self._position_to_pixel(
-            self.goal_min, reference_position, self.camera.camera_matrix
-        )
-        bounds_max_x, bounds_max_y = self._position_to_pixel(
-            self.goal_max, reference_position, self.camera.camera_matrix
-        )
-
-        cv2.rectangle(
-            image,
-            (int(bounds_min_x), int(bounds_min_y)),
-            (int(bounds_max_x), int(bounds_max_y)),
-            color,
-            2,
-        )
-
-        for marker_pose in marker_poses.values():
-            marker_pixel = self._position_to_pixel(
-                marker_pose["position"],
-                [0, 0, marker_pose["position"][2]],
-                self.camera.camera_matrix,
-            )
-            cv2.circle(image, marker_pixel, 9, color, -1)
-
-        object_reference_position = [
-            reference_position[0],
-            reference_position[1],
-            marker_poses[self.object_marker_id]["position"][2],
-        ]
-        goal_pixel = self._position_to_pixel(
-            self.goal, object_reference_position, self.camera.camera_matrix
-        )
-
-        cv2.circle(image, goal_pixel, 9, color, -1)
-
-        cv2.putText(
-            image,
-            "Target",
-            goal_pixel,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.3,
-            (255, 0, 0),
-            1,
-            cv2.LINE_AA,
-        )
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
