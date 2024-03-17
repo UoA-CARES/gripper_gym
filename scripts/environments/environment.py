@@ -120,7 +120,7 @@ class Environment(ABC):
         # choose goal will crash if not home
         self.goal = self._choose_goal()
 
-        logging.info(f"New Goal Generated: {self.goal}")
+        logging.debug(f"New Goal Generated: {self.goal}")
         return state
 
     def sample_action_position(self):

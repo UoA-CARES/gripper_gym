@@ -31,8 +31,7 @@ class TwoFingerTranslation(TwoFingerTask):
 
         goal_x = randrange(x1, x2)
         goal_y = randrange(y1, y2)
-
-        logging.info(f"New Goal: {goal_x}, {goal_y}")
+        
         return [goal_x, goal_y]
 
     # overriding method
@@ -94,7 +93,7 @@ class TwoFingerTranslation(TwoFingerTask):
         else:
             reward += goal_progress
 
-        logging.info(
+        logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
         )
 

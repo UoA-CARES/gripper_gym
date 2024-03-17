@@ -40,8 +40,9 @@ class GripperTrainer:
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
         """
 
-        self.training_config = training_config
+        self.train_config = training_config
         self.alg_config = alg_config
+        self.gripper_config = gripper_config
 
         env_factory = EnvironmnetFactory()
 
@@ -77,7 +78,7 @@ class GripperTrainer:
             log_dir=self.file_path,
             algorithm=alg_config.algorithm,
             task=env_config.task,
-            plot_frequency=self.plot_freq,
+            plot_frequency=training_config.plot_frequency,
             network=self.agent,
         )
 
@@ -159,7 +160,7 @@ class GripperTrainer:
         frame = self.environment.get_frame()
         self.record.start_video(total_steps + 1, frame)
 
-        number_eval_episodes = int(self.training_config.number_eval_episodes)
+        number_eval_episodes = int(self.train_config.number_eval_episodes)
 
         state = self.environment_reset()
 
@@ -201,7 +202,7 @@ class GripperTrainer:
                     episode_num += 1
 
                 # Run loop at a fixed frequency
-                if self.action_type == "velocity":
+                if self.gripper_config.action_type == "velocity":
                     self.dynamic_sleep(start_time)
 
         self.record.stop_video()
@@ -305,7 +306,7 @@ class GripperTrainer:
                 total_step_counter >= max_steps_exploration
                 and total_step_counter % number_steps_per_train_policy == 0
             ):
-                for _ in range(self.G):
+                for _ in range(self.train_config.G):
                     experiences = self.memory.sample(batch_size)
                     info = self.agent.train_policy(experiences)
             end_train_time = time.time()
@@ -342,7 +343,7 @@ class GripperTrainer:
                 episode_start = time.time()
 
             # Run loop at a fixed frequency
-            if self.action_type == "velocity":
+            if self.gripper_config.action_type == "velocity":
                 self.dynamic_sleep(env_start_time)
 
         end_time = time.time()
