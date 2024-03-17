@@ -3,7 +3,7 @@ import math
 from random import randrange
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from configurations import GripperEnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig
 from environments.two_finger.two_finger import TwoFingerTask
 
 
@@ -12,17 +12,18 @@ class TwoFingerTranslation(TwoFingerTask):
         self,
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ):
-        self.noise_tolerance = 15
+        self.noise_tolerance = env_config.noise_tolerance
 
         # These bounds are respective to the reference marker in Environment
         self.goal_min = [-30.0, 60.0]
         self.goal_max = [120.0, 110.0]
-        logging.info(f"Goal Max: {self.goal_max}")
-        logging.info(f"Goal Min: {self.goal_min}")
 
-        super().__init__(env_config, gripper_config, object_config)
+        logging.debug(
+            f"Goal Min: {self.goal_min} Goal Max: {self.goal_max} Tolerance: {self.noise_tolerance}"
+        )
+
+        super().__init__(env_config, gripper_config)
 
     # overriding method
     def _choose_goal(self):
@@ -31,7 +32,7 @@ class TwoFingerTranslation(TwoFingerTask):
 
         goal_x = randrange(x1, x2)
         goal_y = randrange(y1, y2)
-        
+
         return [goal_x, goal_y]
 
     # overriding method
@@ -105,9 +106,8 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         self,
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ):
-        super().__init__(env_config, gripper_config, object_config)
+        super().__init__(env_config, gripper_config)
 
     # overriding method
     def _reset(self):
@@ -119,9 +119,8 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self,
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ):
-        super().__init__(env_config, gripper_config, object_config)
+        super().__init__(env_config, gripper_config)
 
         # TODO add instatiation of the elevator servo etc here
 

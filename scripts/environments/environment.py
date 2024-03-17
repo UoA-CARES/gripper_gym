@@ -58,7 +58,6 @@ class Environment(ABC):
         self,
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ):
         self.task = env_config.task
 
@@ -67,13 +66,11 @@ class Environment(ABC):
             env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion
         )
 
-        self.observation_type = env_config.observation_type
         self.action_type = gripper_config.action_type
 
         self.gripper.wiggle_home()
 
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-        self.object_marker_id = object_config.object_marker_id
 
         self.step_counter = 0
         self.episode_horizon = env_config.episode_horizon

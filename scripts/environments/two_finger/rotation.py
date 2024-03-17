@@ -3,7 +3,7 @@ import random
 from enum import Enum
 
 import numpy as np
-from configurations import GripperEnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig
 from environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
@@ -104,14 +104,13 @@ class TwoFingerRotationTask(TwoFingerTask):
         self,
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ):
 
         # TODO replace with different RotationEnvironment types/tasks v domains
         self.goal_selection_method = env_config.goal_selection_method
 
-        super().__init__(env_config, gripper_config, object_config)
-        self.object_observation_mode = object_config.object_observation_mode
+        super().__init__(env_config, gripper_config)
+        self.object_observation_mode = "observed"
 
     def get_goal_function(self, object_state):
         """

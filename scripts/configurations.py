@@ -6,33 +6,34 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     domain: str
     task: str
 
-    camera_id: int
     blindable: bool
-    observation_type: int
 
-    goal_selection_method: int
-
-    marker_size: Optional[int] = 18
-    noise_tolerance: Optional[int] = 5
-
+    camera_id: int
     camera_matrix: str
     camera_distortion: str
 
-    min_noise: float = 0.01
-    noise_decay: float = 0.9999
-    noise_scale: float = 0.1
+    # actions per episode
+    episode_horizon: Optional[int] = 50
 
-    episode_horizon: int = 50
-    step_length: float = 0.2
+    # Time steps (secs) between action updates in velocity mode
+    step_time_period: Optional[float] = 0.2  # secs
+
+    # Aruco or STAG Marker size in mm
+    marker_size: Optional[int] = 18  # mm
+
+    # Aruco Marker ID for the object
+    object_marker_id: Optional[int] = 7
+
+    # Tolerance in position error for object being at goal
+    noise_tolerance: Optional[int] = 5  # mm or degrees
+
+    # Rotation Environment specific
+    object_device_name: Optional[str] = "/dev/ttyUSB0"
+    object_baudrate: Optional[int] = 115200
+    # TODO make a string enum
+    goal_selection_method: Optional[int] = 0
+
+    # Translation Environment specific
+    elevator_servo_id: Optional[int] = 5
 
     is_debug = False
-
-
-# TODO find a better name for 'object'
-class ObjectConfig(cares_cfg.SubscriptableClass):
-    object_type: str
-    object_observation_mode: str
-    object_marker_id: int
-
-    object_device_name: str
-    object_baudrate: Optional[int] = 115200

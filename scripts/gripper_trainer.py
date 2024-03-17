@@ -11,7 +11,7 @@ from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
 )
-from configurations import GripperEnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmnetFactory
 from networks.NetworkFactory import NetworkFactory
 
@@ -25,7 +25,6 @@ class GripperTrainer:
         training_config: TrainingConfig,
         alg_config: AlgorithmConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ) -> None:
         """
         Initializes the GripperTrainer class for training gripper actions in various environments.
@@ -34,12 +33,12 @@ class GripperTrainer:
         env_config (Object): Configuration parameters for the environment.
         gripper_config (Object): Configuration parameters for the gripper.
         learning_config (Object): Configuration parameters for the learning/training process.
-        object_config (Object): Configuration parameters for the objects in the environment.
         file_path (str): Path to save or retrieve model related files.
 
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
         """
 
+        self.env_config = env_config
         self.train_config = training_config
         self.alg_config = alg_config
         self.gripper_config = gripper_config
@@ -47,9 +46,7 @@ class GripperTrainer:
         env_factory = EnvironmnetFactory()
 
         # TODO add set_seed to environment
-        self.environment = env_factory.create_environment(
-            env_config, gripper_config, object_config
-        )
+        self.environment = env_factory.create_environment(env_config, gripper_config)
 
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
@@ -86,7 +83,6 @@ class GripperTrainer:
         self.record.save_config(alg_config, "alg_config")
         self.record.save_config(training_config, "training_config")
         self.record.save_config(gripper_config, "gripper_config")
-        self.record.save_config(object_config, "object_config")
 
     def environment_reset(self):
         """
@@ -353,9 +349,9 @@ class GripperTrainer:
     def dynamic_sleep(self, env_end):
         env_start = time.time()
         logging.debug(
-            f"time to execute training loop (excluding environment_step): {env_start-env_end} before delay"
+            f"Time to execute training loop: {env_start-env_end}/{self.env_config.step_time_period} secs"
         )
 
-        delay = self.step_time_period - (env_start - env_end)
+        delay = self.env_config.step_time_period - (env_start - env_end)
         if delay > 0:
             time.sleep(delay)

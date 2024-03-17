@@ -3,7 +3,7 @@ from abc import abstractmethod
 import cv2
 import tools.utils as utils
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from configurations import GripperEnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig
 from environments.environment import Environment
 
 
@@ -12,9 +12,8 @@ class TwoFingerTask(Environment):
         self,
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
-        object_config: ObjectConfig,
     ):
-        super().__init__(env_config, gripper_config, object_config)
+        super().__init__(env_config, gripper_config)
 
     @abstractmethod
     def _reset(self):
@@ -46,7 +45,9 @@ class TwoFingerTask(Environment):
         poses["gripper"] = dict(
             [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
         )
-        poses["object"] = marker_poses[self.object_marker_id]
+
+        object_marker_id = num_markers + 1
+        poses["object"] = marker_poses[object_marker_id]
 
         return poses
 

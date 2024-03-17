@@ -6,7 +6,7 @@ import torch
 import random
 import numpy as np
 
-from configurations import GripperEnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from gripper_trainer import GripperTrainer
 
@@ -18,14 +18,12 @@ import yaml
 def main():
     parser = RLParser(GripperEnvironmentConfig)
     parser.add_configuration("gripper_config", GripperConfig)
-    parser.add_configuration("object_config", ObjectConfig)
 
     configurations = parser.parse_args()
     env_config: GripperEnvironmentConfig = configurations["env_config"]
     training_config: cares_cfg.TrainingConfig = configurations["training_config"]
     alg_config: cares_cfg.AlgorithmConfig = configurations["algorithm_config"]
     gripper_config: GripperConfig = configurations["gripper_config"]
-    object_config: ObjectConfig = configurations["object_config"]
 
     if env_config.is_debug:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -48,10 +46,6 @@ def main():
         f"Gripper Config:\n"
         f"**************\n"
         f"{yaml.dump(gripper_config.dict(), default_flow_style=False)}"
-        f"\n**************\n"
-        f"Object Config:\n"
-        f"**************\n"
-        f"{yaml.dump(object_config.dict(), default_flow_style=False)}"
     )
     logging.info(f"------------------------------------------")
 
@@ -71,7 +65,6 @@ def main():
         training_config=training_config,
         alg_config=alg_config,
         gripper_config=gripper_config,
-        object_config=object_config,
     )
 
     gripper_trainer.train()
