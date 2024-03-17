@@ -6,8 +6,6 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     domain: str
     task: str
 
-    blindable: bool
-
     camera_id: int
     camera_matrix: str
     camera_distortion: str
