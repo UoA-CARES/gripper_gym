@@ -88,7 +88,7 @@ class Environment(ABC):
         self.previous_environment_info = {}
         self.reset()
 
-    def grabe_frame(self):
+    def grab_frame(self):
         return self.camera.get_frame()
 
     @exception_handler("Environment failed to reset")

@@ -302,7 +302,7 @@ class GripperTrainer:
                 total_step_counter >= max_steps_exploration
                 and total_step_counter % number_steps_per_train_policy == 0
             ):
-                for _ in range(self.train_config.G):
+                for _ in range(G):
                     experiences = self.memory.sample(batch_size)
                     info = self.agent.train_policy(experiences)
             end_train_time = time.time()
@@ -346,12 +346,12 @@ class GripperTrainer:
         elapsed_time = end_time - start_time
         print("Training time:", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
-    def dynamic_sleep(self, env_end):
-        env_start = time.time()
+    def dynamic_sleep(self, env_start):
+        process_time = time.time() - env_start
         logging.debug(
-            f"Time to execute training loop: {env_start-env_end}/{self.env_config.step_time_period} secs"
+            f"Time to process training loop: {process_time}/{self.env_config.step_time_period} secs"
         )
 
-        delay = self.env_config.step_time_period - (env_start - env_end)
+        delay = self.env_config.step_time_period - process_time
         if delay > 0:
             time.sleep(delay)
