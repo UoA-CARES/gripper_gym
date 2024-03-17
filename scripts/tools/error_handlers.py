@@ -1,165 +1,135 @@
-from time import sleep
 import logging
-import os
-logging.basicConfig(level=logging.INFO)
-from cares_lib.dynamixel.Servo import DynamixelServoError
-from pytimedinput import timedInput
-from environments.Environment import EnvironmentError
-from cares_lib.dynamixel.Gripper import GripperError
-from tools.utils import slack_post_plot
-import cv2
+from time import sleep
 
-WAIT_TIME = 5 # wait 5 seconds for auto sequences
+logging.basicConfig(level=logging.INFO)
+from cares_lib.dynamixel.Gripper import GripperError
+from cares_lib.dynamixel.Servo import DynamixelServoError
+from environments.environment import EnvironmentError
+from pytimedinput import timedInput
+
+WAIT_TIME = 5  # wait 5 seconds for auto sequences
 NUM_REPEAT = 8
 
-def auto_reboot_sequence(environment, slack_bot):
-    try: 
-        reboot(environment, slack_bot)
+
+def auto_reboot_sequence(environment):
+    try:
+        reboot(environment)
         sleep(WAIT_TIME)
-        home(environment, slack_bot)
-        sleep(WAIT_TIME)
-        return True
-    except (GripperError, EnvironmentError, DynamixelServoError): 
-        return False
-    
-def auto_wiggle_sequence(environment, slack_bot):
-    try: 
-        reboot(environment, slack_bot)
-        sleep(WAIT_TIME)
-        wiggle_home(environment, slack_bot)
+        home(environment)
         sleep(WAIT_TIME)
         return True
-    except (GripperError, EnvironmentError, DynamixelServoError): 
+    except (GripperError, EnvironmentError, DynamixelServoError):
         return False
 
-def reboot(environment, slack_bot):
+
+def auto_wiggle_sequence(environment):
+    try:
+        reboot(environment)
+        sleep(WAIT_TIME)
+        wiggle_home(environment)
+        sleep(WAIT_TIME)
+        return True
+    except (GripperError, EnvironmentError, DynamixelServoError):
+        return False
+
+
+def reboot(environment):
     try:
         logging.info("Rebooting Gripper")
         environment.gripper.reboot()
         logging.info("Rebooting succeeded")
-        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Rebooting succeeded")
-    except (EnvironmentError , GripperError):
+    except (EnvironmentError, GripperError):
         warning_message = "Reboot failed"
         logging.warning(warning_message)
-        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
         raise GripperError(warning_message)
 
-def home(environment, slack_bot):
+
+def home(environment):
     try:
         logging.info("Trying to home")
         environment.gripper.home()
         logging.info("Home succeeded")
-        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Home succeeded")
-    except (EnvironmentError , GripperError):
+    except (EnvironmentError, GripperError):
         warning_message = "Home failed"
         logging.warning(warning_message)
-        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
         raise GripperError(warning_message)
 
-def wiggle_home(environment, slack_bot):
+
+def wiggle_home(environment):
     try:
         logging.info("Trying to wiggle home")
         environment.gripper.wiggle_home()
         logging.info("Wiggle home succeeded")
-        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Wiggle home succeeded")
-    except (EnvironmentError , GripperError):
+    except (EnvironmentError, GripperError):
         warning_message = "Wiggle home failed"
         logging.warning(warning_message)
-        slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: {warning_message}")
         raise GripperError(warning_message)
-        
 
-def get_frame(environment, slack_bot, file_path):
-    cv2.imwrite(f"{file_path}/current_frame.png", environment.camera.get_frame())
-    if os.path.exists(f"{file_path}/current_frame.png"):
-        slack_bot.upload_file("#cares-chat-bot", f"#{environment.gripper.gripper_id}: current_frame", f"{file_path}/", "current_frame.png")
-    else:
-        slack_bot.post_message("#cares-chat-bot", f"#{environment.gripper.gripper_id}: Having trouble accessing current frame")
 
-def handle_gripper_error_home(environment, error_message, slack_bot, file_path):
+def handle_gripper_error_home(environment, error_message, file_path):
     warning_message = f"Error handling has been initiated because of: {error_message}. Attempting to solve by home sequence."
     logging.warning(warning_message)
-    slack_bot.post_message("#bot_terminal", warning_message)
-    
+
     try:
         if not environment.gripper.wiggle_home():
-            warning_message = f"#{environment.gripper.gripper_id}: Wiggle home failed, rebooting"
+            warning_message = (
+                f"#{environment.gripper.gripper_id}: Wiggle home failed, rebooting"
+            )
             logging.warning(warning_message)
-            slack_bot.post_message("#bot_terminal", warning_message)
-
         return True
-    except (EnvironmentError , GripperError):
+    except (EnvironmentError, GripperError):
         # Repeat this sequence n times before resorting to manual error handler
         for _ in range(NUM_REPEAT):
-            # Try auto reboot first 
-            if auto_reboot_sequence(environment, slack_bot):
-                logging.info(f"#{environment.gripper.gripper_id}: Auto Reboot Sequence success")
+            # Try auto reboot first
+            if auto_reboot_sequence(environment):
+                logging.info(
+                    f"#{environment.gripper.gripper_id}: Auto Reboot Sequence success"
+                )
                 return True
-            
-            reboot_failed_message = f"#{environment.gripper.gripper_id}: Auto Reboot Sequence failed"
+
+            reboot_failed_message = (
+                f"#{environment.gripper.gripper_id}: Auto Reboot Sequence failed"
+            )
             logging.warning(reboot_failed_message)
-            slack_bot.post_message("#bot_terminal", reboot_failed_message)
 
             # Try auto wiggle if auto reboot fails
-            if auto_wiggle_sequence(environment, slack_bot):
-                logging.info(f"#{environment.gripper.gripper_id}: Auto Wiggle Sequence success")
+            if auto_wiggle_sequence(environment):
+                logging.info(
+                    f"#{environment.gripper.gripper_id}: Auto Wiggle Sequence success"
+                )
                 return True
-        
+
         warning_message = f"#{environment.gripper.gripper_id}: Auto Reboot and Wiggle both failed, going to manual error handler"
         logging.warning(warning_message)
-        slack_bot.post_message("#bot_terminal", warning_message)
-        return handle_gripper_error(environment, error_message, slack_bot, file_path)
-    
-def handle_gripper_error(environment, error_message, slack_bot, file_path):
+        return handle_gripper_error(environment, error_message, file_path)
+
+
+def handle_gripper_error(environment, error_message, file_path):
     logging.error(f"Error handling has been initiated because of: {error_message}")
     help_message = "Fix the gripper then press: c to continue | x to quit \
                     Commands: h to home | w to wiggle | r to reboot | p for progress | d for distance | f for current frame |"
     logging.error(help_message)
-    slack_bot.post_message("#cares-chat-bot", f"{error_message}, {help_message}")
-    
+
     while True:
         try:
-            value, timed_out = timedInput(timeout=10)
-            if timed_out:
-                value = read_slack(slack_bot, environment.gripper.gripper_id)
-            if value == 'c':
+            value, _ = timedInput(timeout=10)
+            if value == "c":
                 logging.info("Gripper fixed continuing onwards")
-                slack_bot.post_message("#cares-chat-bot", f"Gripper{environment.gripper.gripper_id}: Gripper fixed continuing onwards")
                 return True
-            elif value == 'x':
+            elif value == "x":
                 logging.info("Giving up correcting gripper")
                 return False
             elif value == "r":
-                reboot(environment, slack_bot)
-            elif value  == "h":
-                home(environment, slack_bot)
-            elif value  == "w":
-                wiggle_home(environment, slack_bot)
-            elif value == "p":
-                slack_post_plot(environment, slack_bot, file_path, "reward")
-            elif value == "d":
-                slack_post_plot(environment, slack_bot, file_path, "distance")
-            elif value == "s":
-                slack_post_plot(environment, slack_bot, file_path, "rolling_success_average")
-            elif value == "f":
-                get_frame(environment, slack_bot, file_path)
-        except (EnvironmentError , GripperError) as error:
+                reboot(environment)
+            elif value == "h":
+                home(environment)
+            elif value == "w":
+                wiggle_home(environment)
+        except (EnvironmentError, GripperError) as error:
             # Error was encountered after user selects operation, allow them to select again
-            retry_error_message= f"Error encountered during manual error handling with message: {error}"
+            retry_error_message = (
+                f"Error encountered during manual error handling with message: {error}"
+            )
             logging.error(retry_error_message)
             logging.error(help_message)
-            slack_bot.post_message("#cares-chat-bot", f"{retry_error_message}, {help_message}")
             continue
-
-
-def read_slack(slack_bot, gripper_id):
-    message = slack_bot.get_message("cares-chat-bot")
-    
-    if message is not None:
-        message = message.split(",") 
-    else:
-        return None
-
-    if message[0] == str(gripper_id):
-        return message[1]
-    return None

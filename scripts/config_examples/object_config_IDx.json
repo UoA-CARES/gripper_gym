@@ -1,8 +1,0 @@
-{
-    "object_type": "magnet",
-    "object_observation_mode": "actual",
-    "object_marker_id": 4,
-
-    "device_name": "/dev/ttyACM0",
-    "baudrate": 115200
-}
