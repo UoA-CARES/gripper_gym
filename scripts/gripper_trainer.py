@@ -40,20 +40,8 @@ class GripperTrainer:
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
         """
 
-        self.seed = training_config.seeds[0]  # TODO: reconcile the multiple seeds
-        self.batch_size = training_config.batch_size
-
-        self.G = training_config.G
-        self.plot_freq = training_config.plot_frequency
-
-        self.max_steps_exploration = training_config.max_steps_exploration
-        self.max_steps_training = training_config.max_steps_training
-        self.number_steps_per_evaluation = training_config.number_steps_per_evaluation
-        self.number_eval_episodes = training_config.number_eval_episodes
-
-        self.step_time_period = env_config.step_length
-
-        self.action_type = gripper_config.action_type
+        self.training_config = training_config
+        self.alg_config = alg_config
 
         env_factory = EnvironmnetFactory()
         self.environment = env_factory.create_environment(
@@ -66,7 +54,7 @@ class GripperTrainer:
 
         logging.info(f"State: {state}")
 
-        # This wont work for multi-dimension arrays
+        # This wont work for multi-dimension arrays - TODO push this to the environment
         observation_size = len(state)
         action_num = gripper_config.num_motors
         logging.info(
@@ -155,7 +143,7 @@ class GripperTrainer:
                 self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
-    def evaluation_loop(self, total_counter):
+    def evaluation_loop(self, total_steps):
         """
         Executes an evaluation loop to assess the agent's performance.
 
@@ -166,60 +154,55 @@ class GripperTrainer:
 
         The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
         """
-        max_steps_evaluation = 50
-        episode_timesteps = 0
-        episode_reward = 0
-        episode_num = 0
+        frame = self.environment.get_frame()
+        self.record.start_video(total_steps + 1, frame)
+
+        number_eval_episodes = int(self.training_config.number_eval_episodes)
 
         state = self.environment_reset()
-        env_end = time.time()
 
-        for _ in range(max_steps_evaluation):
-            episode_timesteps += 1
+        for eval_episode_counter in range(number_eval_episodes):
+            episode_timesteps = 0
+            episode_reward = 0
+            episode_num = 0
+            done = False
+            truncated = False
 
-            self.noise_scale *= self.noise_decay
-            self.noise_scale = max(self.min_noise, self.noise_scale)
+            start_time = time.time()
+            while not done and not truncated:
+                episode_timesteps += 1
 
-            if self.algorithm == "TD3":
-                # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                action = self.agent.select_action_from_policy(
-                    state, noise_scale=self.noise_scale, evaluation=True
-                )
-            else:
                 action = self.agent.select_action_from_policy(state, evaluation=True)
+                action_env = self.environment.denormalize(action)
 
-            action_env = self.environment.denormalize(action)  # gripper range
+                state, reward, done, truncated = self.environment_step(action_env)
 
-            if self.action_type == "velocity":
-                self.dynamic_sleep(env_end)
+                start_time = time.time()
 
-            next_state, reward, done, truncated = self.environment_step(action_env)
+                episode_reward += reward
 
-            env_end = time.time()
+                if eval_episode_counter == 0:
+                    frame = self.environment.grab_frame()
+                    self.record.log_video(frame)
 
-            if self.environment.action_type == "velocity":
-                try:
-                    self.environment.step_gripper()
-                except (EnvironmentError, GripperError):
-                    continue
+                if done or truncated:
+                    self.record.log_eval(
+                        total_steps=total_steps + 1,
+                        episode=eval_episode_counter + 1,
+                        episode_reward=episode_reward,
+                        display=True,
+                    )
 
-            state = next_state
-            episode_reward += reward
+                    state = self.environment_reset()
+                    episode_reward = 0
+                    episode_timesteps = 0
+                    episode_num += 1
 
-            if done or truncated:
+                # Run loop at a fixed frequency
+                if self.action_type == "velocity":
+                    self.dynamic_sleep(start_time)
 
-                self.record.log_eval(
-                    total_steps=total_counter + 1,
-                    episode=episode_num,
-                    episode_steps=episode_timesteps,
-                    episode_reward=episode_reward,
-                    display=True,
-                )
-
-                state = self.environment_reset()
-                episode_reward = 0
-                episode_timesteps = 0
-                episode_num += 1
+        self.record.stop_video()
 
     def train(self):
         """
@@ -227,24 +210,55 @@ class GripperTrainer:
         Trains the agent and save the results in a file and periodically evaluate the agent's performance as well as plotting results.
         Logging and messaging to a specified Slack Channel for monitoring the progress of the training.
         """
-        logging.info("Starting Training Loop")
+        start_time = time.time()
+
+        max_steps_training = self.train_config.max_steps_training
+        max_steps_exploration = self.train_config.max_steps_exploration
+        number_steps_per_evaluation = self.train_config.number_steps_per_evaluation
+        number_steps_per_train_policy = self.train_config.number_steps_per_train_policy
+
+        # Algorthm specific attributes - e.g. NaSA-TD3 dd
+        intrinsic_on = (
+            bool(self.alg_config.intrinsic_on)
+            if hasattr(self.alg_config, "intrinsic_on")
+            else False
+        )
+
+        min_noise = (
+            self.alg_config.min_noise if hasattr(self.alg_config, "min_noise") else 0
+        )
+        noise_decay = (
+            self.alg_config.noise_decay
+            if hasattr(self.alg_config, "noise_decay")
+            else 1.0
+        )
+        noise_scale = (
+            self.alg_config.noise_scale
+            if hasattr(self.alg_config, "noise_scale")
+            else 0.1
+        )
+
+        logging.info(
+            f"Training {max_steps_training} Exploration {max_steps_exploration} Evaluation {number_steps_per_evaluation}"
+        )
+
+        batch_size = self.train_config.batch_size
+        G = self.train_config.G
 
         episode_timesteps = 0
         episode_reward = 0
         episode_num = 0
-        evaluation = False
 
-        start_time = datetime.now()
-
-        env_end = time.time()
+        evaluate = False
 
         state = self.environment_reset()
 
-        for total_step_counter in range(int(self.max_steps_training)):
+        episode_start = time.time()
+        for total_step_counter in range(int(max_steps_training)):
             episode_timesteps += 1
 
-            if total_step_counter < self.max_steps_exploration:
-                message = f"Running Exploration Steps {total_step_counter}/{self.max_steps_exploration}"
+            if total_step_counter < max_steps_exploration:
+                message = f"Running Exploration Steps {total_step_counter}/{max_steps_exploration}"
                 logging.info(message)
 
                 action_env = self.environment.sample_action()
@@ -252,65 +266,86 @@ class GripperTrainer:
                 # algorithm range [-1, 1]
                 action = self.environment.normalize(action_env)
             else:
-                self.noise_scale *= self.noise_decay
-                self.noise_scale = max(self.min_noise, self.noise_scale)
-                logging.debug(f"Noise Scale:{self.noise_scale}")
+                noise_scale *= noise_decay
+                noise_scale = max(min_noise, noise_scale)
 
-                if self.algorithm == ALGORITHMS.TD3.value:
-                    # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                    action = self.agent.select_action_from_policy(
-                        state, noise_scale=self.noise_scale
-                    )
-                else:
-                    action = self.agent.select_action_from_policy(state)
+                # returns a 1D array with range [-1, 1], only TD3 has noise scale
+                action = self.agent.select_action_from_policy(
+                    state, noise_scale=noise_scale
+                )
 
                 # gripper range
                 action_env = self.environment.denormalize(action)
 
-            if self.action_type == "velocity":
-                self.dynamic_sleep(env_end)
+            next_state, reward_extrinsic, done, truncated = self.environment_step(
+                action_env
+            )
 
-            next_state, reward, done, truncated = self.environment_step(action_env)
+            env_start_time = time.time()
 
-            env_end = time.time()
+            intrinsic_reward = 0
+            if intrinsic_on and total_step_counter > max_steps_exploration:
+                intrinsic_reward = self.agent.get_intrinsic_reward(
+                    state, action, next_state
+                )
 
-            self.memory.add(state, action, reward, next_state, done)
+            total_reward = reward_extrinsic + intrinsic_reward
+
+            self.memory.add(state, action, total_reward, next_state, done)
 
             state = next_state
-            episode_reward += reward
+            # Note we only track the extrinsic reward for the episode for proper comparison
+            episode_reward += reward_extrinsic
 
             # Regardless if velocity or position based, train every step
-            start = time.time()
-            if total_step_counter >= self.max_steps_exploration:
+            start_train_time = time.time()
+            if (
+                total_step_counter >= max_steps_exploration
+                and total_step_counter % number_steps_per_train_policy == 0
+            ):
                 for _ in range(self.G):
-                    experiences = self.memory.sample(self.batch_size)
+                    experiences = self.memory.sample(batch_size)
                     info = self.agent.train_policy(experiences)
-            end = time.time()
-            logging.debug(f"Time to run training loop {end-start} \n")
+            end_train_time = time.time()
+            logging.debug(
+                f"Time to run training loop {end_train_time-start_train_time} \n"
+            )
 
-            if total_step_counter % self.number_steps_per_evaluation == 0:
-                evaluation = True
+            if (total_step_counter + 1) % number_steps_per_evaluation == 0:
+                evaluate = True
 
             if done or truncated:
+                episode_time = time.time() - episode_start
                 self.record.log_train(
-                    total_steps=total_step_counter,
-                    episode=episode_num,
+                    total_steps=total_step_counter + 1,
+                    episode=episode_num + 1,
                     episode_steps=episode_timesteps,
                     episode_reward=episode_reward,
+                    episode_time=episode_time,
                     display=True,
                 )
 
-                episode_reward = 0
-                episode_timesteps = 0
-                episode_num += 1
-
-                if evaluation:
+                if evaluate:
                     logging.info("*************--Evaluation Loop--*************")
                     self.evaluation_loop(total_step_counter)
-                    evaluation = False
+                    evaluate = False
                     logging.info("--------------------------------------------")
 
+                # Reset environment
                 state = self.environment_reset()
+
+                episode_timesteps = 0
+                episode_reward = 0
+                episode_num += 1
+                episode_start = time.time()
+
+            # Run loop at a fixed frequency
+            if self.action_type == "velocity":
+                self.dynamic_sleep(env_start_time)
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print("Training time:", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
     def dynamic_sleep(self, env_end):
         env_start = time.time()
