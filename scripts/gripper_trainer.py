@@ -44,6 +44,8 @@ class GripperTrainer:
         self.alg_config = alg_config
 
         env_factory = EnvironmnetFactory()
+
+        # TODO add set_seed to environment
         self.environment = env_factory.create_environment(
             env_config, gripper_config, object_config
         )
