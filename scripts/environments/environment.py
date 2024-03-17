@@ -8,7 +8,7 @@ from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
-from configurations import GripperEnvironmentConfig, ObjectConfig
+from configurations import GripperEnvironmentConfig
 
 
 def exception_handler(error_message):

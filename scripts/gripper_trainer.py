@@ -153,7 +153,7 @@ class GripperTrainer:
 
         The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
         """
-        frame = self.environment.get_frame()
+        frame = self.environment.grab_frame()
         self.record.start_video(total_steps + 1, frame)
 
         number_eval_episodes = int(self.train_config.number_eval_episodes)
