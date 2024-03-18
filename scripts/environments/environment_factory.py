@@ -9,7 +9,7 @@ class EnvironmnetFactory:
     def __init__(self):
         pass
 
-    def create_environment(self, env_config, gripper_config, object_config):
+    def create_environment(self, env_config, gripper_config):
         """
         Create an environment based on the domain and task.
 
@@ -26,17 +26,11 @@ class EnvironmnetFactory:
         environment = None
         if domain == "two_finger":
             if task == "translation":
-                environment = TwoFingerTranslationFlat(
-                    env_config, gripper_config, object_config
-                )
+                environment = TwoFingerTranslationFlat(env_config, gripper_config)
             elif task == "suspended_translation":
-                environment = TwoFingerTranslationSuspended(
-                    env_config, gripper_config, object_config
-                )
+                environment = TwoFingerTranslationSuspended(env_config, gripper_config)
             elif task == "rotation":
-                environment = TwoFingerRotationTask(
-                    env_config, gripper_config, object_config
-                )
+                environment = TwoFingerRotationTask(env_config, gripper_config)
 
         if environment is None:
             raise ValueError(f"Invalid domain or task: {domain}, {task}")

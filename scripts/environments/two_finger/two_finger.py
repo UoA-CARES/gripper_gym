@@ -46,7 +46,7 @@ class TwoFingerTask(Environment):
             [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
         )
 
-        object_marker_id = num_markers + 1
+        object_marker_id = num_markers
         poses["object"] = marker_poses[object_marker_id]
 
         return poses
