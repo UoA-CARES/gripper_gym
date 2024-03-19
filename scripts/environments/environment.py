@@ -164,6 +164,10 @@ class Environment(ABC):
         self.current_environment_info = self._get_environment_info()
         state = self._environment_info_to_state(self.current_environment_info)
 
+        image = self._render_envrionment(state, self.current_environment_info)
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
+
         reward, done = self._reward_function(
             self.previous_environment_info, self.current_environment_info
         )
@@ -171,10 +175,6 @@ class Environment(ABC):
         self.previous_environment_info = self.current_environment_info
 
         truncated = self.step_counter >= self.episode_horizon
-
-        image = self._render_envrionment(state, self.current_environment_info)
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
 
         return state, reward, done, truncated
 

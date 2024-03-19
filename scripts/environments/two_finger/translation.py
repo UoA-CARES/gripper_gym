@@ -153,12 +153,12 @@ class TwoFingerTranslation(TwoFingerTask):
         )
         cv2.putText(
             image,
-            f"Reward: {reward} Done: {done}",
+            f"Reward: {reward}\nDone: {done}",
             goal_pixel,
             cv2.FONT_HERSHEY_SIMPLEX,
-            1,
+            0.5,
             (0, 0, 255),
-            2,
+            1,
         )
 
         return image
