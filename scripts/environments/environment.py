@@ -1,15 +1,16 @@
-import cv2
 import logging
 import random
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import wraps
 
+import cv2
+from configurations import GripperEnvironmentConfig
+
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
-from configurations import GripperEnvironmentConfig
 
 
 def exception_handler(error_message):
@@ -36,13 +37,6 @@ class EnvironmentError(IOError):
     def __init__(self, gripper, message):
         self.gripper = gripper
         super().__init__(message)
-
-
-class OBSERVATION_TYPE(Enum):
-    SERVO = 0
-    ARUCO = 1
-    SERVO_ARUCO = 2
-    IMAGE = 3
 
 
 class Environment(ABC):
@@ -86,7 +80,7 @@ class Environment(ABC):
         self.reference_position = self.reference_pose["position"]
 
         self.goal = []
-        self.current_envrionment_info = {}
+        self.current_environment_info = {}
         self.previous_environment_info = {}
         self.reset()
 

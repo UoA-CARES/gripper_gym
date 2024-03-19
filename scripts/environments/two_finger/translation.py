@@ -2,9 +2,12 @@ import logging
 import math
 from random import randrange
 
-from cares_lib.dynamixel.gripper_configuration import GripperConfig
+import cv2
+import tools.utils as utils
 from configurations import GripperEnvironmentConfig
 from environments.two_finger.two_finger import TwoFingerTask
+
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 
 class TwoFingerTranslation(TwoFingerTask):
@@ -99,6 +102,66 @@ class TwoFingerTranslation(TwoFingerTask):
         )
 
         return reward, done
+
+    def _render_envrionment(self, state, environment_state):
+        # Get base rendering of the two-finger environment
+        image = super()._render_envrionment(state, environment_state)
+
+        # Draw the goal boundry for the translation task
+        bounds_color = (0, 255, 0)
+        bounds_min_x, bounds_min_y = utils.position_to_pixel(
+            self.goal_min, self.reference_position, self.camera.camera_matrix
+        )
+        bounds_max_x, bounds_max_y = utils.position_to_pixel(
+            self.goal_max, self.reference_position, self.camera.camera_matrix
+        )
+        cv2.rectangle(
+            image,
+            (int(bounds_min_x), int(bounds_min_y)),
+            (int(bounds_max_x), int(bounds_max_y)),
+            bounds_color,
+            2,
+        )
+
+        # Draw object position
+        object_color = (0, 255, 0)
+        object_pose = environment_state["poses"]["object"]
+        object_pixel = utils.position_to_pixel(
+            object_pose["position"],
+            [0, 0, object_pose["position"][2]],
+            self.camera.camera_matrix,
+        )
+        cv2.circle(image, object_pixel, 9, object_color, -1)
+
+        # Draw goal position - note the reference Z is relative to the Marker ID of the target for proper math purposes
+        goal_color = (0, 0, 255)
+        goal_reference_position = [
+            self.reference_position[0],
+            self.reference_position[1],
+            object_pose["position"][2],
+        ]
+        goal_pixel = utils.position_to_pixel(
+            self.goal, goal_reference_position, self.camera.camera_matrix
+        )
+        cv2.circle(image, goal_pixel, 9, goal_color, -1)
+
+        # Draw line from object to goal
+        cv2.line(image, object_pixel, goal_pixel, (255, 0, 0), 2)
+
+        reward, done = self._reward_function(
+            self.previous_environment_info, self.current_environment_info
+        )
+        cv2.putText(
+            image,
+            f"Reward: {reward} Done: {done}",
+            goal_pixel,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 0, 255),
+            2,
+        )
+
+        return image
 
 
 class TwoFingerTranslationFlat(TwoFingerTranslation):

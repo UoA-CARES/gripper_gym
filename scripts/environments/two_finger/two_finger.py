@@ -2,9 +2,10 @@ from abc import abstractmethod
 
 import cv2
 import tools.utils as utils
-from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from configurations import GripperEnvironmentConfig
 from environments.environment import Environment
+
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 
 class TwoFingerTask(Environment):
@@ -91,44 +92,6 @@ class TwoFingerTask(Environment):
         image = cv2.undistort(
             image, self.camera.camera_matrix, self.camera.camera_distortion
         )
-
-        # Draw the goal boundry
-        bounds_color = (0, 255, 0)
-        bounds_min_x, bounds_min_y = utils.position_to_pixel(
-            self.goal_min, self.reference_position, self.camera.camera_matrix
-        )
-        bounds_max_x, bounds_max_y = utils.position_to_pixel(
-            self.goal_max, self.reference_position, self.camera.camera_matrix
-        )
-        cv2.rectangle(
-            image,
-            (int(bounds_min_x), int(bounds_min_y)),
-            (int(bounds_max_x), int(bounds_max_y)),
-            bounds_color,
-            2,
-        )
-
-        # Draw object position
-        object_color = (0, 255, 0)
-        object_pose = environment_state["poses"]["object"]
-        object_pixel = utils.position_to_pixel(
-            object_pose["position"],
-            [0, 0, object_pose["position"][2]],
-            self.camera.camera_matrix,
-        )
-        cv2.circle(image, object_pixel, 9, object_color, -1)
-
-        # Draw goal position - note the reference Z is relative to the Marker ID of the target for proper math purposes
-        goal_color = (0, 0, 255)
-        goal_reference_position = [
-            self.reference_position[0],
-            self.reference_position[1],
-            object_pose["position"][2],
-        ]
-        goal_pixel = utils.position_to_pixel(
-            self.goal, goal_reference_position, self.camera.camera_matrix
-        )
-        cv2.circle(image, goal_pixel, 9, goal_color, -1)
 
         num_gripper_markers = self.gripper.num_motors + 2
 
