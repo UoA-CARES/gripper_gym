@@ -16,8 +16,8 @@ class TwoFingerTranslation(TwoFingerTask):
         self.noise_tolerance = env_config.noise_tolerance
 
         # These bounds are respective to the reference marker in Environment
-        self.goal_min = [-30.0, 60.0]
-        self.goal_max = [120.0, 110.0]
+        self.goal_min = [-30.0, 70.0]
+        self.goal_max = [120.0, 120.0]
 
         logging.debug(
             f"Goal Min: {self.goal_min} Goal Max: {self.goal_max} Tolerance: {self.noise_tolerance}"

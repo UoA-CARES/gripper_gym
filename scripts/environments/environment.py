@@ -1,3 +1,4 @@
+import cv2
 import logging
 import random
 from abc import ABC, abstractmethod
@@ -85,11 +86,16 @@ class Environment(ABC):
         self.reference_position = self.reference_pose["position"]
 
         self.goal = []
+        self.current_envrionment_info = {}
         self.previous_environment_info = {}
         self.reset()
 
     def grab_frame(self):
         return self.camera.get_frame()
+
+    def grab_rendered_frame(self):
+        state = self._environment_info_to_state(self.current_environment_info)
+        return self._render_envrionment(state, self.current_environment_info)
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -107,12 +113,12 @@ class Environment(ABC):
 
         self._reset()
 
-        self.previous_environment_info = current_environment_info = (
+        self.previous_environment_info = self.current_environment_info = (
             self._get_environment_info()
         )
-        state = self._environment_info_to_state(current_environment_info)
+        state = self._environment_info_to_state(self.current_environment_info)
 
-        logging.debug(f"{current_environment_info}")
+        logging.debug(f"{self.current_environment_info}")
 
         # choose goal will crash if not home
         self.goal = self._choose_goal()
@@ -162,24 +168,22 @@ class Environment(ABC):
         else:
             self.gripper.move(action)
 
-        current_environment_info = self._get_environment_info()
-        state = self._environment_info_to_state(current_environment_info)
+        self.current_environment_info = self._get_environment_info()
+        state = self._environment_info_to_state(self.current_environment_info)
 
         reward, done = self._reward_function(
-            self.previous_environment_info, current_environment_info
+            self.previous_environment_info, self.current_environment_info
         )
 
-        self.previous_environment_info = current_environment_info
+        self.previous_environment_info = self.current_environment_info
 
         truncated = self.step_counter >= self.episode_horizon
 
-        self._render_envrionment(state, current_environment_info)
+        image = self._render_envrionment(state, self.current_environment_info)
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
 
         return state, reward, done, truncated
-
-    @exception_handler("Failed to step gripper")
-    def step_gripper(self):
-        self.gripper.step()
 
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo

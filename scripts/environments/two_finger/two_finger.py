@@ -166,5 +166,4 @@ class TwoFingerTask(Environment):
                 cv2.LINE_AA,
             )
 
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
+        return image
