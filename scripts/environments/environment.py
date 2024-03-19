@@ -1,7 +1,6 @@
 import logging
 import random
 from abc import ABC, abstractmethod
-from enum import Enum
 from functools import wraps
 
 import cv2

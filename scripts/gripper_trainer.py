@@ -99,7 +99,7 @@ class GripperTrainer:
             return self.environment.reset()
         except (EnvironmentError, GripperError) as error:
             error_message = f"Failed to reset with message: {error}"
-            
+
             logging.error(error_message)
             if erh.handle_gripper_error_home(
                 self.environment, error_message, self.file_path
@@ -156,7 +156,7 @@ class GripperTrainer:
         number_eval_episodes = int(self.train_config.number_eval_episodes)
 
         state = self.environment_reset()
-        
+
         frame = self.environment.grab_rendered_frame()
         self.record.start_video(total_steps + 1, frame)
 
@@ -175,12 +175,12 @@ class GripperTrainer:
                 action_env = self.environment.denormalize(action)
 
                 state, reward, done, truncated = self.environment_step(action_env)
-                
+
                 start_time = time.time()
 
                 if eval_episode_counter == 0:
                     frame = self.environment.grab_rendered_frame()
-                    self.record.log_video(frame)                
+                    self.record.log_video(frame)
 
                 episode_reward += reward
 
