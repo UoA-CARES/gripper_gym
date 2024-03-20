@@ -103,6 +103,15 @@ class TwoFingerTranslation(TwoFingerTask):
 
         return reward, done
 
+    def _draw_circle(self, image, position, reference_position, color):
+        pixel_location = utils.position_to_pixel(
+            position,
+            reference_position,
+            self.camera.camera_matrix,
+        )
+        cv2.circle(image, pixel_location, 9, color, -1)
+        return image, pixel_location
+
     def _render_envrionment(self, state, environment_state):
         # Get base rendering of the two-finger environment
         image = super()._render_envrionment(state, environment_state)
@@ -123,42 +132,78 @@ class TwoFingerTranslation(TwoFingerTask):
             2,
         )
 
-        # Draw object position
+        # Draw object positions
         object_color = (0, 255, 0)
-        object_pose = environment_state["poses"]["object"]
-        object_pixel = utils.position_to_pixel(
-            object_pose["position"],
-            [0, 0, object_pose["position"][2]],
-            self.camera.camera_matrix,
+
+        # Draw object's current position
+        current_object_pose = environment_state["poses"]["object"]
+        image, current_object_pixel = self._draw_circle(
+            image,
+            current_object_pose["position"][0:2],
+            [0, 0, current_object_pose["position"][2]],
+            object_color,
         )
-        cv2.circle(image, object_pixel, 9, object_color, -1)
+
+        cv2.putText(
+            image,
+            "Current",
+            current_object_pixel,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            object_color,
+            2,
+        )
+
+        # Draw object's previous position
+        previous_object_pose = self.previous_environment_info["poses"]["object"]
+        image, previous_object_pixel = self._draw_circle(
+            image,
+            previous_object_pose["position"][0:2],
+            [0, 0, previous_object_pose["position"][2]],
+            object_color,
+        )
+
+        cv2.putText(
+            image,
+            "Previous",
+            previous_object_pixel,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            object_color,
+            2,
+        )
+
+        # Draw line from previous to current
+        cv2.line(image, current_object_pixel, previous_object_pixel, (255, 0, 0), 2)
 
         # Draw goal position - note the reference Z is relative to the Marker ID of the target for proper math purposes
         goal_color = (0, 0, 255)
         goal_reference_position = [
             self.reference_position[0],
             self.reference_position[1],
-            object_pose["position"][2],
+            current_object_pose["position"][2],
         ]
-        goal_pixel = utils.position_to_pixel(
-            self.goal, goal_reference_position, self.camera.camera_matrix
+        image, goal_pixel = self._draw_circle(
+            image,
+            self.goal,
+            goal_reference_position,
+            goal_color,
         )
-        cv2.circle(image, goal_pixel, 9, goal_color, -1)
 
         # Draw line from object to goal
-        cv2.line(image, object_pixel, goal_pixel, (255, 0, 0), 2)
+        cv2.line(image, current_object_pixel, goal_pixel, (255, 0, 0), 2)
 
-        reward, done = self._reward_function(
+        reward, _ = self._reward_function(
             self.previous_environment_info, self.current_environment_info
         )
         cv2.putText(
             image,
-            f"Reward: {reward}\nDone: {done}",
+            f"Reward: {reward}",
             goal_pixel,
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0, 0, 255),
-            1,
+            2,
         )
 
         return image

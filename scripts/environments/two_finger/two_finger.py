@@ -99,6 +99,7 @@ class TwoFingerTask(Environment):
         base_index = self.gripper.num_motors + (
             self.gripper.num_motors if self.action_type == "velocity" else 0
         )
+
         for i in range(0, num_gripper_markers):
             x = state[base_index + i * 2]
             y = state[base_index + i * 2 + 1]
