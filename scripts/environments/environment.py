@@ -86,7 +86,7 @@ class Environment(ABC):
 
         self.goal = []
         self.previous_environment_info = {}
-        self.reset()
+        # self.reset()
 
     def grab_frame(self):
         return self.camera.get_frame()

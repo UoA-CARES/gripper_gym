@@ -6,6 +6,8 @@ from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from configurations import GripperEnvironmentConfig
 from environments.two_finger.two_finger import TwoFingerTask
 
+from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
+from cares_lib.dynamixel.Gripper import GripperError
 
 class TwoFingerTranslation(TwoFingerTask):
     def __init__(
@@ -121,11 +123,36 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         gripper_config: GripperConfig,
     ):
         super().__init__(env_config, gripper_config)
-
-        # TODO add instatiation of the elevator servo etc here
-
+        led = id = 5
+        self.max_value = 3500
+        self.min_value = 0
+        servo_type = "XL330-M077-T"
+        speed_limit = torque_limit = 150
+        
+        try:
+            self.lift_servo = Servo(self.gripper.port_handler, self.gripper.packet_handler, self.gripper.protocol, id, led,
+                                            torque_limit, speed_limit, self.max_value,
+                                            self.min_value, servo_type)
+            self.lift_servo.enable()
+            print(self.lift_servo.current_velocity())
+            # self.lift_servo.packet_handler.write4ByteTxRx(self.lift_servo.port_handler, self.lift_servo.motor_id, 112, self.lift_servo.max_velocity)
+        except (GripperError, DynamixelServoError) as error:
+            raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise lift servo") from error
+        
+    
     # overriding method
     def _reset(self):
         self.gripper.wiggle_home()
+        self.grab_cube()
 
-        # Execute code to reset the elevator etc
+    
+    def lift_up(self):
+        self.lift_servo.move(self.max_value)
+
+    def lift_down(self):
+        self.lift_servo.move(self.min_value)
+
+    def grab_cube(self):
+        self.lift_up()
+        self.gripper.move([512,362,512,662])
+        self.lift_down()
