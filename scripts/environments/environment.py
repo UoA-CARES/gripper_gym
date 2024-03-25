@@ -88,7 +88,7 @@ class Environment(ABC):
 
     def grab_rendered_frame(self):
         state = self._environment_info_to_state(self.current_environment_info)
-        return self._render_envrionment(state, self.current_environment_info)
+        return self._render_environment(state, self.current_environment_info)
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -163,8 +163,7 @@ class Environment(ABC):
 
         self.current_environment_info = self._get_environment_info()
         state = self._environment_info_to_state(self.current_environment_info)
-
-        image = self._render_envrionment(state, self.current_environment_info)
+        image = self._render_environment(state, self.current_environment_info)
         cv2.imshow("State Image", image)
         cv2.waitKey(10)
 
@@ -253,5 +252,5 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def _render_envrionment(self, state, environment_info):
+    def _render_environment(self, state, environment_info):
         pass

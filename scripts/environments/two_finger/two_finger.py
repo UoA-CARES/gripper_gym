@@ -42,7 +42,7 @@ class TwoFingerTask(Environment):
         marker_ids = [id for id in range(1, num_markers + 1)]
 
         marker_poses = self._get_marker_poses(marker_ids, blindable=False)
-
+        
         poses["gripper"] = dict(
             [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
         )
@@ -85,7 +85,7 @@ class TwoFingerTask(Environment):
         state.append(position[1] - self.reference_position[1])  # Y
         return state
 
-    def _render_envrionment(self, state, environment_state):
+    def _render_environment(self, state, environment_state):
 
         image = self.camera.get_frame()
 
@@ -96,9 +96,10 @@ class TwoFingerTask(Environment):
         num_gripper_markers = self.gripper.num_motors + 2
 
         # account for servo position and velocity values in state
-        base_index = self.gripper.num_motors + (
-            self.gripper.num_motors if self.action_type == "velocity" else 0
-        )
+        base_index = 0 #modifed as servo angles no longer in state
+        # base_index = self.gripper.num_motors + (
+        #     self.gripper.num_motors if self.action_type == "velocity" else 0
+        # )
 
         for i in range(0, num_gripper_markers):
             x = state[base_index + i * 2]

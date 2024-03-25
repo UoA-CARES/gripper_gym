@@ -1,6 +1,7 @@
 import logging
 import math
 from random import randrange
+from random import choice
 
 import cv2
 import tools.utils as utils
@@ -36,6 +37,11 @@ class TwoFingerTranslation(TwoFingerTask):
         goal_x = randrange(x1, x2)
         goal_y = randrange(y1, y2)
 
+        # Simple goal implementation
+        # x_selection = [-20, 110]
+        # goal_x = choice(x_selection)
+        # goal_y = 95
+
         return [goal_x, goal_y]
 
     # overriding method
@@ -43,7 +49,7 @@ class TwoFingerTranslation(TwoFingerTask):
         state = []
 
         # Servo Angles - Steps
-        state += environment_info["gripper"]["positions"]
+        #state += environment_info["gripper"]["positions"]
 
         # Servo Velocities - Steps per second
         if self.action_type == "velocity":
@@ -70,14 +76,20 @@ class TwoFingerTranslation(TwoFingerTask):
 
         target_goal = current_environment_info["goal"]
 
-        object_previous = previous_environment_info["poses"]["object"]["position"][0:2]
-        object_current = current_environment_info["poses"]["object"]["position"][0:2]
+        # Did not convert object position with respect to the reference marker previously CAN DELETE
+        # object_previous = previous_environment_info["poses"]["object"]["position"][0:2]
+        # object_current = current_environment_info["poses"]["object"]["position"][0:2]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
 
         goal_distance_before = math.dist(target_goal, object_previous)
         goal_distance_after = math.dist(target_goal, object_current)
 
         goal_progress = goal_distance_before - goal_distance_after
-
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
         # The following step might improve the performance.
 
         # goal_before_array = goal_before[0:2]
@@ -109,12 +121,13 @@ class TwoFingerTranslation(TwoFingerTask):
             reference_position,
             self.camera.camera_matrix,
         )
-        cv2.circle(image, pixel_location, 9, color, -1)
+        # Circle size now reflects the "Close enough" to goal tolerance
+        cv2.circle(image, pixel_location, self.noise_tolerance, color, -1)
         return image, pixel_location
 
-    def _render_envrionment(self, state, environment_state):
+    def _render_environment(self, state, environment_state):
         # Get base rendering of the two-finger environment
-        image = super()._render_envrionment(state, environment_state)
+        image = super()._render_environment(state, environment_state)
 
         # Draw the goal boundry for the translation task
         bounds_color = (0, 255, 0)
@@ -147,7 +160,7 @@ class TwoFingerTranslation(TwoFingerTask):
         cv2.putText(
             image,
             "Current",
-            current_object_pixel,
+            (current_object_pixel[0]+self.noise_tolerance, current_object_pixel[1]+self.noise_tolerance), # Text location adjusted for circle size
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             object_color,
@@ -166,7 +179,7 @@ class TwoFingerTranslation(TwoFingerTask):
         cv2.putText(
             image,
             "Previous",
-            previous_object_pixel,
+            (previous_object_pixel[0]+self.noise_tolerance, previous_object_pixel[1]+self.noise_tolerance),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             object_color,
@@ -199,7 +212,7 @@ class TwoFingerTranslation(TwoFingerTask):
         cv2.putText(
             image,
             f"Reward: {reward}",
-            goal_pixel,
+            (goal_pixel[0]+self.noise_tolerance, goal_pixel[1]+self.noise_tolerance),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0, 0, 255),
@@ -217,6 +230,8 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
     ):
         super().__init__(env_config, gripper_config)
 
+        #TODO add instantiation of the elevator elevator servo here
+
     # overriding method
     def _reset(self):
         self.gripper.wiggle_home()
@@ -230,7 +245,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     ):
         super().__init__(env_config, gripper_config)
 
-        # TODO add instatiation of the elevator servo etc here
+        # TODO add instatiation of the lift servo etc here
 
     # overriding method
     def _reset(self):
