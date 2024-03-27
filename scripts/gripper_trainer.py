@@ -47,6 +47,7 @@ class GripperTrainer:
 
         # TODO add set_seed to environment
         self.environment = env_factory.create_environment(env_config, gripper_config)
+        self.environment.reset()
 
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
@@ -134,6 +135,7 @@ class GripperTrainer:
             if erh.handle_gripper_error_home(
                 self.environment, error_message, self.file_path
             ):
+                # TODO: get state function for here
                 state = self.environment.get_object_pose()
                 # Truncated should be false to prevent skipping the entire episode
                 return state, 0, False, False

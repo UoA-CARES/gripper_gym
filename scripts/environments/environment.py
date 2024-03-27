@@ -80,13 +80,12 @@ class Environment(ABC):
 
         # The reference position normalises the positions regardless of the camera position
         self.reference_pose = self._get_marker_poses(
-            [self.reference_marker_id], blindable=False
+            [self.reference_marker_id]
         )[self.reference_marker_id]
         self.reference_position = self.reference_pose["position"]
 
         self.goal = []
         self.previous_environment_info = {}
-        # self.reset()
 
     def grab_frame(self):
         return self.camera.get_frame()
@@ -218,9 +217,9 @@ class Environment(ABC):
             ) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
 
-    def _get_marker_poses(self, marker_ids, blindable=False):
-        while not blindable:
-            logging.debug(f"Attempting to Detect markers: {marker_ids}")
+    def _get_marker_poses(self, must_see_ids):
+        while True:
+            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
             frame = self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(
                 frame,
@@ -230,7 +229,7 @@ class Environment(ABC):
             )
 
             # This will check that all the markers are detected correctly
-            if all(ids in marker_poses for ids in marker_ids):
+            if all(ids in marker_poses for ids in must_see_ids):
                 break
 
         return marker_poses
