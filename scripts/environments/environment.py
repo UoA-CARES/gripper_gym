@@ -9,6 +9,7 @@ from configurations import GripperEnvironmentConfig
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
+from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.vision.Camera import Camera
 
 
@@ -64,6 +65,7 @@ class Environment(ABC):
 
         self.gripper.wiggle_home()
 
+        # self.aruco_detector = STagDetector(marker_size=env_config.marker_size)
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.step_counter = 0

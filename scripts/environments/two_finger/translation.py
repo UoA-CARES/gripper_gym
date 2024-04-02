@@ -2,6 +2,7 @@ import logging
 import math
 from random import randrange
 from random import choice
+import time
 
 import cv2
 import tools.utils as utils
@@ -9,6 +10,8 @@ from configurations import GripperEnvironmentConfig
 from environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.dynamixel.Servo import Servo
+import dynamixel_sdk as dxl
 
 
 class TwoFingerTranslation(TwoFingerTask):
@@ -76,10 +79,6 @@ class TwoFingerTranslation(TwoFingerTask):
 
         target_goal = current_environment_info["goal"]
 
-        # Did not convert object position with respect to the reference marker previously CAN DELETE
-        # object_previous = previous_environment_info["poses"]["object"]["position"][0:2]
-        # object_current = current_environment_info["poses"]["object"]["position"][0:2]
-
         # This now converts the poses with respect to reference marker
         object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
         object_current = self._pose_to_state(current_environment_info["poses"]["object"])
@@ -89,28 +88,22 @@ class TwoFingerTranslation(TwoFingerTask):
         goal_distance_after = math.dist(target_goal, object_current)
 
         goal_progress = goal_distance_before - goal_distance_after
+        
         logging.debug(f"Distance to Goal: {goal_distance_after}")
-        # The following step might improve the performance.
 
-        # goal_before_array = goal_before[0:2]
-        # delta_changes   = np.linalg.norm(target_goal - goal_before_array) - np.linalg.norm(target_goal - goal_after_array)
-        # if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-        #     reward = -10
-        # else:
-        #     reward = -goal_difference
-        #     #reward = delta_changes / (np.abs(yaw_before - target_goal))
-        #     #reward = reward if reward > 0 else 0
-
+        delta = 10* (goal_progress/goal_distance_before)
         # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            done = True
-            reward = 500
+            reward = 50
+        elif goal_progress > 0:
+            reward = round(delta, 2)
         else:
-            reward += goal_progress
+            reward = round(max(-10, delta), 2)
 
+        
         logging.debug(
-            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward} Raw-reward: {(goal_progress/goal_distance_before)}"
         )
 
         return reward, done
@@ -229,12 +222,59 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         gripper_config: GripperConfig,
     ):
         super().__init__(env_config, gripper_config)
+        self.elevator_device_name = env_config.elevator_device_name
+        self.elevator_baudrate = env_config.elevator_baudrate
+        self.elevator_servo_id = env_config.elevator_servo_id
+        #TODO add instantiation of the elevator elevator servo here 
 
-        #TODO add instantiation of the elevator elevator servo here
+    def init_elevator(self):
+        self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
+        self.elevator_packet_handler = dxl.PacketHandler(2)
+        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 1023, 0, model="XL-320")
+
+        if not self.elevator_port_handler.openPort():
+            error_message = f"Failed to open port {self.elevator_device_name}"
+            logging.error(error_message)    
+            raise IOError(error_message)
+        logging.info(f"Succeeded to open port {self.elevator_device_name}")
+
+        if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
+            error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.info(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
+        self.elevator.enable() 
 
     # overriding method
     def _reset(self):
         self.gripper.wiggle_home()
+        # self.init_elevator()
+
+        # # check if object between fingertips
+        # def is_object_between():
+        #     try:
+        #         marker_poses = self._get_marker_poses()
+        #     except:
+        #         return False
+        #     logging.info(marker_poses)
+        #     # object_pose = marker_poses[6]
+        #     return marker_poses[6]["position"][0] <= object_state[0] <= marker_poses[5]["position"][0]
+        
+
+        # # reset until in default position
+        # #TODO implement object centred check
+        # while not (self.gripper.is_home()):
+        #     # reset gripper
+        #     self.gripper.move([312, 712, 512, 512])
+        #     self.gripper.disable_torque()
+        #     time.sleep(1)
+        #     self.elevator.move(0)
+        #     time.sleep(5)
+        #     self.elevator.move(1023)
+        #     time.sleep(1)
+        #     self.gripper.home()
+        #     while(1):
+        #         time.sleep(1)
 
 
 class TwoFingerTranslationSuspended(TwoFingerTranslation):

@@ -95,11 +95,15 @@ class TwoFingerTask(Environment):
 
         num_gripper_markers = self.gripper.num_motors + 2
 
-        # account for servo position and velocity values in state
-        base_index = 0 #modifed as servo angles no longer in state
+        # account for servo positions and velocity values in state
         # base_index = self.gripper.num_motors + (
         #     self.gripper.num_motors if self.action_type == "velocity" else 0
         # )
+
+        # account for velocity values in state
+        base_index = (
+            self.gripper.num_motors if self.action_type == "velocity" else 0
+        )
 
         for i in range(0, num_gripper_markers):
             x = state[base_index + i * 2]

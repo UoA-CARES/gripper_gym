@@ -158,7 +158,7 @@ class GripperTrainer:
         state = self.environment_reset()
 
         frame = self.environment.grab_rendered_frame()
-        self.record.start_video(total_steps + 1, frame)
+        self.record.start_video(total_steps + 1, frame, fps=1)
 
         for eval_episode_counter in range(number_eval_episodes):
             episode_timesteps = 0
