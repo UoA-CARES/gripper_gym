@@ -217,6 +217,11 @@ class Environment(ABC):
             ) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
 
+    def env_reboot():
+        # reboot gripper
+        # reboot object servo (lift or valve servo for sus and rotation tasks)
+        pass
+
     def _get_marker_poses(self, must_see_ids):
         while True:
             logging.debug(f"Attempting to Detect markers: {must_see_ids}")

@@ -10,6 +10,7 @@ from environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 from cares_lib.dynamixel.Gripper import GripperError
+import tools.utils as utils
 
 class TwoFingerTranslation(TwoFingerTask):
     def __init__(
@@ -176,7 +177,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     
     # overriding method
     def _reset(self):
-        self.gripper.wiggle_home()
+        self.gripper.home()
         self._grab_cube()
     
     def _lift_up(self):
@@ -195,7 +196,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
     def _reward_function(self, previous_environment_info, current_environment_info):
         done = False
-        line = 98
+        line = 90
 
         reward = 0
 
@@ -231,11 +232,11 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
         )
 
-        poses["object"] = self._get_cube_pose(marker_poses, num_gripper_markers)
+        poses["object"] = self._get_cube_pose(marker_poses)
 
         return poses
     
-    def _get_cube_pose(self, marker_poses, num_gripper_markers):
+    def _get_cube_pose(self, marker_poses):
         """
         Calculate the center point of a cube base on the detected markers.
         Args:
@@ -243,17 +244,18 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         Returns:
             dict: A dictionary containing the position and orientation of the cube.
         """
-        
-        if len(marker_poses) < num_gripper_markers + 1:
+        cube_ids = [7,8,9,10,11,12]
+        detected_ids = [ids for ids in marker_poses]
+
+        cube_marker_ids = [id for id in cube_ids if id in detected_ids]
+
+        if len(cube_marker_ids) == 0:
             # If no cube marker detected, return a default pose assuming the cube has been dropped
             return  {'position': np.array([1.0, 150.0, 1.0]), 'orientation': [1.0, 1.0, 1.0]}
         else:
-            cube_ids = [7,8,9,10,11,12]
-            detected_ids = [ids for ids in marker_poses]
-
             # Calculate the cube centers for the marker IDs present in both cube_ids and detected_ids
             cube_centers = [self._calculate_cube_center(marker_poses[id]["position"], marker_poses[id]["r_vec"])
-            for id in cube_ids if id in detected_ids]
+            for id in cube_marker_ids]
 
             # Calculate the final cube center by averaging
             cube_centers = np.array(cube_centers)
@@ -282,3 +284,90 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         cube_center = marker_position - offset
 
         return cube_center
+    
+    # overriding method
+    def _environment_info_to_state(self, environment_info):
+        state = []
+
+        # Servo Velocities - Steps per second
+        if self.action_type == "velocity":
+            state += environment_info["gripper"]["velocities"]
+
+        # Servo + Two Finger Tips - X Y mm
+        for i in range(1, self.gripper.num_motors + 3):
+            servo_position = environment_info["poses"]["gripper"][i]
+            state += self._pose_to_state(servo_position)
+
+        # Object - X Y mm
+        state += self._pose_to_state(environment_info["poses"]["object"])
+
+        # Goal State - Y mm
+        state += [90]
+
+        return state
+    
+
+    def _render_envrionment(self, state, environment_state):
+
+        image = self.camera.get_frame()
+
+        image = cv2.undistort(
+            image, self.camera.camera_matrix, self.camera.camera_distortion
+        )
+
+        bounds_color = (0, 255, 0)
+
+        goal_line_pixel = utils.position_to_pixel(
+            [0, state[-1], 0],
+            self.reference_position,
+            self.camera.camera_matrix,
+        )
+
+        cv2.line(image, (0, goal_line_pixel[1]), (640, goal_line_pixel[1]), bounds_color, 2)
+
+        # Draw object position
+        object_color = (0, 255, 0)
+        object_pose = environment_state["poses"]["object"]
+        object_pixel = utils.position_to_pixel(
+            object_pose["position"],
+            [0, 0, object_pose["position"][2]],
+            self.camera.camera_matrix,
+        )
+        cv2.circle(image, object_pixel, 9, object_color, -1)
+
+        num_gripper_markers = self.gripper.num_motors + 2
+
+        base_index =  4 if self.action_type == "velocity" else 0
+
+        for i in range(0, num_gripper_markers):
+            x = state[base_index + i * 2]
+            y = state[base_index + i * 2 + 1]
+
+            position = [
+                x,
+                y,
+                environment_state["poses"]["gripper"][i + 1]["position"][2],
+            ]
+
+            reference = self.reference_position
+            reference[2] = position[2]
+            marker_pixel = utils.position_to_pixel(
+                position,
+                reference,
+                self.camera.camera_matrix,
+            )
+            cv2.circle(image, marker_pixel, 9, (0, 255, 0), -1)
+
+            cv2.putText(
+                image,
+                f"{i+1}",
+                marker_pixel,
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (255, 0, 0),
+                2,
+                cv2.LINE_AA,
+            )
+
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
