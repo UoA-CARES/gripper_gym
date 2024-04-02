@@ -1,8 +1,6 @@
 import logging
 import math
 from random import randrange
-from random import choice
-import time
 
 import cv2
 import tools.utils as utils
@@ -39,11 +37,6 @@ class TwoFingerTranslation(TwoFingerTask):
 
         goal_x = randrange(x1, x2)
         goal_y = randrange(y1, y2)
-
-        # Simple goal implementation
-        # x_selection = [-20, 110]
-        # goal_x = choice(x_selection)
-        # goal_y = 95
 
         return [goal_x, goal_y]
 
