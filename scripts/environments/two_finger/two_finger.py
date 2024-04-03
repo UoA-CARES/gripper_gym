@@ -20,37 +20,10 @@ class TwoFingerTask(Environment):
     def _reset(self):
         pass
 
+    @abstractmethod
     def _get_poses(self):
-        """
-        Gets the current state of the environment using the Aruco markers.
+        pass
 
-        Returns:
-        dict : A dictionary containing the poses of the gripper and object markers.
-
-        gripper: X-Y-Z-RPY Servos + X-Y-Z-RPY Finger-tips
-        object: X-Y-Z-RPY Object
-        """
-        poses = {}
-
-        # Servos + Finger Tips (2)
-        num_gripper_markers = self.gripper.num_motors + 2
-
-        # Gripper markers + Object (1)
-        num_markers = num_gripper_markers + 1
-
-        # maker_ids match servo ids (counting from 1)
-        marker_ids = [id for id in range(1, num_markers + 1)]
-
-        marker_poses = self._get_marker_poses(marker_ids, blindable=False)
-        
-        poses["gripper"] = dict(
-            [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
-        )
-
-        object_marker_id = num_markers
-        poses["object"] = marker_poses[object_marker_id]
-
-        return poses
 
     @abstractmethod
     def _environment_info_to_state(self, environment_info):

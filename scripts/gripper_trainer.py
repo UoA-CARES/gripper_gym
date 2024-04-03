@@ -47,6 +47,7 @@ class GripperTrainer:
 
         # TODO add set_seed to environment
         self.environment = env_factory.create_environment(env_config, gripper_config)
+        self.environment.reset()
 
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
