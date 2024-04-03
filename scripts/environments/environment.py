@@ -1,14 +1,16 @@
 import logging
 import random
 from abc import ABC, abstractmethod
-from enum import Enum
 from functools import wraps
+
+import cv2
+from configurations import GripperEnvironmentConfig
 
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
+from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.vision.Camera import Camera
-from configurations import GripperEnvironmentConfig
 
 
 def exception_handler(error_message):
@@ -37,13 +39,6 @@ class EnvironmentError(IOError):
         super().__init__(message)
 
 
-class OBSERVATION_TYPE(Enum):
-    SERVO = 0
-    ARUCO = 1
-    SERVO_ARUCO = 2
-    IMAGE = 3
-
-
 class Environment(ABC):
     """
     Initialise the environment with the given configurations of the gripper and object.
@@ -70,6 +65,7 @@ class Environment(ABC):
 
         self.gripper.wiggle_home()
 
+        # self.aruco_detector = STagDetector(marker_size=env_config.marker_size)
         self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.step_counter = 0
@@ -85,11 +81,16 @@ class Environment(ABC):
         self.reference_position = self.reference_pose["position"]
 
         self.goal = []
+        self.current_environment_info = {}
         self.previous_environment_info = {}
         self.reset()
 
     def grab_frame(self):
         return self.camera.get_frame()
+
+    def grab_rendered_frame(self):
+        state = self._environment_info_to_state(self.current_environment_info)
+        return self._render_environment(state, self.current_environment_info)
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -107,12 +108,12 @@ class Environment(ABC):
 
         self._reset()
 
-        self.previous_environment_info = current_environment_info = (
+        self.previous_environment_info = self.current_environment_info = (
             self._get_environment_info()
         )
-        state = self._environment_info_to_state(current_environment_info)
+        state = self._environment_info_to_state(self.current_environment_info)
 
-        logging.debug(f"{current_environment_info}")
+        logging.debug(f"{self.current_environment_info}")
 
         # choose goal will crash if not home
         self.goal = self._choose_goal()
@@ -162,24 +163,21 @@ class Environment(ABC):
         else:
             self.gripper.move(action)
 
-        current_environment_info = self._get_environment_info()
-        state = self._environment_info_to_state(current_environment_info)
+        self.current_environment_info = self._get_environment_info()
+        state = self._environment_info_to_state(self.current_environment_info)
+        image = self._render_environment(state, self.current_environment_info)
+        cv2.imshow("State Image", image)
+        cv2.waitKey(10)
 
         reward, done = self._reward_function(
-            self.previous_environment_info, current_environment_info
+            self.previous_environment_info, self.current_environment_info
         )
 
-        self.previous_environment_info = current_environment_info
+        self.previous_environment_info = self.current_environment_info
 
         truncated = self.step_counter >= self.episode_horizon
 
-        self._render_envrionment(state, current_environment_info)
-
         return state, reward, done, truncated
-
-    @exception_handler("Failed to step gripper")
-    def step_gripper(self):
-        self.gripper.step()
 
     def denormalize(self, action_norm):
         # return action in gripper range [-min, +max] for each servo
@@ -256,5 +254,5 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def _render_envrionment(self, state, environment_info):
+    def _render_environment(self, state, environment_info):
         pass

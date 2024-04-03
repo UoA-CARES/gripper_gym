@@ -12,7 +12,7 @@ from cares_reinforcement_learning.util.configurations import (
     TrainingConfig,
 )
 from configurations import GripperEnvironmentConfig
-from environments.environment_factory import EnvironmnetFactory
+from environments.environment_factory import EnvironmentFactory
 from networks.NetworkFactory import NetworkFactory
 
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +43,7 @@ class GripperTrainer:
         self.alg_config = alg_config
         self.gripper_config = gripper_config
 
-        env_factory = EnvironmnetFactory()
+        env_factory = EnvironmentFactory()
 
         # TODO add set_seed to environment
         self.environment = env_factory.create_environment(env_config, gripper_config)
@@ -99,13 +99,13 @@ class GripperTrainer:
             return self.environment.reset()
         except (EnvironmentError, GripperError) as error:
             error_message = f"Failed to reset with message: {error}"
+
             logging.error(error_message)
             if erh.handle_gripper_error_home(
                 self.environment, error_message, self.file_path
             ):
-                return (
-                    self.environment_reset()
-                )  # might keep looping if it keep having issues
+                # might keep looping if it keep having issues
+                return self.environment_reset()
             else:
                 self.environment.gripper.close()
                 self.agent.save_models("error_models", self.file_path)
@@ -134,9 +134,9 @@ class GripperTrainer:
             if erh.handle_gripper_error_home(
                 self.environment, error_message, self.file_path
             ):
-                state = self.environment.get_object_pose()
-                # Truncated should be false to prevent skipping the entire episode
-                return state, 0, False, False
+                state = self.environment.reset()
+                # Truncated to True to skip the episode
+                return state, 0, False, True
             else:
                 self.environment.gripper.close()
                 self.agent.save_models("error_models", self.file_path)
@@ -153,12 +153,12 @@ class GripperTrainer:
 
         The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
         """
-        frame = self.environment.grab_frame()
-        self.record.start_video(total_steps + 1, frame)
-
         number_eval_episodes = int(self.train_config.number_eval_episodes)
 
         state = self.environment_reset()
+
+        frame = self.environment.grab_rendered_frame()
+        self.record.start_video(total_steps + 1, frame, fps=1)
 
         for eval_episode_counter in range(number_eval_episodes):
             episode_timesteps = 0
@@ -178,11 +178,11 @@ class GripperTrainer:
 
                 start_time = time.time()
 
-                episode_reward += reward
-
                 if eval_episode_counter == 0:
-                    frame = self.environment.grab_frame()
+                    frame = self.environment.grab_rendered_frame()
                     self.record.log_video(frame)
+
+                episode_reward += reward
 
                 if done or truncated:
                     self.record.log_eval(

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from configurations import LearningConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from GripperTrainer import GripperTrainer
+from gripper_trainer import GripperTrainer
 
 
 def parse_args():
@@ -40,12 +40,8 @@ def main():
     parent_path = Path(args.env_config).parent.absolute()
 
     env_config = pydantic.parse_file_as(path=args.env_config, type_=EnvironmentConfig)
-    gripper_config = pydantic.parse_file_as(
-        path=args.gripper_config, type_=GripperConfig
-    )
-    learning_config = pydantic.parse_file_as(
-        path=args.learning_config, type_=LearningConfig
-    )
+    gripper_config = pydantic.parse_file_as(path=args.gripper_config, type_=GripperConfig)
+    learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
     object_config = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
     local_results_path = args.local_results_path
 

@@ -32,6 +32,8 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     goal_selection_method: Optional[int] = 0
 
     # Translation Environment specific
-    elevator_servo_id: Optional[int] = 5
+    elevator_device_name: Optional[str] = "/dev/ttyUSB0"
+    elevator_baudrate: Optional[int] = 1000000
+    elevator_servo_id: Optional[int] = 10
 
     is_debug = False

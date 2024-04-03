@@ -5,7 +5,7 @@ from environments.two_finger.translation import (
 from environments.two_finger.rotation import TwoFingerRotationTask
 
 
-class EnvironmnetFactory:
+class EnvironmentFactory:
     def __init__(self):
         pass
 
