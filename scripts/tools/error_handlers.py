@@ -8,15 +8,12 @@ from environments.environment import EnvironmentError
 from pytimedinput import timedInput
 
 WAIT_TIME = 5  # wait 5 seconds for auto sequences
-NUM_REPEAT = 8
-
 
 def auto_reboot_sequence(environment):
     try:
         # reboot(environment)
         # sleep(WAIT_TIME)
-        home(environment)
-        sleep(WAIT_TIME)
+        wiggle_home(environment)
         return True
     except (GripperError, EnvironmentError, DynamixelServoError):
         return False
@@ -71,31 +68,15 @@ def handle_gripper_error_home(environment, error_message, file_path):
     logging.warning(warning_message)
 
     try:
-        if not environment.gripper.wiggle_home():
-            warning_message = (
-                f"#{environment.gripper.gripper_id}: Wiggle home failed, rebooting"
-            )
-            logging.warning(warning_message)
+        wiggle_home(environment)
         return True
     except (EnvironmentError, GripperError):
         # Repeat this sequence n times before resorting to manual error handler
-        for _ in range(NUM_REPEAT):
+        for _ in range(5):
             # Try auto reboot first
             if auto_reboot_sequence(environment):
                 logging.info(
                     f"#{environment.gripper.gripper_id}: Auto Reboot Sequence success"
-                )
-                return True
-
-            reboot_failed_message = (
-                f"#{environment.gripper.gripper_id}: Auto Reboot Sequence failed"
-            )
-            logging.warning(reboot_failed_message)
-
-            # Try auto wiggle if auto reboot fails
-            if auto_wiggle_sequence(environment):
-                logging.info(
-                    f"#{environment.gripper.gripper_id}: Auto Wiggle Sequence success"
                 )
                 return True
 
@@ -107,24 +88,24 @@ def handle_gripper_error_home(environment, error_message, file_path):
 def handle_gripper_error(environment, error_message, file_path):
     logging.error(f"Error handling has been initiated because of: {error_message}")
     help_message = "Fix the gripper then press: c to continue | x to quit \
-                    Commands: h to home | w to wiggle | r to reboot | p for progress | d for distance | f for current frame |"
+                    Commands: h to home | w to wiggle | r to reboot |"
     logging.error(help_message)
 
     while True:
         try:
-            value, _ = timedInput(timeout=10)
+            value, _ = timedInput(timeout=-1)
             if value == "c":
                 logging.info("Gripper fixed continuing onwards")
                 return True
             elif value == "x":
                 logging.info("Giving up correcting gripper")
                 return False
-            elif value == "r":
-                reboot(environment)
             elif value == "h":
                 home(environment)
             elif value == "w":
                 wiggle_home(environment)
+            elif value == "r":
+                reboot(environment)
         except (EnvironmentError, GripperError) as error:
             # Error was encountered after user selects operation, allow them to select again
             retry_error_message = (
