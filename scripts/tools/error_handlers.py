@@ -13,8 +13,8 @@ NUM_REPEAT = 8
 
 def auto_reboot_sequence(environment):
     try:
-        reboot(environment)
-        sleep(WAIT_TIME)
+        # reboot(environment)
+        # sleep(WAIT_TIME)
         home(environment)
         sleep(WAIT_TIME)
         return True
@@ -24,8 +24,8 @@ def auto_reboot_sequence(environment):
 
 def auto_wiggle_sequence(environment):
     try:
-        reboot(environment)
-        sleep(WAIT_TIME)
+        # reboot(environment)
+        # sleep(WAIT_TIME)
         wiggle_home(environment)
         sleep(WAIT_TIME)
         return True

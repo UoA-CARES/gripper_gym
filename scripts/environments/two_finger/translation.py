@@ -178,6 +178,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     # overriding method
     def _reset(self):
         self.gripper.home()
+        self._wiggle_lift()
         self._grab_cube()
     
     def _lift_up(self):
@@ -189,8 +190,13 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     def _grab_cube(self):
         self._lift_up()
         # check cube is above line?
-        # reboot lift servo if needed
         self.gripper.move([512,362,512,662])
+        self._lift_down()
+
+    def _wiggle_lift(self):
+        self.lift_servo.move(2000,timeout=3)
+        self._lift_down()
+        self.lift_servo.move(1000,timeout=3)
         self._lift_down()
 
 
