@@ -116,6 +116,100 @@ class TwoFingerTranslation(TwoFingerTask):
         cv2.circle(image, pixel_location, self.noise_tolerance, color, -1)
         return image, pixel_location
 
+
+class TwoFingerTranslationFlat(TwoFingerTranslation):
+    def __init__(
+        self,
+        env_config: GripperEnvironmentConfig,
+        gripper_config: GripperConfig,
+    ):
+        super().__init__(env_config, gripper_config)
+        self.elevator_device_name = env_config.elevator_device_name
+        self.elevator_baudrate = env_config.elevator_baudrate
+        self.elevator_servo_id = env_config.elevator_servo_id
+        #TODO add instantiation of the elevator elevator servo here 
+
+    def init_elevator(self):
+        self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
+        self.elevator_packet_handler = dxl.PacketHandler(2)
+        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 1023, 0, model="XL-320")
+
+        if not self.elevator_port_handler.openPort():
+            error_message = f"Failed to open port {self.elevator_device_name}"
+            logging.error(error_message)    
+            raise IOError(error_message)
+        logging.info(f"Succeeded to open port {self.elevator_device_name}")
+
+        if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
+            error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.info(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
+        self.elevator.enable() 
+
+    # overriding method
+    def _reset(self):
+        self.gripper.wiggle_home()
+        # self.init_elevator()
+
+        # # check if object between fingertips
+        # def is_object_between():
+        #     try:
+        #         marker_poses = self._get_marker_poses()
+        #     except:
+        #         return False
+        #     logging.info(marker_poses)
+        #     # object_pose = marker_poses[6]
+        #     return marker_poses[6]["position"][0] <= object_state[0] <= marker_poses[5]["position"][0]
+        
+
+        # # reset until in default position
+        # #TODO implement object centred check
+        # while not (self.gripper.is_home()):
+        #     # reset gripper
+        #     self.gripper.move([312, 712, 512, 512])
+        #     self.gripper.disable_torque()
+        #     time.sleep(1)
+        #     self.elevator.move(0)
+        #     time.sleep(5)
+        #     self.elevator.move(1023)
+        #     time.sleep(1)
+        #     self.gripper.home()
+        #     while(1):
+        #         time.sleep(1)
+
+    def _get_poses(self):
+        """
+        Gets the current state of the environment using the Aruco markers.
+
+        Returns:
+        dict : A dictionary containing the poses of the gripper and object markers.
+
+        gripper: X-Y-Z-RPY Servos + X-Y-Z-RPY Finger-tips
+        object: X-Y-Z-RPY Object
+        """
+        poses = {}
+
+        # Servos + Finger Tips (2)
+        num_gripper_markers = self.gripper.num_motors + 2
+
+        # Gripper markers + Object (1)
+        num_markers = num_gripper_markers + 1
+
+        # maker_ids match servo ids (counting from 1)
+        marker_ids = [id for id in range(1, num_markers + 1)]
+
+        marker_poses = self._get_marker_poses(marker_ids)
+        
+        poses["gripper"] = dict(
+            [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
+        )
+
+        object_marker_id = num_markers
+        poses["object"] = marker_poses[object_marker_id]
+
+        return poses
+    
     def _render_environment(self, state, environment_state):
         # Get base rendering of the two-finger environment
         image = super()._render_environment(state, environment_state)
@@ -212,100 +306,6 @@ class TwoFingerTranslation(TwoFingerTask):
 
         return image
 
-
-class TwoFingerTranslationFlat(TwoFingerTranslation):
-    def __init__(
-        self,
-        env_config: GripperEnvironmentConfig,
-        gripper_config: GripperConfig,
-    ):
-        super().__init__(env_config, gripper_config)
-        self.elevator_device_name = env_config.elevator_device_name
-        self.elevator_baudrate = env_config.elevator_baudrate
-        self.elevator_servo_id = env_config.elevator_servo_id
-        #TODO add instantiation of the elevator elevator servo here 
-
-    def init_elevator(self):
-        self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
-        self.elevator_packet_handler = dxl.PacketHandler(2)
-        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 1023, 0, model="XL-320")
-
-        if not self.elevator_port_handler.openPort():
-            error_message = f"Failed to open port {self.elevator_device_name}"
-            logging.error(error_message)    
-            raise IOError(error_message)
-        logging.info(f"Succeeded to open port {self.elevator_device_name}")
-
-        if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
-            error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
-            logging.error(error_message)
-            raise IOError(error_message)
-        logging.info(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
-        self.elevator.enable() 
-
-    # overriding method
-    def _reset(self):
-        self.gripper.wiggle_home()
-        # self.init_elevator()
-
-        # # check if object between fingertips
-        # def is_object_between():
-        #     try:
-        #         marker_poses = self._get_marker_poses()
-        #     except:
-        #         return False
-        #     logging.info(marker_poses)
-        #     # object_pose = marker_poses[6]
-        #     return marker_poses[6]["position"][0] <= object_state[0] <= marker_poses[5]["position"][0]
-        
-
-        # # reset until in default position
-        # #TODO implement object centred check
-        # while not (self.gripper.is_home()):
-        #     # reset gripper
-        #     self.gripper.move([312, 712, 512, 512])
-        #     self.gripper.disable_torque()
-        #     time.sleep(1)
-        #     self.elevator.move(0)
-        #     time.sleep(5)
-        #     self.elevator.move(1023)
-        #     time.sleep(1)
-        #     self.gripper.home()
-        #     while(1):
-        #         time.sleep(1)
-
-    def _get_poses(self):
-        """
-        Gets the current state of the environment using the Aruco markers.
-
-        Returns:
-        dict : A dictionary containing the poses of the gripper and object markers.
-
-        gripper: X-Y-Z-RPY Servos + X-Y-Z-RPY Finger-tips
-        object: X-Y-Z-RPY Object
-        """
-        poses = {}
-
-        # Servos + Finger Tips (2)
-        num_gripper_markers = self.gripper.num_motors + 2
-
-        # Gripper markers + Object (1)
-        num_markers = num_gripper_markers + 1
-
-        # maker_ids match servo ids (counting from 1)
-        marker_ids = [id for id in range(1, num_markers + 1)]
-
-        marker_poses = self._get_marker_poses(marker_ids)
-        
-        poses["gripper"] = dict(
-            [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
-        )
-
-        object_marker_id = num_markers
-        poses["object"] = marker_poses[object_marker_id]
-
-        return poses
-
     
 
 
@@ -320,7 +320,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self.max_value = 3500
         self.min_value = 0
         servo_type = "XL330-M077-T"
-        speed_limit = torque_limit = 150
+        speed_limit = torque_limit = 200
         
         try:
             self.lift_servo = Servo(self.gripper.port_handler, self.gripper.packet_handler, self.gripper.protocol, id, led,
@@ -338,10 +338,10 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self._grab_cube()
     
     def _lift_up(self):
-        self.lift_servo.move(self.max_value,timeout=3)
+        self.lift_servo.move(self.max_value,timeout=1)
 
     def _lift_down(self):
-        self.lift_servo.move(self.min_value)
+        self.lift_servo.move(self.min_value,timeout=1)
 
     def _grab_cube(self):
         self._lift_up()
@@ -350,9 +350,9 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self._lift_down()
 
     def _wiggle_lift(self):
-        self.lift_servo.move(2000,timeout=3)
+        self.lift_servo.move(2000,timeout=1)
         self._lift_down()
-        self.lift_servo.move(1000,timeout=3)
+        self.lift_servo.move(1000,timeout=1)
         self._lift_down()
 
     def _reward_function(self, previous_environment_info, current_environment_info):
@@ -468,14 +468,11 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         return state
     
 
-    def _render_envrionment(self, state, environment_state):
+    def _render_environment(self, state, environment_state):
+        # Get base rendering of the two-finger environment
+        image = super()._render_environment(state, environment_state)
 
-        image = self.camera.get_frame()
-
-        image = cv2.undistort(
-            image, self.camera.camera_matrix, self.camera.camera_distortion
-        )
-
+        # Draw the goal boundry for the translation task
         bounds_color = (0, 255, 0)
 
         goal_line_pixel = utils.position_to_pixel(
@@ -486,49 +483,28 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
         cv2.line(image, (0, goal_line_pixel[1]), (640, goal_line_pixel[1]), bounds_color, 2)
 
-        # Draw object position
+        # Draw object positions
         object_color = (0, 255, 0)
-        object_pose = environment_state["poses"]["object"]
-        object_pixel = utils.position_to_pixel(
-            object_pose["position"],
-            [0, 0, object_pose["position"][2]],
-            self.camera.camera_matrix,
+
+        # Draw object's current position
+        current_object_pose = environment_state["poses"]["object"]
+        image, current_object_pixel = self._draw_circle(
+            image,
+            current_object_pose["position"][0:2],
+            [0, 0, current_object_pose["position"][2]],
+            object_color,
         )
-        cv2.circle(image, object_pixel, 9, object_color, -1)
 
-        num_gripper_markers = self.gripper.num_motors + 2
+        cv2.putText(
+            image,
+            "Current",
+            (current_object_pixel[0]+self.noise_tolerance, current_object_pixel[1]+self.noise_tolerance), # Text location adjusted for circle size
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            object_color,
+            2,
+        )
 
-        base_index =  4 if self.action_type == "velocity" else 0
+        return image
 
-        for i in range(0, num_gripper_markers):
-            x = state[base_index + i * 2]
-            y = state[base_index + i * 2 + 1]
 
-            position = [
-                x,
-                y,
-                environment_state["poses"]["gripper"][i + 1]["position"][2],
-            ]
-
-            reference = self.reference_position
-            reference[2] = position[2]
-            marker_pixel = utils.position_to_pixel(
-                position,
-                reference,
-                self.camera.camera_matrix,
-            )
-            cv2.circle(image, marker_pixel, 9, (0, 255, 0), -1)
-
-            cv2.putText(
-                image,
-                f"{i+1}",
-                marker_pixel,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (255, 0, 0),
-                2,
-                cv2.LINE_AA,
-            )
-
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
