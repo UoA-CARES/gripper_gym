@@ -65,8 +65,8 @@ class Environment(ABC):
 
         self.gripper.wiggle_home()
 
-        # self.aruco_detector = STagDetector(marker_size=env_config.marker_size)
-        self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
+        self.aruco_detector = STagDetector(marker_size=env_config.marker_size)
+        # self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
 
         self.step_counter = 0
         self.episode_horizon = env_config.episode_horizon

@@ -14,6 +14,7 @@ from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 import tools.utils as utils
 import dynamixel_sdk as dxl
+import time
 
 
 class TwoFingerTranslation(TwoFingerTask):
@@ -132,7 +133,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
     def init_elevator(self):
         self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
         self.elevator_packet_handler = dxl.PacketHandler(2)
-        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 1023, 0, model="XL-320")
+        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 9999, -9999, model="XL330-M077-T")
 
         if not self.elevator_port_handler.openPort():
             error_message = f"Failed to open port {self.elevator_device_name}"
@@ -145,14 +146,14 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             logging.error(error_message)
             raise IOError(error_message)
         logging.info(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
-        self.elevator.enable() 
 
     # overriding method
     def _reset(self):
-        self.gripper.wiggle_home()
-        # self.init_elevator()
+        self.init_elevator()
+        self.elevator.enable_torque()
+        self.elevator.set_operating_mode(4)
 
-        # # check if object between fingertips
+        # check if object between fingertips
         # def is_object_between():
         #     try:
         #         marker_poses = self._get_marker_poses()
@@ -163,20 +164,29 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         #     return marker_poses[6]["position"][0] <= object_state[0] <= marker_poses[5]["position"][0]
         
 
-        # # reset until in default position
-        # #TODO implement object centred check
-        # while not (self.gripper.is_home()):
-        #     # reset gripper
-        #     self.gripper.move([312, 712, 512, 512])
-        #     self.gripper.disable_torque()
-        #     time.sleep(1)
-        #     self.elevator.move(0)
-        #     time.sleep(5)
-        #     self.elevator.move(1023)
-        #     time.sleep(1)
-        #     self.gripper.home()
-        #     while(1):
-        #         time.sleep(1)
+        # reset until in default position
+        #TODO implement object centred check
+        self.gripper.move([312, 712, 512, 512])
+        while not (self.gripper.is_home()):
+            # reset gripper
+            self.gripper.move([312, 712, 512, 512])
+            self.gripper.disable_torque()
+            time.sleep(1)
+            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
+                self.elevator_port_handler, 
+                10, 
+                self.elevator.addresses["goal_position"], 
+                10000)
+            self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {10000}")
+            time.sleep(5)
+            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
+                self.elevator_port_handler, 
+                10, 
+                self.elevator.addresses["goal_position"], 
+                3000)
+            self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {3000}")
+            time.sleep(1)
+            self.gripper.home()
 
     def _get_poses(self):
         """
