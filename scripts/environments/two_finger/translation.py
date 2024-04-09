@@ -26,8 +26,8 @@ class TwoFingerTranslation(TwoFingerTask):
         self.noise_tolerance = env_config.noise_tolerance
 
         # These bounds are respective to the reference marker in Environment
-        self.goal_min = [-30.0, 70.0]
-        self.goal_max = [120.0, 120.0]
+        self.goal_min = [-40.0, 70.0]
+        self.goal_max = [100.0, 110.0]
 
         logging.debug(
             f"Goal Min: {self.goal_min} Goal Max: {self.goal_max} Tolerance: {self.noise_tolerance}"
@@ -69,43 +69,7 @@ class TwoFingerTranslation(TwoFingerTask):
         state += self.goal
 
         return state
-
-    # overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
-        done = False
-
-        reward = 0
-
-        target_goal = current_environment_info["goal"]
-
-        # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
-        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
-        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
-
-        goal_distance_before = math.dist(target_goal, object_previous)
-        goal_distance_after = math.dist(target_goal, object_current)
-
-        goal_progress = goal_distance_before - goal_distance_after
-        
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
-
-        delta = 10* (goal_progress/goal_distance_before)
-        # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
-        if goal_distance_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = 50
-        elif goal_progress > 0:
-            reward = round(delta, 2)
-        else:
-            reward = round(max(-10, delta), 2)
-
-        
-        logging.debug(
-            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward} Raw-reward: {(goal_progress/goal_distance_before)}"
-        )
-
-        return reward, done
+    
 
     def _draw_circle(self, image, position, reference_position, color):
         pixel_location = utils.position_to_pixel(
@@ -128,6 +92,9 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         self.elevator_device_name = env_config.elevator_device_name
         self.elevator_baudrate = env_config.elevator_baudrate
         self.elevator_servo_id = env_config.elevator_servo_id
+        self.goal_range = 70
+        self.elevator_max = gripper_config.elevator_limits[1]
+        self.elevator_min = gripper_config.elevator_limits[0]
         #TODO add instantiation of the elevator elevator servo here 
 
     def init_elevator(self):
@@ -139,13 +106,13 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             error_message = f"Failed to open port {self.elevator_device_name}"
             logging.error(error_message)    
             raise IOError(error_message)
-        logging.info(f"Succeeded to open port {self.elevator_device_name}")
+        logging.debug(f"Succeeded to open port {self.elevator_device_name}")
 
         if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
             error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
             logging.error(error_message)
             raise IOError(error_message)
-        logging.info(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
+        logging.debug(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
 
     # overriding method
     def _reset(self):
@@ -153,19 +120,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         self.elevator.enable_torque()
         self.elevator.set_operating_mode(4)
 
-        # check if object between fingertips
-        # def is_object_between():
-        #     try:
-        #         marker_poses = self._get_marker_poses()
-        #     except:
-        #         return False
-        #     logging.info(marker_poses)
-        #     # object_pose = marker_poses[6]
-        #     return marker_poses[6]["position"][0] <= object_state[0] <= marker_poses[5]["position"][0]
-        
-
-        # reset until in default position
-        #TODO implement object centred check
+        # TODO implement object centred check
         self.gripper.move([312, 712, 512, 512])
         while not (self.gripper.is_home()):
             # reset gripper
@@ -176,16 +131,30 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
                 self.elevator_port_handler, 
                 10, 
                 self.elevator.addresses["goal_position"], 
-                10000)
-            self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {10000}")
-            time.sleep(5)
+                self.elevator_max)
+            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {10000}"))
+            time.sleep(2)
             dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
                 self.elevator_port_handler, 
                 10, 
                 self.elevator.addresses["goal_position"], 
-                3000)
-            self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {3000}")
-            time.sleep(1)
+                self.elevator_min)
+            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {3000}"))
+            time.sleep(2)
+            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
+                self.elevator_port_handler, 
+                10, 
+                self.elevator.addresses["goal_position"], 
+                self.elevator_max)
+            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {10000}"))
+            time.sleep(2)
+            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
+                self.elevator_port_handler, 
+                10, 
+                self.elevator.addresses["goal_position"], 
+                self.elevator_min)
+            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {3000}"))
+            time.sleep(2)
             self.gripper.home()
 
     def _get_poses(self):
@@ -315,6 +284,39 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         )
 
         return image
+    
+    #overriding method
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        done = False
+
+        reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
+        if goal_distance_after <= self.noise_tolerance:
+            logging.info("----------Reached the Goal!----------")
+            reward = 10
+        elif goal_distance_after > self.goal_range:
+            reward = 0
+        else:
+            reward = round((1/goal_distance_after)*100,2)
+        
+        logging.info(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        return reward, done
 
     
 
