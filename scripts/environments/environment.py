@@ -231,6 +231,11 @@ class Environment(ABC):
                 break
 
         return marker_poses
+    
+    @exception_handler("Environment failed to reboot")
+    def reboot(self):
+        logging.info("Rebooting Gripper")
+        self.gripper.reboot()
 
     @abstractmethod
     def _reset(self):

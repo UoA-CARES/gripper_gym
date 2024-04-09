@@ -45,31 +45,6 @@ class TwoFingerTranslation(TwoFingerTask):
         return [goal_x, goal_y]
 
     # overriding method
-    def _environment_info_to_state(self, environment_info):
-        state = []
-
-        # Servo Angles - Steps
-        # state += environment_info["gripper"]["positions"]
-
-
-        # Servo Velocities - Steps per second
-        if self.action_type == "velocity":
-            state += environment_info["gripper"]["velocities"]
-
-        # Servo + Two Finger Tips - X Y mm
-        for i in range(1, self.gripper.num_motors + 3):
-            servo_position = environment_info["poses"]["gripper"][i]
-            state += self._pose_to_state(servo_position)
-
-        # Object - X Y mm
-        state += self._pose_to_state(environment_info["poses"]["object"])
-
-        # Goal State - X Y mm
-        state += self.goal
-
-        return state
-
-    # overriding method
     def _reward_function(self, previous_environment_info, current_environment_info):
         done = False
 
@@ -178,6 +153,31 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         #     while(1):
         #         time.sleep(1)
 
+    # overriding method
+    def _environment_info_to_state(self, environment_info):
+        state = []
+
+        # Servo Angles - Steps
+        # state += environment_info["gripper"]["positions"]
+
+
+        # Servo Velocities - Steps per second
+        if self.action_type == "velocity":
+            state += environment_info["gripper"]["velocities"]
+
+        # Servo + Two Finger Tips - X Y mm
+        for i in range(1, self.gripper.num_motors + 3):
+            servo_position = environment_info["poses"]["gripper"][i]
+            state += self._pose_to_state(servo_position)
+
+        # Object - X Y mm
+        state += self._pose_to_state(environment_info["poses"]["object"])
+
+        # Goal State - X Y mm
+        state += self.goal
+
+        return state
+    
     def _get_poses(self):
         """
         Gets the current state of the environment using the Aruco markers.
@@ -316,25 +316,30 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         gripper_config: GripperConfig,
     ):
         super().__init__(env_config, gripper_config)
-        led = id = 5
         self.max_value = 3500
         self.min_value = 0
+        self.goal_line = 45
+        self.bottom_line = 90
+
+        self._init_lift_servo(self.gripper)
+        
+    def _init_lift_servo(self, gripper):
+        led = id = 5
         servo_type = "XL330-M077-T"
         speed_limit = torque_limit = 200
         
         try:
-            self.lift_servo = Servo(self.gripper.port_handler, self.gripper.packet_handler, self.gripper.protocol, id, led,
+            self.lift_servo = Servo(gripper.port_handler, gripper.packet_handler, gripper.protocol, id, led,
                                             torque_limit, speed_limit, self.max_value,
                                             self.min_value, servo_type)
             self.lift_servo.enable()
         except (GripperError, DynamixelServoError) as error:
             raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise lift servo") from error
-        
-    
+
     # overriding method
     def _reset(self):
         self.gripper.home()
-        self._wiggle_lift()
+        # self._wiggle_lift()
         self._grab_cube()
     
     def _lift_up(self):
@@ -346,7 +351,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     def _grab_cube(self):
         self._lift_up()
         # check cube is above line?
-        self.gripper.move([512,362,512,662])
+        self.gripper.move([512,512,362,662])
         self._lift_down()
 
     def _wiggle_lift(self):
@@ -357,17 +362,40 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
     def _reward_function(self, previous_environment_info, current_environment_info):
         done = False
-        line = 90
 
         reward = 0
 
         # y = self._pose_to_state(current_environment_info["poses"]["object"])[1]
         y = current_environment_info["poses"]["object"]["position"][1]
 
-        reward += 1 if y < line else -1
+        if y < self.goal_line:
+            reward += 1  
+        elif y > self.bottom_line:
+            reward += -1
+        else:
+            reward += (self.goal_line - y) / (self.bottom_line - self.goal_line)
+
         print(y, reward)
 
         return reward, done
+            
+        # done = False
+
+        # reward = 0
+
+        # # y = self._pose_to_state(current_environment_info["poses"]["object"])[1]
+        # y = current_environment_info["poses"]["object"]["position"][1]
+
+        # if y < self.goal_line:
+        #     reward += 1  
+        # elif y > self.bottom_line:
+        #     reward += 0
+        # else:
+        #     reward += (self.bottom_line - y) / (self.bottom_line - self.goal_line)
+
+        # print(y, reward)
+
+        # return reward, done
     
     def _get_poses(self):
         """
@@ -450,6 +478,10 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     def _environment_info_to_state(self, environment_info):
         state = []
 
+        # Servo Angles - Steps
+        # state += environment_info["gripper"]["positions"]
+
+
         # Servo Velocities - Steps per second
         if self.action_type == "velocity":
             state += environment_info["gripper"]["velocities"]
@@ -462,12 +494,32 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         # Object - X Y mm
         state += self._pose_to_state(environment_info["poses"]["object"])
 
-        # Goal State - Y mm
-        state += [90]
+        # Goal State - X Y mm
+        state += [self.goal_line]
 
         return state
-    
 
+    # Velocity short state
+    # # overriding method
+    # def _environment_info_to_state(self, environment_info):
+    #     state = []
+
+    #     # Servo Angles - Steps
+    #     state += environment_info["gripper"]["positions"]
+
+    #     # Servo Velocities - Steps per second
+    #     if self.action_type == "velocity":
+    #         state += environment_info["gripper"]["velocities"]
+
+    #     # Object - X Y mm
+    #     state += self._pose_to_state(environment_info["poses"]["object"])
+
+    #     # Goal State - Y mm
+    #     state += [90]
+
+    #     return state
+    
+    # Position
     def _render_environment(self, state, environment_state):
         # Get base rendering of the two-finger environment
         image = super()._render_environment(state, environment_state)
@@ -475,13 +527,17 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         # Draw the goal boundry for the translation task
         bounds_color = (0, 255, 0)
 
-        goal_line_pixel = utils.position_to_pixel(
-            [0, state[-1], 0],
+        _, goal_line_pixel_y  = utils.position_to_pixel(
+            [0, state[-1]],
             self.reference_position,
             self.camera.camera_matrix,
         )
+        # print(self.reference_position)
 
-        cv2.line(image, (0, goal_line_pixel[1]), (640, goal_line_pixel[1]), bounds_color, 2)
+        goal_line_pixel_y += abs(self.reference_position[1])
+        # print(goal_line_pixel_y)
+
+        cv2.line(image, (0, int(goal_line_pixel_y)), (640, int(goal_line_pixel_y)), bounds_color, 2)
 
         # Draw object positions
         object_color = (0, 255, 0)
@@ -505,6 +561,58 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             2,
         )
 
+
         return image
+
+
+    # Velocity short state
+    # def _render_environment(self, state, environment_state):
+    #     image = self.camera.get_frame()
+
+    #     image = cv2.undistort(
+    #         image, self.camera.camera_matrix, self.camera.camera_distortion
+    #     )
+
+    #     # Draw the goal boundry for the translation task
+    #     bounds_color = (0, 255, 0)
+
+    #     goal_line_pixel = utils.position_to_pixel(
+    #         [0, state[-1], 0],
+    #         self.reference_position,
+    #         self.camera.camera_matrix,
+    #     )
+
+    #     cv2.line(image, (0, goal_line_pixel[1]), (640, goal_line_pixel[1]), bounds_color, 2)
+
+    #     # Draw object positions
+    #     object_color = (0, 255, 0)
+
+    #     # Draw object's current position
+    #     current_object_pose = environment_state["poses"]["object"]
+    #     image, current_object_pixel = self._draw_circle(
+    #         image,
+    #         current_object_pose["position"][0:2],
+    #         [0, 0, current_object_pose["position"][2]],
+    #         object_color,
+    #     )
+
+    #     cv2.putText(
+    #         image,
+    #         "Current",
+    #         (current_object_pixel[0]+self.noise_tolerance, current_object_pixel[1]+self.noise_tolerance), # Text location adjusted for circle size
+    #         cv2.FONT_HERSHEY_SIMPLEX,
+    #         0.5,
+    #         object_color,
+    #         2,
+    #     )
+
+    #     return image
+    
+
+    def reboot(self):
+        logging.info("Rebooting Gripper")
+        self.gripper.reboot()
+        logging.info("Rebooting Lift Servo")
+        self._init_lift_servo(self.gripper)
 
 
