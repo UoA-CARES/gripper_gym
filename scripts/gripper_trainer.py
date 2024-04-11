@@ -11,9 +11,11 @@ from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
 )
+from cares_reinforcement_learning.util.network_factory_import NetworkFactory
+
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
-from networks.NetworkFactory import NetworkFactory
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,7 +34,7 @@ class GripperTrainer:
         Args:
         env_config (Object): Configuration parameters for the environment.
         gripper_config (Object): Configuration parameters for the gripper.
-        learning_config (Object): Configuration parameters for the learning/training process.
+        alg_config (Object): Configuration parameters for the learning/training process.
         file_path (str): Path to save or retrieve model related files.
 
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
@@ -69,14 +71,17 @@ class GripperTrainer:
 
         self.memory = MemoryBuffer(training_config.buffer_size)
 
+        self.checkpoint_frequency = round((training_config.max_steps_training/env_config.episode_horizon)/20)
+
         # TODO: reconcile deep file_path dependency
-        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}'
+        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
             algorithm=alg_config.algorithm,
             task=env_config.task,
             plot_frequency=training_config.plot_frequency,
+            checkpoint_frequency=self.checkpoint_frequency,
             network=self.agent,
         )
 

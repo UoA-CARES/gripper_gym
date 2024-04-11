@@ -361,24 +361,26 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self._lift_down()
 
     def _reward_function(self, previous_environment_info, current_environment_info):
-        done = False
+        # Negative
+        # done = False
 
-        reward = 0
+        # reward = 0
 
-        # y = self._pose_to_state(current_environment_info["poses"]["object"])[1]
-        y = current_environment_info["poses"]["object"]["position"][1]
+        # # y = self._pose_to_state(current_environment_info["poses"]["object"])[1]
+        # y = current_environment_info["poses"]["object"]["position"][1]
 
-        if y < self.goal_line:
-            reward += 1  
-        elif y > self.bottom_line:
-            reward += -1
-        else:
-            reward += (self.goal_line - y) / (self.bottom_line - self.goal_line)
+        # if y < self.goal_line:
+        #     reward += 1  
+        # elif y > self.bottom_line:
+        #     reward += -1
+        # else:
+        #     reward += (self.goal_line - y) / (self.bottom_line - self.goal_line)
 
-        print(y, reward)
+        # print(y, reward)
 
-        return reward, done
+        # return reward, done
             
+        # Positive only 
         # done = False
 
         # reward = 0
@@ -397,6 +399,26 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
         # return reward, done
     
+        # Positive only + bonus
+        done = False
+
+        reward = 0
+
+        # y = self._pose_to_state(current_environment_info["poses"]["object"])[1]
+        y = current_environment_info["poses"]["object"]["position"][1]
+
+        if y < self.goal_line:
+            reward += 2  
+        elif y > self.bottom_line:
+            reward += 0
+        else:
+            reward += (self.bottom_line - y) / (self.bottom_line - self.goal_line)
+
+        print(y, reward)
+
+        return reward, done
+
+
     def _get_poses(self):
         """
         Gets the current state of the environment using the Aruco markers.
