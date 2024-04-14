@@ -11,8 +11,7 @@ from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
 )
-from cares_reinforcement_learning.util.network_factory_import NetworkFactory
-
+from cares_reinforcement_learning.util.network_factory import NetworkFactory
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
 
@@ -195,7 +194,7 @@ class GripperTrainer:
                         total_steps=total_steps + 1,
                         episode=eval_episode_counter + 1,
                         episode_reward=episode_reward,
-                        display=True,
+                        display=self.env_config.display,
                     )
 
                     state = self.environment_reset()
@@ -327,7 +326,7 @@ class GripperTrainer:
                     episode_steps=episode_timesteps,
                     episode_reward=episode_reward,
                     episode_time=episode_time,
-                    display=True,
+                    display=self.env_config.display,
                 )
 
                 if evaluate:

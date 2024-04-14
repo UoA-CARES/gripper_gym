@@ -55,6 +55,7 @@ class Environment(ABC):
         gripper_config: GripperConfig,
     ):
         self.task = env_config.task
+        self.display = env_config.display
 
         self.gripper = Gripper(gripper_config)
         self.camera = Camera(
@@ -165,8 +166,10 @@ class Environment(ABC):
         self.current_environment_info = self._get_environment_info()
         state = self._environment_info_to_state(self.current_environment_info)
         image = self._render_environment(state, self.current_environment_info)
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
+
+        if self.display:
+            cv2.imshow("State Image", image)
+            cv2.waitKey(10)
 
         reward, done = self._reward_function(
             self.previous_environment_info, self.current_environment_info
@@ -223,7 +226,7 @@ class Environment(ABC):
                 frame,
                 self.camera.camera_matrix,
                 self.camera.camera_distortion,
-                display=True,
+                display=self.display,
             )
 
             # This will check that all the markers are detected correctly
