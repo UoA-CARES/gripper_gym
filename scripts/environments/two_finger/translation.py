@@ -93,14 +93,25 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         self.elevator_baudrate = env_config.elevator_baudrate
         self.elevator_servo_id = env_config.elevator_servo_id
         self.goal_range = 70
-        self.elevator_max = gripper_config.elevator_limits[1]
-        self.elevator_min = gripper_config.elevator_limits[0]
+        self.elevator_max = env_config.elevator_limits[0]
+        self.elevator_min = env_config.elevator_limits[1]
         #TODO add instantiation of the elevator elevator servo here 
 
     def init_elevator(self):
         self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
         self.elevator_packet_handler = dxl.PacketHandler(2)
-        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 9999, -9999, model="XL330-M077-T")
+        self.elevator = Servo(
+            self.elevator_port_handler, 
+            self.elevator_packet_handler, 
+            2, 
+            self.elevator_servo_id, 
+            1, 
+            200, 
+            200, 
+            self.elevator_max, 
+            self.elevator_min, 
+            model="XL330-M077-T"
+            )
 
         if not self.elevator_port_handler.openPort():
             error_message = f"Failed to open port {self.elevator_device_name}"
@@ -123,38 +134,11 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         # TODO implement object centred check
         self.gripper.move([312, 712, 512, 512])
         while not (self.gripper.is_home()):
-            # reset gripper
-            self.gripper.move([312, 712, 512, 512])
-            self.gripper.disable_torque()
+            if self.elevator.current_goal_position() < (self.elevator_max-100):
+                self.elevator.move(self.elevator_max)
             time.sleep(1)
-            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
-                self.elevator_port_handler, 
-                10, 
-                self.elevator.addresses["goal_position"], 
-                self.elevator_max)
-            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {10000}"))
-            time.sleep(2)
-            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
-                self.elevator_port_handler, 
-                10, 
-                self.elevator.addresses["goal_position"], 
-                self.elevator_min)
-            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {3000}"))
-            time.sleep(2)
-            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
-                self.elevator_port_handler, 
-                10, 
-                self.elevator.addresses["goal_position"], 
-                self.elevator_max)
-            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {10000}"))
-            time.sleep(2)
-            dxl_comm_result, dxl_error = self.elevator_packet_handler.write4ByteTxRx(
-                self.elevator_port_handler, 
-                10, 
-                self.elevator.addresses["goal_position"], 
-                self.elevator_min)
-            logging.debug(self.elevator.process_result(dxl_comm_result, dxl_error, message=f"Dynamixel#{self.elevator_servo_id}: successfully told to move to {3000}"))
-            time.sleep(2)
+            self.elevator.move(self.elevator_min)
+            time.sleep(1)
             self.gripper.home()
 
     def _get_poses(self):
