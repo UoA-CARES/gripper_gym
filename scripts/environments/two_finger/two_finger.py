@@ -60,7 +60,7 @@ class TwoFingerTask(Environment):
 
     def _render_environment(self, state, environment_state):
 
-        image = self.camera.get_frame()
+        image = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
 
         image = cv2.undistort(
             image, self.camera.camera_matrix, self.camera.camera_distortion

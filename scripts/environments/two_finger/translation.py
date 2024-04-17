@@ -12,8 +12,11 @@ from environments.two_finger.two_finger import TwoFingerTask
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.vision.ArucoDetector import ArucoDetector
+from cares_lib.vision.STagDetector import STagDetector
 import tools.utils as utils
 import dynamixel_sdk as dxl
+import time
 
 
 class TwoFingerTranslation(TwoFingerTask):
@@ -25,8 +28,8 @@ class TwoFingerTranslation(TwoFingerTask):
         self.noise_tolerance = env_config.noise_tolerance
 
         # These bounds are respective to the reference marker in Environment
-        self.goal_min = [-30.0, 70.0]
-        self.goal_max = [120.0, 120.0]
+        self.goal_min = [-40.0, 70.0]
+        self.goal_max = [100.0, 110.0]
 
         logging.debug(
             f"Goal Min: {self.goal_min} Goal Max: {self.goal_max} Tolerance: {self.noise_tolerance}"
@@ -43,115 +46,6 @@ class TwoFingerTranslation(TwoFingerTask):
         goal_y = randrange(y1, y2)
 
         return [goal_x, goal_y]
-
-    # overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
-        done = False
-
-        reward = 0
-
-        target_goal = current_environment_info["goal"]
-
-        # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
-        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
-        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
-
-        goal_distance_before = math.dist(target_goal, object_previous)
-        goal_distance_after = math.dist(target_goal, object_current)
-
-        goal_progress = goal_distance_before - goal_distance_after
-        
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
-
-        delta = 10* (goal_progress/goal_distance_before)
-        # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
-        if goal_distance_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = 50
-        elif goal_progress > 0:
-            reward = round(delta, 2)
-        else:
-            reward = round(max(-10, delta), 2)
-
-        
-        logging.debug(
-            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward} Raw-reward: {(goal_progress/goal_distance_before)}"
-        )
-
-        return reward, done
-
-    def _draw_circle(self, image, position, reference_position, color):
-        pixel_location = utils.position_to_pixel(
-            position,
-            reference_position,
-            self.camera.camera_matrix,
-        )
-        # Circle size now reflects the "Close enough" to goal tolerance
-        cv2.circle(image, pixel_location, self.noise_tolerance, color, -1)
-        return image, pixel_location
-
-
-class TwoFingerTranslationFlat(TwoFingerTranslation):
-    def __init__(
-        self,
-        env_config: GripperEnvironmentConfig,
-        gripper_config: GripperConfig,
-    ):
-        super().__init__(env_config, gripper_config)
-        self.elevator_device_name = env_config.elevator_device_name
-        self.elevator_baudrate = env_config.elevator_baudrate
-        self.elevator_servo_id = env_config.elevator_servo_id
-        #TODO add instantiation of the elevator elevator servo here 
-
-    def init_elevator(self):
-        self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
-        self.elevator_packet_handler = dxl.PacketHandler(2)
-        self.elevator = Servo(self.elevator_port_handler, self.elevator_packet_handler, 2, self.elevator_servo_id, 1, 200, 200, 1023, 0, model="XL-320")
-
-        if not self.elevator_port_handler.openPort():
-            error_message = f"Failed to open port {self.elevator_device_name}"
-            logging.error(error_message)    
-            raise IOError(error_message)
-        logging.info(f"Succeeded to open port {self.elevator_device_name}")
-
-        if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
-            error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
-            logging.error(error_message)
-            raise IOError(error_message)
-        logging.info(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
-        self.elevator.enable() 
-
-    # overriding method
-    def _reset(self):
-        self.gripper.wiggle_home()
-        # self.init_elevator()
-
-        # # check if object between fingertips
-        # def is_object_between():
-        #     try:
-        #         marker_poses = self._get_marker_poses()
-        #     except:
-        #         return False
-        #     logging.info(marker_poses)
-        #     # object_pose = marker_poses[6]
-        #     return marker_poses[6]["position"][0] <= object_state[0] <= marker_poses[5]["position"][0]
-        
-
-        # # reset until in default position
-        # #TODO implement object centred check
-        # while not (self.gripper.is_home()):
-        #     # reset gripper
-        #     self.gripper.move([312, 712, 512, 512])
-        #     self.gripper.disable_torque()
-        #     time.sleep(1)
-        #     self.elevator.move(0)
-        #     time.sleep(5)
-        #     self.elevator.move(1023)
-        #     time.sleep(1)
-        #     self.gripper.home()
-        #     while(1):
-        #         time.sleep(1)
 
     # overriding method
     def _environment_info_to_state(self, environment_info):
@@ -178,6 +72,79 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
         return state
     
+
+    def _draw_circle(self, image, position, reference_position, color):
+        pixel_location = utils.position_to_pixel(
+            position,
+            reference_position,
+            self.camera.camera_matrix,
+        )
+        # Circle size now reflects the "Close enough" to goal tolerance
+        cv2.circle(image, pixel_location, self.noise_tolerance, color, -1)
+        return image, pixel_location
+
+
+class TwoFingerTranslationFlat(TwoFingerTranslation):
+    def __init__(
+        self,
+        env_config: GripperEnvironmentConfig,
+        gripper_config: GripperConfig,
+    ):
+        self.aruco_detector = STagDetector(marker_size=env_config.marker_size)
+
+        super().__init__(env_config, gripper_config)
+        self.elevator_device_name = env_config.elevator_device_name
+        self.elevator_baudrate = env_config.elevator_baudrate
+        self.elevator_servo_id = env_config.elevator_servo_id
+        self.goal_range = 70
+        self.elevator_max = env_config.elevator_limits[0]
+        self.elevator_min = env_config.elevator_limits[1]
+        #TODO add instantiation of the elevator elevator servo here 
+
+    def init_elevator(self):
+        self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
+        self.elevator_packet_handler = dxl.PacketHandler(2)
+        self.elevator = Servo(
+            self.elevator_port_handler, 
+            self.elevator_packet_handler, 
+            2, 
+            self.elevator_servo_id, 
+            1, 
+            200, 
+            200, 
+            self.elevator_max, 
+            self.elevator_min, 
+            model="XL330-M077-T"
+            )
+
+        if not self.elevator_port_handler.openPort():
+            error_message = f"Failed to open port {self.elevator_device_name}"
+            logging.error(error_message)    
+            raise IOError(error_message)
+        logging.debug(f"Succeeded to open port {self.elevator_device_name}")
+
+        if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
+            error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.debug(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
+
+    # overriding method
+    def _reset(self):
+        self.init_elevator()
+        self.elevator.enable_torque()
+        self.elevator.set_operating_mode(4)
+
+        # TODO implement object centred check
+        self.gripper.move([312, 712, 512, 512])
+        while not (self.gripper.is_home()):
+            if self.elevator.current_goal_position() < (self.elevator_max-100):
+                self.elevator.move(self.elevator_max)
+            time.sleep(1)
+            self.elevator.move(self.elevator_min)
+            time.sleep(1)
+            self.gripper.home()
+
     def _get_poses(self):
         """
         Gets the current state of the environment using the Aruco markers.
@@ -304,7 +271,48 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             2,
         )
 
+        # Draw circle highlighting goal_range
+        pixel_location_goal = utils.position_to_pixel(
+            self.goal,
+            goal_reference_position,
+            self.camera.camera_matrix,
+        )
+        cv2.circle(image, pixel_location_goal, 2*self.goal_range, (0, 255, 0), 2)
+
         return image
+    
+    #overriding method
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        done = False
+
+        reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
+        if goal_distance_after <= self.noise_tolerance:
+            logging.info("----------Reached the Goal!----------")
+            reward = 80
+        elif goal_distance_after > self.goal_range:
+            reward = 0
+        else:
+            reward = round((-goal_distance_after+self.goal_range),2)
+        
+        logging.debug(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        return reward, done
 
     
 
@@ -315,6 +323,8 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
     ):
+        self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
+
         super().__init__(env_config, gripper_config)
         self.max_value = 3500
         self.min_value = 0

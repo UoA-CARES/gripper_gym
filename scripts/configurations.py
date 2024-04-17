@@ -9,6 +9,7 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     camera_id: int
     camera_matrix: str
     camera_distortion: str
+    is_inverted: Optional[bool] = False
 
     # actions per episode
     episode_horizon: Optional[int] = 50
@@ -35,6 +36,7 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     elevator_device_name: Optional[str] = "/dev/ttyUSB0"
     elevator_baudrate: Optional[int] = 1000000
     elevator_servo_id: Optional[int] = 10
+    elevator_limits: Optional[list] = [0,0] # [MAX,MIN]
 
     is_debug = False
 
