@@ -13,7 +13,8 @@ from cares_reinforcement_learning.util.configurations import (
 )
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
-from networks.NetworkFactory import NetworkFactory
+# from networks.NetworkFactory import NetworkFactory
+from cares_reinforcement_learning.util.network_factory import NetworkFactory
 
 logging.basicConfig(level=logging.INFO)
 
@@ -76,6 +77,7 @@ class GripperTrainer:
             algorithm=alg_config.algorithm,
             task=env_config.task,
             plot_frequency=training_config.plot_frequency,
+            checkpoint_frequency=training_config.checkpoint_frequency,
             network=self.agent,
         )
 

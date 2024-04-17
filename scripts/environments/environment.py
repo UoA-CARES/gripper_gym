@@ -57,6 +57,7 @@ class Environment(ABC):
         self.task = env_config.task
 
         self.gripper = Gripper(gripper_config)
+        self.is_inverted = env_config.is_inverted
         self.camera = Camera(
             env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion
         )
@@ -85,7 +86,8 @@ class Environment(ABC):
         self.previous_environment_info = {}
 
     def grab_frame(self):
-        return self.camera.get_frame()
+        frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
+        return frame
 
     def grab_rendered_frame(self):
         state = self._environment_info_to_state(self.current_environment_info)
@@ -110,12 +112,12 @@ class Environment(ABC):
         self.previous_environment_info = self.current_environment_info = (
             self._get_environment_info()
         )
+        
+        # choose goal will crash if not home
+        self.goal = self._choose_goal()
         state = self._environment_info_to_state(self.current_environment_info)
 
         logging.debug(f"{self.current_environment_info}")
-
-        # choose goal will crash if not home
-        self.goal = self._choose_goal()
 
         logging.debug(f"New Goal Generated: {self.goal}")
         return state
@@ -218,7 +220,7 @@ class Environment(ABC):
     def _get_marker_poses(self, must_see_ids):
         while True:
             logging.debug(f"Attempting to Detect markers: {must_see_ids}")
-            frame = self.camera.get_frame()
+            frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
             marker_poses = self.aruco_detector.get_marker_poses(
                 frame,
                 self.camera.camera_matrix,

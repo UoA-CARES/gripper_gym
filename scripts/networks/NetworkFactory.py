@@ -46,8 +46,11 @@ def create_DDPG(observation_size, action_num, learning_config):
     return agent
 
 def create_TD3(observation_size, action_num, learning_config):
-    from networks.TD3 import Actor
-    from networks.TD3 import Critic
+    # from networks.TD3 import Actor
+    # from networks.TD3 import Critic
+    # Original TD3 (no batch norm) from cares rl
+    from cares_reinforcement_learning.networks.TD3 import Actor
+    from cares_reinforcement_learning.networks.TD3 import Critic
 
     actor  = Actor(observation_size, action_num)
     critic = Critic(observation_size, action_num)

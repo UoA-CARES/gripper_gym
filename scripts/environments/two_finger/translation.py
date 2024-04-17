@@ -283,6 +283,14 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             2,
         )
 
+        # Draw circle highlighting goal_range
+        pixel_location_goal = utils.position_to_pixel(
+            self.goal,
+            goal_reference_position,
+            self.camera.camera_matrix,
+        )
+        cv2.circle(image, pixel_location_goal, 2*self.goal_range, (0, 255, 0), 2)
+
         return image
     
     #overriding method
@@ -306,13 +314,13 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward = 10
+            reward = 80
         elif goal_distance_after > self.goal_range:
             reward = 0
         else:
-            reward = round((1/goal_distance_after)*100,2)
+            reward = round((-goal_distance_after+self.goal_range),2)
         
-        logging.info(
+        logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
         )
 

@@ -9,6 +9,7 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     camera_id: int
     camera_matrix: str
     camera_distortion: str
+    is_inverted: Optional[bool] = False
 
     # actions per episode
     episode_horizon: Optional[int] = 50
