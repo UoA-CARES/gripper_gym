@@ -15,7 +15,6 @@ from cares_reinforcement_learning.util.network_factory import NetworkFactory
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
 
-
 logging.basicConfig(level=logging.INFO)
 
 
