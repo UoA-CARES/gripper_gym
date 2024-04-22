@@ -69,8 +69,6 @@ class GripperTrainer:
 
         self.memory = MemoryBuffer(training_config.buffer_size)
 
-        self.checkpoint_frequency = round((training_config.max_steps_training/env_config.episode_horizon)/15) 
-
         # TODO: reconcile deep file_path dependency
         self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
         self.record = Record(
