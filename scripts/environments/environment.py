@@ -8,8 +8,6 @@ from configurations import GripperEnvironmentConfig
 
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from cares_lib.vision.ArucoDetector import ArucoDetector
-from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.vision.Camera import Camera
 
 
@@ -55,6 +53,7 @@ class Environment(ABC):
         gripper_config: GripperConfig,
     ):
         self.task = env_config.task
+        self.display = env_config.display
 
         self.gripper = Gripper(gripper_config)
         self.is_inverted = env_config.is_inverted
@@ -65,10 +64,6 @@ class Environment(ABC):
         self.action_type = gripper_config.action_type
 
         self.gripper.wiggle_home()
-
-        self.aruco_detector = STagDetector(marker_size=env_config.marker_size)
-        # self.aruco_detector = ArucoDetector(marker_size=env_config.marker_size)
-
         self.step_counter = 0
         self.episode_horizon = env_config.episode_horizon
 
@@ -115,11 +110,12 @@ class Environment(ABC):
         
         # choose goal will crash if not home
         self.goal = self._choose_goal()
-        state = self._environment_info_to_state(self.current_environment_info)
+        logging.debug(f"New Goal Generated: {self.goal}")
 
+        state = self._environment_info_to_state(self.current_environment_info)
         logging.debug(f"{self.current_environment_info}")
 
-        logging.debug(f"New Goal Generated: {self.goal}")
+        
         return state
 
     def sample_action_position(self):
@@ -167,8 +163,10 @@ class Environment(ABC):
         self.current_environment_info = self._get_environment_info()
         state = self._environment_info_to_state(self.current_environment_info)
         image = self._render_environment(state, self.current_environment_info)
-        cv2.imshow("State Image", image)
-        cv2.waitKey(10)
+
+        if self.display:
+            cv2.imshow("State Image", image)
+            cv2.waitKey(10)
 
         reward, done = self._reward_function(
             self.previous_environment_info, self.current_environment_info
@@ -225,7 +223,7 @@ class Environment(ABC):
                 frame,
                 self.camera.camera_matrix,
                 self.camera.camera_distortion,
-                display=True,
+                display=self.display,
             )
 
             # This will check that all the markers are detected correctly
@@ -233,6 +231,11 @@ class Environment(ABC):
                 break
 
         return marker_poses
+    
+    @exception_handler("Environment failed to reboot")
+    def reboot(self):
+        logging.info("Rebooting Gripper")
+        self.gripper.reboot()
 
     @abstractmethod
     def _reset(self):

@@ -11,8 +11,8 @@ WAIT_TIME = 5  # wait 5 seconds for auto sequences
 
 def auto_reboot_sequence(environment):
     try:
-        # reboot(environment)
-        # sleep(WAIT_TIME)
+        reboot(environment)
+        sleep(WAIT_TIME)
         wiggle_home(environment)
         return True
     except (GripperError, EnvironmentError, DynamixelServoError):
@@ -21,8 +21,6 @@ def auto_reboot_sequence(environment):
 
 def auto_wiggle_sequence(environment):
     try:
-        # reboot(environment)
-        # sleep(WAIT_TIME)
         wiggle_home(environment)
         sleep(WAIT_TIME)
         return True
@@ -32,8 +30,7 @@ def auto_wiggle_sequence(environment):
 
 def reboot(environment):
     try:
-        logging.info("Rebooting Gripper")
-        environment.gripper.reboot()
+        environment.reboot()
         logging.info("Rebooting succeeded")
     except (EnvironmentError, GripperError):
         warning_message = "Reboot failed"

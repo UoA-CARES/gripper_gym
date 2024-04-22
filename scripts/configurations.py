@@ -39,3 +39,6 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     elevator_limits: Optional[list] = [0,0] # [MAX,MIN]
 
     is_debug = False
+
+    # For when ssh to train, display can be turned off 
+    display: Optional[bool] = True
