@@ -11,9 +11,10 @@ from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
 )
+from cares_reinforcement_learning.util.network_factory import NetworkFactory
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
-from networks.NetworkFactory import NetworkFactory
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,7 +33,7 @@ class GripperTrainer:
         Args:
         env_config (Object): Configuration parameters for the environment.
         gripper_config (Object): Configuration parameters for the gripper.
-        learning_config (Object): Configuration parameters for the learning/training process.
+        alg_config (Object): Configuration parameters for the learning/training process.
         file_path (str): Path to save or retrieve model related files.
 
         Many of the instances variables are initialised from the provided configurations and are used throughout the training process.
@@ -47,7 +48,6 @@ class GripperTrainer:
 
         # TODO add set_seed to environment
         self.environment = env_factory.create_environment(env_config, gripper_config)
-        self.environment.reset()
 
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
@@ -70,13 +70,14 @@ class GripperTrainer:
         self.memory = MemoryBuffer(training_config.buffer_size)
 
         # TODO: reconcile deep file_path dependency
-        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}'
+        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
             algorithm=alg_config.algorithm,
             task=env_config.task,
             plot_frequency=training_config.plot_frequency,
+            checkpoint_frequency=training_config.checkpoint_frequency,
             network=self.agent,
         )
 
@@ -190,7 +191,7 @@ class GripperTrainer:
                         total_steps=total_steps + 1,
                         episode=eval_episode_counter + 1,
                         episode_reward=episode_reward,
-                        display=True,
+                        display=self.env_config.display,
                     )
 
                     state = self.environment_reset()
@@ -322,10 +323,10 @@ class GripperTrainer:
                     episode_steps=episode_timesteps,
                     episode_reward=episode_reward,
                     episode_time=episode_time,
-                    display=True,
+                    display=self.env_config.display,
                 )
 
-                if evaluate:
+                if evaluate & (total_step_counter > max_steps_exploration):
                     logging.info("*************--Evaluation Loop--*************")
                     self.evaluation_loop(total_step_counter)
                     evaluate = False
