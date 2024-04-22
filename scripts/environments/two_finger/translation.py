@@ -136,9 +136,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         while not (self.gripper.is_home()):
             if self.elevator.current_goal_position() < (self.elevator_max-100):
                 self.elevator.move(self.elevator_max)
-            time.sleep(1)
             self.elevator.move(self.elevator_min)
-            time.sleep(1)
             self.gripper.home()
 
     def _get_poses(self):

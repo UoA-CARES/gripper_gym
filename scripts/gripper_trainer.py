@@ -13,8 +13,8 @@ from cares_reinforcement_learning.util.configurations import (
 )
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
-# from networks.NetworkFactory import NetworkFactory
-from cares_reinforcement_learning.util.network_factory import NetworkFactory
+from networks.NetworkFactory import NetworkFactory #BatchNorm
+# from cares_reinforcement_learning.util.network_factory import NetworkFactory #No BatchNorm
 
 logging.basicConfig(level=logging.INFO)
 
