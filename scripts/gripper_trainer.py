@@ -73,7 +73,7 @@ class GripperTrainer:
 
 
         # TODO: reconcile deep file_path dependency
-        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
+        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
