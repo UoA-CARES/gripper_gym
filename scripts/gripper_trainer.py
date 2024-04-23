@@ -5,7 +5,7 @@ from datetime import datetime
 import tools.error_handlers as erh
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from cares_reinforcement_learning.memory import MemoryBuffer
+from cares_reinforcement_learning.memory.memory_factory import MemoryFactory
 from cares_reinforcement_learning.util import Record
 from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
@@ -66,7 +66,11 @@ class GripperTrainer:
             observation_size, action_num, alg_config
         )
 
-        self.memory = MemoryBuffer(training_config.buffer_size)
+
+        memory_factory = MemoryFactory()
+        memory_kwargs = {}
+        self.memory = memory_factory.create_memory(alg_config.buffer_size, **memory_kwargs)
+
 
         # TODO: reconcile deep file_path dependency
         self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
@@ -212,10 +216,10 @@ class GripperTrainer:
         """
         start_time = time.time()
 
-        max_steps_training = self.train_config.max_steps_training
-        max_steps_exploration = self.train_config.max_steps_exploration
+        max_steps_training = self.alg_config.max_steps_training
+        max_steps_exploration = self.alg_config.max_steps_exploration
         number_steps_per_evaluation = self.train_config.number_steps_per_evaluation
-        number_steps_per_train_policy = self.train_config.number_steps_per_train_policy
+        number_steps_per_train_policy = self.alg_config.number_steps_per_train_policy
 
         # Algorthm specific attributes - e.g. NaSA-TD3 dd
         intrinsic_on = (
@@ -242,8 +246,8 @@ class GripperTrainer:
             f"Training {max_steps_training} Exploration {max_steps_exploration} Evaluation {number_steps_per_evaluation}"
         )
 
-        batch_size = self.train_config.batch_size
-        G = self.train_config.G
+        batch_size = self.alg_config.batch_size
+        G = self.alg_config.G
 
         episode_timesteps = 0
         episode_reward = 0
@@ -304,8 +308,7 @@ class GripperTrainer:
                 and total_step_counter % number_steps_per_train_policy == 0
             ):
                 for _ in range(G):
-                    experiences = self.memory.sample(batch_size)
-                    info = self.agent.train_policy(experiences)
+                    info = self.agent.train_policy(self.memory, batch_size)
             end_train_time = time.time()
             logging.debug(
                 f"Time to run training loop {end_train_time-start_train_time} \n"
