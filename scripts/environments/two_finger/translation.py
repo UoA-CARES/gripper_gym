@@ -14,6 +14,7 @@ from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.STagDetector import STagDetector
+from cares_lib.touch_sensors.Sensor import Sensor
 import tools.utils as utils
 import dynamixel_sdk as dxl
 import time
@@ -31,7 +32,11 @@ class TwoFingerTranslation(TwoFingerTask):
         )
 
         super().__init__(env_config, gripper_config)
-
+        self.env_config = env_config
+        if env_config.touch == True:
+            self.Touch = Sensor("/dev/ttyACM0", 921600)
+            self.Touch.initialise()
+            
     # overriding method
     def _choose_goal(self):
         x1, y1 = self.goal_min
@@ -64,6 +69,13 @@ class TwoFingerTranslation(TwoFingerTask):
 
         # Goal State - X Y mm
         state += self.goal
+
+        #Touch Sensor Values
+        if self.env_config.touch:
+            readings = self.Touch.get_pressure_readings()
+            readings[:] = [x/10 for x in readings]
+            state += readings
+            print("State Input",readings)
 
         return state
     
@@ -308,7 +320,8 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
         )
-
+        if self.env_config.touch:
+            self.Touch.reset_pressure_readings()
         return reward, done
 
     
