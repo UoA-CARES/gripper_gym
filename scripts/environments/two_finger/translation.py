@@ -14,7 +14,7 @@ from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.STagDetector import STagDetector
-from cares_lib.touch_sensors.Sensor import Sensor
+from cares_lib.touch_sensors.sensor import Sensor
 import tools.utils as utils
 import dynamixel_sdk as dxl
 import time
