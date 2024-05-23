@@ -73,7 +73,7 @@ class GripperTrainer:
 
 
         # TODO: reconcile deep file_path dependency
-        self.file_path = f'{datetime.now().strftime("%Y_%m_%d_%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
+        self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
@@ -349,6 +349,8 @@ class GripperTrainer:
         end_time = time.time()
         elapsed_time = end_time - start_time
         print("Training time:", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+        if self.env_config.touch:
+            self.environment.Touch.stop()
 
     def dynamic_sleep(self, env_start):
         process_time = time.time() - env_start

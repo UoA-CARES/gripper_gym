@@ -216,6 +216,7 @@ class Environment(ABC):
         return action_norm
 
     def _get_marker_poses(self, must_see_ids):
+        missednum = 0
         while True:
             logging.debug(f"Attempting to Detect markers: {must_see_ids}")
             frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
@@ -229,6 +230,10 @@ class Environment(ABC):
             # This will check that all the markers are detected correctly
             if all(ids in marker_poses for ids in must_see_ids):
                 break
+            if 7 not in list(marker_poses.keys()) and self.task == "translation":
+                missednum +=1
+                if missednum > 10:
+                    self._reset()
 
         return marker_poses
     
