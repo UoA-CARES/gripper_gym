@@ -22,6 +22,8 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
 
     # Aruco Marker ID for the object
     object_marker_id: Optional[int] = 7
+    reference_marker_id: Optional[int] = 1
+    cube_ids: Optional[list] = [1,2,3,4,5,6]
 
     # Tolerance in position error for object being at goal
     noise_tolerance: Optional[int] = 5  # mm or degrees

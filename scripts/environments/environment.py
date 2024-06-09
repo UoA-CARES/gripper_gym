@@ -52,9 +52,11 @@ class Environment(ABC):
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
     ):
+        self.env_config = env_config
         self.task = env_config.task
+        self.domain = env_config.domain
         self.display = env_config.display
-
+        
         self.gripper = Gripper(gripper_config)
         self.is_inverted = env_config.is_inverted
         self.camera = Camera(
@@ -68,14 +70,8 @@ class Environment(ABC):
         self.episode_horizon = env_config.episode_horizon
 
         # Pose to normalise the other positions against - consider (0,0)
-        self.reference_marker_id = 1  # TODO make this a hyperparameter
-
-        # The reference position normalises the positions regardless of the camera position
-        self.reference_pose = self._get_marker_poses(
-            [self.reference_marker_id]
-        )[self.reference_marker_id]
-        self.reference_position = self.reference_pose["position"]
-
+        self.reference_marker_id = env_config.reference_marker_id
+        
         self.goal = []
         self.current_environment_info = {}
         self.previous_environment_info = {}
@@ -104,17 +100,17 @@ class Environment(ABC):
 
         self._reset()
 
-        self.previous_environment_info = self.current_environment_info = (
-            self._get_environment_info()
-        )
-        
         # choose goal will crash if not home
         self.goal = self._choose_goal()
         logging.debug(f"New Goal Generated: {self.goal}")
 
+        self.previous_environment_info = self.current_environment_info = (
+            self._get_environment_info()
+        )
+        logging.debug(f"Env Info: {self.current_environment_info}")
+        
         state = self._environment_info_to_state(self.current_environment_info)
-        logging.debug(f"{self.current_environment_info}")
-
+        logging.debug(f"State: {state}")
         
         return state
 
@@ -175,7 +171,7 @@ class Environment(ABC):
         self.previous_environment_info = self.current_environment_info
 
         truncated = self.step_counter >= self.episode_horizon
-
+        
         return state, reward, done, truncated
 
     def denormalize(self, action_norm):
@@ -214,28 +210,6 @@ class Environment(ABC):
                 max_range_value - min_range_value
             ) / (servo_max_value - servo_min_value) + min_range_value
         return action_norm
-
-    def _get_marker_poses(self, must_see_ids):
-        missednum = 0
-        while True:
-            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
-            frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
-            marker_poses = self.aruco_detector.get_marker_poses(
-                frame,
-                self.camera.camera_matrix,
-                self.camera.camera_distortion,
-                display=self.display,
-            )
-
-            # This will check that all the markers are detected correctly
-            if all(ids in marker_poses for ids in must_see_ids):
-                break
-            if 7 not in list(marker_poses.keys()) and self.task == "translation":
-                missednum +=1
-                if missednum > 10:
-                    self._reset()
-
-        return marker_poses
     
     @exception_handler("Environment failed to reboot")
     def reboot(self):

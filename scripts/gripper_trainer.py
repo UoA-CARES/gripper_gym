@@ -51,9 +51,8 @@ class GripperTrainer:
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
         state = self.environment.reset()
-
         logging.info(f"State: {state}")
-
+        
         # This wont work for multi-dimension arrays - TODO push this to the environment
         observation_size = len(state)
         action_num = gripper_config.num_motors
@@ -65,12 +64,11 @@ class GripperTrainer:
         self.agent = network_factory.create_network(
             observation_size, action_num, alg_config
         )
-
+        
 
         memory_factory = MemoryFactory()
         memory_kwargs = {}
-        self.memory = memory_factory.create_memory(alg_config.buffer_size, **memory_kwargs)
-
+        self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
 
         # TODO: reconcile deep file_path dependency
         self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
@@ -131,7 +129,7 @@ class GripperTrainer:
         EnvironmentError: If there's an error related to the environment during the step.
         GripperError: If there's an error related to the gripper during the step.
         """
-        try:
+        try:    
             return self.environment.step(action_env)
         except (EnvironmentError, GripperError) as error:
             error_message = f"Failed to step environment with message: {error}"
