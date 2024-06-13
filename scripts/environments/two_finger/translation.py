@@ -344,7 +344,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self.goal_line = 45
         self.bottom_line = 90 + abs(self.reference_position[1])
 
-        self.goal_range = 50
+        self.goal_range = 25
 
         self._init_lift_servo(self.gripper)
         
@@ -497,15 +497,27 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         goal_distance_after = math.dist(target_goal, object_current)
         
         logging.debug(f"Distance to Goal: {goal_distance_after}")
-
-        if goal_distance_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = 60
-        elif goal_distance_after > self.goal_range or object_current[1] >= self.bottom_line:
-            reward = 0
-        else:
-            reward = round((-goal_distance_after+self.goal_range),2)
         
+        if object_current[1] < self.bottom_line:
+            delta_changes = goal_distance_before - goal_distance_after
+
+            if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                reward = -1
+            else:
+                raw_reward = delta_changes / goal_distance_before
+                if raw_reward >= 1:
+                    reward = 1
+                elif raw_reward <= -1:
+                    reward = -1
+                else:
+                    reward = raw_reward
+
+            if goal_distance_after <= self.goal_range:
+                logging.info("----------Reached the Goal!----------")
+                reward += 5
+        else:
+            reward = -2
+
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
         )

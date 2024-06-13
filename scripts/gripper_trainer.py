@@ -69,7 +69,7 @@ class GripperTrainer:
 
         memory_factory = MemoryFactory()
         memory_kwargs = {}
-        self.memory = memory_factory.create_memory(alg_config.buffer_size, **memory_kwargs)
+        self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
 
 
         # TODO: reconcile deep file_path dependency
