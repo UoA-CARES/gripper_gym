@@ -12,53 +12,52 @@ import tools.utils as utils
 from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
-
-from configurations import LearningConfig
+from cares_reinforcement_learning.util import RLParser
+from configurations import GripperEnvironmentConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_reinforcement_learning.util import configurations as cares_cfg
+
 from gripper_trainer import GripperTrainer
 
 
 def parse_args():
     parser = ArgumentParser()
 
-    parser.add_argument("--learning_config", type=str)
     parser.add_argument("--env_config", type=str)
+    parser.add_argument("--training_config", type=str)
+    parser.add_argument("--algorithm_config", type=str)
     parser.add_argument("--gripper_config", type=str)
-    parser.add_argument("--object_config", type=str)
-    parser.add_argument("--evaluate_path", type=str)
+    # parser.add_argument("--evaluate_path", type=str)
 
-    home_path = os.path.expanduser("~")
-    parser.add_argument(
-        "--local_results_path", type=str, default=f"{home_path}/gripper_evaluation"
-    )
     return parser.parse_args()
 
 
 def main():
 
-    args = parse_args()
-    parent_path = Path(args.env_config).parent.absolute()
+    parser = RLParser(GripperEnvironmentConfig)
+    parser.add_configuration("gripper_config", GripperConfig)
 
-    env_config = pydantic.parse_file_as(path=args.env_config, type_=EnvironmentConfig)
-    gripper_config = pydantic.parse_file_as(path=args.gripper_config, type_=GripperConfig)
-    learning_config = pydantic.parse_file_as(path=args.learning_config, type_=LearningConfig)
-    object_config = pydantic.parse_file_as(path=args.object_config, type_=ObjectConfig)
-    local_results_path = args.local_results_path
+    configurations = parser.parse_args()
+    env_config: GripperEnvironmentConfig = configurations["env_config"]
+    training_config: cares_cfg.TrainingConfig = configurations["training_config"]
+    alg_config: cares_cfg.AlgorithmConfig = configurations["algorithm_config"]
+    gripper_config: GripperConfig = configurations["gripper_config"]
 
     logging.info("Setting up Seeds")
-    torch.manual_seed(learning_config.seed)
-    np.random.seed(learning_config.seed)
-    random.seed(learning_config.seed)
+    torch.manual_seed(training_config.seeds[0])
+    np.random.seed(training_config.seeds[0])
+    random.seed(training_config.seeds[0])
 
-    date_time_str = datetime.now().strftime("%m_%d_%H_%M")
-    file_path = f"{date_time_str}_"
-    file_path += f"RobotId{gripper_config.gripper_id}_EnvType{env_config.task}_ObsType{object_config.object_type}_Seed{learning_config.seed}_{learning_config.algorithm}"
-    file_path = utils.create_directories(local_results_path, file_path)
     gripper_trainer = GripperTrainer(
-        env_config, gripper_config, learning_config, object_config, file_path
+        env_config, training_config, alg_config, gripper_config
     )
-    utils.store_configs(file_path, str(parent_path))
-    gripper_trainer.evaluate_at_end(args.evaluate_path)
+    # Load Models and just evaluate
+    file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-06-17-16:34:46-gripper2-rotation-TD3-10-position10"
+    model_name = "TD3-checkpoint-500"
+    gripper_trainer.agent.load_models(file_path, model_name)
+    print('Successfully Loaded models')
+    
+    gripper_trainer.evaluation_loop(1000)
 
 
 if __name__ == "__main__":

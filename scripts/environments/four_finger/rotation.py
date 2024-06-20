@@ -33,10 +33,14 @@ class FourFingerRotation(FourFingerTask):
         Returns:
             Chosen goal.
         """
+        []
         object_orientation = (self._get_poses().get('object'))['orientation']
-        new_goal = object_orientation[2] + 90 # + = CW
+
+        new_goal = object_orientation[2] + random.choice([90,-90]) # +ve = CW, -ve = CCW
         if new_goal > 360:
             new_goal = new_goal-360
+        elif new_goal < 0:
+            new_goal = 360 - abs(new_goal)
         return [new_goal]
         
 
@@ -184,7 +188,7 @@ class FourFingerRotationFlat(FourFingerRotation):
         current_yaw = current_environment_info['poses']['object']['orientation'][2]
         current_yaw_diff = self.rotation_min_difference(self.goal[0], current_yaw)
 
-        # Distance-to-Goal reward function
+        # # Distance-to-Goal reward function
         # reward = round(-current_yaw_diff+90, 2)
         # # Reward set ot 0 if no cube no move
         # if abs(current_yaw_diff - previous_yaw_diff)<5:
@@ -193,10 +197,10 @@ class FourFingerRotationFlat(FourFingerRotation):
         #     return reward, done
 
         # Delta Difference to goal reward function
-        delta = previous_yaw_diff - current_yaw_diff
-
-
-        
+        delta = ((previous_yaw_diff - current_yaw_diff)/previous_yaw_diff) * 100
+        reward = round(delta, 2)
+        if reward < -100:
+            reward = -100
 
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
@@ -216,3 +220,15 @@ class FourFingerRotationFlat(FourFingerRotation):
             float: The minimum angular difference.
         """
         return min(abs(a - b), (360 + min(a, b) - max(a, b)))
+    
+class FourFingerRotationSuspended(FourFingerRotation):
+    def __init__(
+        self, 
+        env_config: GripperEnvironmentConfig, 
+        gripper_config: GripperConfig
+    ):
+        self.env_config = env_config
+        self.gripper_config = gripper_config
+        self.aruco_detector = STagDetector(marker_size=env_config.marker_size, library_hd=11)
+        super().__init__(env_config, gripper_config)
+    
