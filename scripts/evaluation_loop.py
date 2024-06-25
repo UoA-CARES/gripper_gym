@@ -27,7 +27,6 @@ def parse_args():
     parser.add_argument("--training_config", type=str)
     parser.add_argument("--algorithm_config", type=str)
     parser.add_argument("--gripper_config", type=str)
-    # parser.add_argument("--evaluate_path", type=str)
 
     return parser.parse_args()
 
@@ -52,12 +51,12 @@ def main():
         env_config, training_config, alg_config, gripper_config
     )
     # Load Models and just evaluate
-    file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-06-17-16:34:46-gripper2-rotation-TD3-10-position10"
-    model_name = "TD3-checkpoint-500"
+    file_path = "path"
+    model_name = "TD3-checkpoint-1000"
     gripper_trainer.agent.load_models(file_path, model_name)
     print('Successfully Loaded models')
     
-    gripper_trainer.evaluation_loop(1000)
+    gripper_trainer.evaluation_loop(0)
 
 
 if __name__ == "__main__":
