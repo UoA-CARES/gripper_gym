@@ -4,7 +4,6 @@ from random import randrange
 import numpy as np
 import cv2
 
-import cv2
 import tools.utils as utils
 from configurations import GripperEnvironmentConfig
 from environments.two_finger.two_finger import TwoFingerTask
@@ -15,7 +14,6 @@ from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.touch_sensors.sensor import Sensor
-import tools.utils as utils
 import dynamixel_sdk as dxl
 import time
 

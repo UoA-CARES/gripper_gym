@@ -49,7 +49,7 @@ def main():
     )
     logging.info(f"------------------------------------------")
 
-    input("Double check your experiement configurations :) Press ENTER to continue.")
+    input("Double check your experiment configurations :) Press ENTER to continue.")
 
     # TODO: reconcile the multiple seeds
     logging.info("Setting up Seeds")

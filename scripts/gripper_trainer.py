@@ -51,9 +51,8 @@ class GripperTrainer:
         logging.info("Resetting Environment")
         # will just crash right away if there is an issue but that is fine
         state = self.environment.reset()
-
         logging.info(f"State: {state}")
-
+        
         # This wont work for multi-dimension arrays - TODO push this to the environment
         observation_size = len(state)
         action_num = gripper_config.num_motors
@@ -65,12 +64,14 @@ class GripperTrainer:
         self.agent = network_factory.create_network(
             observation_size, action_num, alg_config
         )
-
+        # file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-06-24-11:40:16-gripper2-rotation-TD3-5-position11"
+        # model_name = "TD3-checkpoint-1000"
+        # self.agent.load_models(file_path, model_name)
+        # print('Successfully Loaded models')
 
         memory_factory = MemoryFactory()
         memory_kwargs = {}
         self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
-
 
         # TODO: reconcile deep file_path dependency
         self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
@@ -131,7 +132,7 @@ class GripperTrainer:
         EnvironmentError: If there's an error related to the environment during the step.
         GripperError: If there's an error related to the gripper during the step.
         """
-        try:
+        try:    
             return self.environment.step(action_env)
         except (EnvironmentError, GripperError) as error:
             error_message = f"Failed to step environment with message: {error}"
@@ -147,7 +148,7 @@ class GripperTrainer:
                 self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
-    def evaluation_loop(self, total_steps):
+    def evaluation_loop(self, total_steps, num_eval_steps=None, num_eval_episodes=None):
         """
         Executes an evaluation loop to assess the agent's performance.
 
@@ -159,6 +160,10 @@ class GripperTrainer:
         The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
         """
         number_eval_episodes = int(self.train_config.number_eval_episodes)
+
+        if num_eval_steps is not None:
+            self.environment.episode_horizon = num_eval_steps
+            number_eval_episodes = num_eval_episodes
 
         state = self.environment_reset()
 
