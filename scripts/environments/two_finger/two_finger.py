@@ -4,6 +4,7 @@ import cv2
 import tools.utils as utils
 from configurations import GripperEnvironmentConfig
 from environments.environment import Environment
+import logging
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
@@ -16,6 +17,12 @@ class TwoFingerTask(Environment):
     ):
         super().__init__(env_config, gripper_config)
 
+        # The reference position normalises the positions regardless of the camera position
+        self.reference_pose = self._get_marker_poses(
+                [self.reference_marker_id]
+            )[self.reference_marker_id]
+        self.reference_position = self.reference_pose["position"]
+
     @abstractmethod
     def _reset(self):
         pass
@@ -23,6 +30,28 @@ class TwoFingerTask(Environment):
     @abstractmethod
     def _get_poses(self):
         pass
+
+    def _get_marker_poses(self, must_see_ids):
+        missednum = 0
+        while True:
+            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
+            frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
+            marker_poses = self.aruco_detector.get_marker_poses(
+                frame,
+                self.camera.camera_matrix,
+                self.camera.camera_distortion,
+                display=self.display,
+            )
+
+            # This will check that all the markers are detected correctly
+            if all(ids in marker_poses for ids in must_see_ids):
+                break
+            if 7 not in list(marker_poses.keys()) and self.task == "translation":
+                missednum +=1
+                if missednum > 10:
+                    self._reset()
+
+        return marker_poses
 
 
     @abstractmethod
