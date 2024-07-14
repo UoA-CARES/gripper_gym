@@ -32,8 +32,14 @@ class TwoFingerTranslation(TwoFingerTask):
         super().__init__(env_config, gripper_config)
         self.env_config = env_config
         if env_config.touch == True:
-            self.Touch = Sensor("/dev/ttyACM0", 921600)
+            self.Touch = Sensor("/dev/ttyACM1", 921600)
             self.Touch.initialise()
+
+            self.left_touch = False
+            self.right_touch = False
+            self.previous_pressure_readings = [0,0]
+            self.previous_delta_changes = [0,0]
+
             
     # overriding method
     def _choose_goal(self):
@@ -70,14 +76,43 @@ class TwoFingerTranslation(TwoFingerTask):
 
         #Touch Sensor Values
         if self.env_config.touch:
-            readings = self.Touch.get_pressure_readings()
-            readings[:] = [x/10 for x in readings]
-            state += readings
-            print("State Input",readings)
+            state += environment_info["touch"]
 
         return state
     
+    def _get_touch(self):
+        readings = self.Touch.get_raw_readings()
+        self.process_touch(readings)
 
+        print(self.right_touch, self.left_touch)
+        return [int(self.right_touch), int(self.left_touch)]
+
+    def process_touch(self, readings):
+            toggle_threshold = 2
+
+            # left
+            delta_change,toggled = self.update_touch(readings[0], self.previous_pressure_readings[0], self.previous_delta_changes[0], 'left_touch', toggle_threshold)
+            self.previous_delta_changes[0] = delta_change if toggled else self.previous_delta_changes[0]
+
+            # right
+            delta_change,toggled = self.update_touch(readings[1], self.previous_pressure_readings[1], self.previous_delta_changes[1], 'right_touch', toggle_threshold)
+            self.previous_delta_changes[1] = delta_change if toggled else self.previous_delta_changes[1]
+
+            self.previous_pressure_readings = readings
+
+    def update_touch(self, reading, prev_reading, prev_delta_change, touch_flag, toggle_threshold):
+        toggled = False
+        delta_change = reading - prev_reading
+        delta_change_sign = (delta_change * prev_delta_change) <= 0
+
+        if (abs(delta_change) > toggle_threshold) and delta_change_sign:
+            setattr(self, touch_flag, not getattr(self, touch_flag))
+            toggled = True
+
+
+        return delta_change, toggled
+            
+    
     def _draw_circle(self, image, position, reference_position, color):
         pixel_location = utils.position_to_pixel(
             position,
@@ -288,6 +323,93 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
         return poses
     
+    
+    def __cube_in_finger(self, current_environment_info, object_current):
+        tip_left_x, tip_left_y = self._pose_to_state(current_environment_info["poses"]["gripper"][5])
+        tip_right_x, tip_right_y = self._pose_to_state(current_environment_info["poses"]["gripper"][6])
+
+        min_x, max_x = min(tip_left_x, tip_right_x), max(tip_left_x, tip_right_x)
+        min_y, max_y = min(tip_left_y, tip_right_y), max(tip_left_y, tip_right_y)
+
+        return min_x <= object_current[0] <= max_x and min_y <= object_current[1] <= max_y
+    
+    def _flat_hold(self, current_environment_info):
+        tip_left = self._pose_to_state(current_environment_info["poses"]["gripper"][5])
+        tip_right = self._pose_to_state(current_environment_info["poses"]["gripper"][6])
+
+        tip_distance = math.dist(tip_left, tip_right)
+
+        left = current_environment_info["touch"][0]
+        right = current_environment_info["touch"][1]
+
+        cube_size_with_tolerance = 50 - self.noise_tolerance
+
+        return tip_distance >= cube_size_with_tolerance and left and right
+
+    #overriding method touch_staged
+    def _reward_function_touch_staged(self, previous_environment_info, current_environment_info):
+        self.goal_range = 25
+        done = False
+
+        reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+ 
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        hold = self._flat_hold(current_environment_info)
+
+        # Staged reward system
+        # ----------> S1: Hold <---------- #
+        if hold:
+            reward = 1
+
+            delta_changes = goal_distance_before - goal_distance_after
+
+            if self.total_moves < 50: # actually half if it cuz reward getting run twice per step because of render env
+                # ----------> S2: Move <---------- #
+                if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                    # S2: No Move
+                    reward += -0.5
+                else:
+                    # S2: Move
+                    reward += 1
+                    self.total_moves += 1
+                    print("total moves: ",self.total_moves)
+            else:
+                # ----------> S3: Reach <---------- #
+                raw_reward = delta_changes / goal_distance_before
+
+                reward += 1 if raw_reward >= 1 else -1 if raw_reward <= -1 else raw_reward
+
+                # S3: Reach Goal
+                if goal_distance_after <= self.goal_range:
+                    logging.info("----------Reached the Goal!----------")
+                    reward += 5
+
+                # S3: No move outside of goal range
+                if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                    reward += -0.5
+        # S1: Drop
+        else:
+            reward = -1
+
+        # Touch Sensor Reward
+        if self.env_config.touch:
+            left = current_environment_info["touch"][0]
+            right = current_environment_info["touch"][1]
+
+            reward += 0.5 if left or right else 0
+    
+    
     #overriding method
     def _reward_function(self, previous_environment_info, current_environment_info):
         done = False
@@ -342,7 +464,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self.goal_line = 45
         self.bottom_line = 90 + abs(self.reference_position[1])
 
-        self.goal_range = 50
+        self.total_moves = 0
 
         self._init_lift_servo(self.gripper)
         
@@ -477,9 +599,9 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
         return image
 
-
     #overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
+    def _reward_function_distance(self, previous_environment_info, current_environment_info):
+        self.goal_range = 50
         done = False
 
         reward = 0
@@ -499,10 +621,10 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward = 60
-        elif goal_distance_after > self.goal_range or object_current[1] >= self.bottom_line:
+        elif goal_distance_after > goal_range or object_current[1] >= self.bottom_line:
             reward = 0
         else:
-            reward = round((-goal_distance_after+self.goal_range),2)
+            reward = round((-goal_distance_after+goal_range),2)
         
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
@@ -513,10 +635,174 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         return reward, done
 
 
-    def reboot(self):
-        logging.info("Rebooting Gripper")
-        self.gripper.reboot()
-        logging.info("Rebooting Lift Servo")
-        self._init_lift_servo(self.gripper)
+    #overriding method
+    def _reward_function_delta_change(self, previous_environment_info, current_environment_info):
+        self.goal_range = 25
+        done = False
 
+        reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+ 
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+        
+        if object_current[1] < self.bottom_line:
+            delta_changes = goal_distance_before - goal_distance_after
+
+            if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                reward = -1
+            else:
+                raw_reward = delta_changes / goal_distance_before
+                if raw_reward >= 1:
+                    reward = 1
+                elif raw_reward <= -1:
+                    reward = -1
+                else:
+                    reward = raw_reward
+
+            if goal_distance_after <= self.goal_range:
+                logging.info("----------Reached the Goal!----------")
+                reward += 5
+        else:
+            reward = -2
+
+        logging.debug(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        print(object_current, reward)
+
+        return reward, done
+
+    #overriding method
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        self.goal_range = 25
+        done = False
+
+        reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+ 
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        # Staged reward system
+        # ----------> S1: Hold <---------- #
+        if object_current[1] <= self.bottom_line:
+            reward = 1
+
+            delta_changes = goal_distance_before - goal_distance_after
+
+            if self.total_moves < 50: # actually half of it cuz reward getting run twice per step because of render env
+                # ----------> S2: Move <---------- #
+                if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                    # S2: No Move
+                    reward += -0.5
+                else:
+                    # S2: Move
+                    reward += 1
+                    self.total_moves += 1
+                    print("total moves: ",self.total_moves)
+            else:
+                # ----------> S3: Reach <---------- #
+                raw_reward = delta_changes / goal_distance_before
+
+                reward += 1 if raw_reward >= 1 else -1 if raw_reward <= -1 else raw_reward
+
+                # S3: Reach Goal
+                if goal_distance_after <= self.goal_range:
+                    logging.info("----------Reached the Goal!----------")
+                    reward += 5
+
+                # S3: No move outside of goal range
+                if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                    reward += -0.5
+        # S1: Drop
+        else:
+            reward = -1
+
+        logging.debug(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        print(object_current, reward)
+
+        return reward, done
+    
+
+    #overriding method touch_staged
+    def _reward_function_touch_staged(self, previous_environment_info, current_environment_info):
+        self.goal_range = 25
+        done = False
+
+        reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+ 
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        # Staged reward system
+        # ----------> S1: Hold <---------- #
+        if object_current[1] <= self.bottom_line:
+            reward = 1
+
+            delta_changes = goal_distance_before - goal_distance_after
+
+            if self.total_moves < 50: # actually half if it cuz reward getting run twice per step because of render env
+                # ----------> S2: Move <---------- #
+                if -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                    # S2: No Move
+                    reward += -0.5
+                else:
+                    # S2: Move
+                    reward += 1
+                    self.total_moves += 1
+                    print("total moves: ",self.total_moves)
+            else:
+                # ----------> S3: Reach <---------- #
+                raw_reward = delta_changes / goal_distance_before
+
+                reward += 1 if raw_reward >= 1 else -1 if raw_reward <= -1 else raw_reward
+
+                # S3: Reach Goal
+                if goal_distance_after <= self.goal_range:
+                    logging.info("----------Reached the Goal!----------")
+                    reward += 5
+
+                # S3: No move outside of goal range
+                if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                    reward += -0.5
+        # S1: Drop
+        else:
+            reward = -1
+
+        # Touch Sensor Reward
+        if self.env_config.touch:
+            left = current_environment_info["touch"][0]
+            right = current_environment_info["touch"][1]
+
+            reward += 0.5 if left or right else 0
 
