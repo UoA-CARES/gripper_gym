@@ -51,7 +51,7 @@ def main():
         env_config, training_config, alg_config, gripper_config
     )
     # Load Models and just evaluate
-    file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-06-26-11:55:26-gripper2-rotation-TD3-5-position12"
+    file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-07-04-09:00:36-gripper2-rotation-TD3-10-position#16"
     model_name = "TD3-checkpoint-1000"
     gripper_trainer.agent.load_models(file_path, model_name)
     print('Successfully Loaded models')

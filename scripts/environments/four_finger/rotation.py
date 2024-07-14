@@ -1,6 +1,7 @@
 import logging
 from enum import Enum
 import random
+import time
 
 import numpy as np
 import cv2
@@ -13,6 +14,8 @@ from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.touch_sensors.sensor import Sensor
+from cares_lib.dynamixel.Servo import Servo
+import dynamixel_sdk as dxl
 
 
 
@@ -36,11 +39,16 @@ class FourFingerRotation(FourFingerTask):
         []
         object_orientation = (self._get_poses().get('object'))['orientation']
 
-        new_goal = object_orientation[2] + random.choice([90,-90]) # +ve = CW, -ve = CCW
-        if new_goal > 360:
-            new_goal = new_goal-360
-        elif new_goal < 0:
-            new_goal = 360 - abs(new_goal)
+        # Constant Angle Goal Selection
+        # new_goal = object_orientation[2] + random.choice([90,-90]) # +ve = CW, -ve = CCW
+        # if new_goal > 360:
+        #     new_goal = new_goal-360
+        # elif new_goal < 0:
+        #     new_goal = 360 - abs(new_goal)
+
+        # Random Angle Goal Generation
+        new_goal = random.randrange(0,361,1)
+        print("new goal" , new_goal)
         return [new_goal]
         
 
@@ -151,7 +159,24 @@ class FourFingerRotation(FourFingerTask):
         cube_ids = [1,2,3,4,5,6]
         detected_ids = [id for id in cube_ids if id in marker_poses]
         cube_pose = (list(marker_poses.values()))[0]
+        # print('HERE')
+        # print(cube_pose)
+        #Output ={'position': array([  2.446419  ,   7.76192778, 285.87887697]), 'orientation': [179.44675100439056, 354.68999719345857, 178.36348896387162], 'r_vec': array([[-0.04422488, -3.04869736, -0.01673843]])}
+
         return cube_pose
+    
+    def rotation_min_difference(self, a, b):
+        """
+        Formula that calculates the minimum difference between two angles.
+
+        Args:
+        a: First angle.
+        b: Second angle.
+
+        Returns:
+            float: The minimum angular difference.
+        """
+        return min(abs(a - b), (360 + min(a, b) - max(a, b)))
         
 
 class FourFingerRotationFlat(FourFingerRotation):
@@ -202,24 +227,13 @@ class FourFingerRotationFlat(FourFingerRotation):
         if reward < -100:
             reward = -100
 
+        if abs(delta) < 1:
+            reward = -10
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward = 150
         print(reward)
         return reward, done
-    
-    def rotation_min_difference(self, a, b):
-        """
-        Formula that calculates the minimum difference between two angles.
-
-        Args:
-        a: First angle.
-        b: Second angle.
-
-        Returns:
-            float: The minimum angular difference.
-        """
-        return min(abs(a - b), (360 + min(a, b) - max(a, b)))
     
 class FourFingerRotationSuspended(FourFingerRotation):
     def __init__(
@@ -231,4 +245,59 @@ class FourFingerRotationSuspended(FourFingerRotation):
         self.gripper_config = gripper_config
         self.aruco_detector = STagDetector(marker_size=env_config.marker_size, library_hd=11)
         super().__init__(env_config, gripper_config)
+        self.elevator_device_name = env_config.elevator_device_name
+        self.elevator_baudrate = env_config.elevator_baudrate
+        self.elevator_servo_id = env_config.elevator_servo_id
+        self.elevator_min = env_config.elevator_limits[0] # Lowered Elevator Position
+        self.elevator_max = env_config.elevator_limits[1] # Extended Elevator Position
+
+    def init_elevator(self):
+        self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
+        self.elevator_packet_handler = dxl.PacketHandler(2)
+        self.elevator = Servo(
+            self.elevator_port_handler, 
+            self.elevator_packet_handler, 
+            2, 
+            self.elevator_servo_id, 
+            1, 
+            200, 
+            200, 
+            self.elevator_min, 
+            self.elevator_max, 
+            model="XL330-M077-T"
+            )
+
+        if not self.elevator_port_handler.openPort():
+            error_message = f"Failed to open port {self.elevator_device_name}"
+            logging.error(error_message)    
+            raise IOError(error_message)
+        logging.debug(f"Succeeded to open port {self.elevator_device_name}")
+
+        if not self.elevator_port_handler.setBaudRate(self.elevator_baudrate):
+            error_message = f"Failed to change the baudrate to {self.elevator_baudrate}"
+            logging.error(error_message)
+            raise IOError(error_message)
+        logging.debug(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
     
+    def _reset(self):
+        self.init_elevator()
+        self.elevator.enable_torque()
+
+        # TODO implement object centred check
+        self.elevator.move(self.elevator_min) # Lower Elevator
+        self.gripper.wiggle_home()
+        # Opening Grasp
+        self.gripper.move([2100,1500,3000,2100,1500,3000,2100,1500,3000,2100,1500,3000])
+        self.elevator.move(self.elevator_max) # Raise Elevator
+        self.gripper.move([2100,2048,2500,2100,2048,2500,2100,2048,2500,2100,2048,2500])
+        # Closing Grasp
+        self.gripper.home()
+        self.elevator.move(self.elevator_min)
+        
+        
+
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        done = False
+
+        reward = 1
+        return reward, done

@@ -37,7 +37,7 @@ class FourFingerTask(Environment):
             )
             
             # This will check that at least one of the markers are detected correctly
-            if any(ids in list(marker_poses.keys()) for ids in cube_ids) and self.task == "rotation":
+            if any(ids in list(marker_poses.keys()) for ids in cube_ids):
                 break
                 
         return marker_poses
