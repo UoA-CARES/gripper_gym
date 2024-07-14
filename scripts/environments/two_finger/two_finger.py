@@ -24,6 +24,10 @@ class TwoFingerTask(Environment):
     def _get_poses(self):
         pass
 
+    @abstractmethod
+    def _get_touch(self):
+        pass
+
 
     @abstractmethod
     def _environment_info_to_state(self, environment_info):
@@ -40,7 +44,9 @@ class TwoFingerTask(Environment):
         environment_info["gripper"] = self.gripper.state()
         environment_info["poses"] = self._get_poses()
         environment_info["goal"] = self.goal
-
+        if self.env_config.touch:
+            environment_info["touch"] = self._get_touch()
+        
         return environment_info
 
     @abstractmethod
