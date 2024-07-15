@@ -458,6 +458,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         # These bounds are respective to the reference marker in Environment
         self.goal_min = [-20.0, 70]
         self.goal_max = [100.0, 105]
+        self.reward_function_type = env_config.reward_function
 
         super().__init__(env_config, gripper_config)
         self.max_value = 3500
@@ -599,10 +600,24 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         cv2.line(image, (0, int(goal_line_pixel_y)), (640, int(goal_line_pixel_y)), bounds_color, 2)
 
         return image
+    
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        match self.reward_function_type:
+            case "distance":
+                return self._reward_function_distance(previous_environment_info, current_environment_info)
+            case "delta_change":
+                return self._reward_function_delta_change(previous_environment_info, current_environment_info)
+            case "staged":
+                return self._reward_function_staged(previous_environment_info, current_environment_info)
+            case "touch_staged":
+                return self._reward_function_touch_staged(previous_environment_info, current_environment_info)
+            case _:
+                return self._reward_function_staged(previous_environment_info, current_environment_info)
 
     #overriding method
     def _reward_function_distance(self, previous_environment_info, current_environment_info):
         self.goal_range = 50
+        self.goal_reward = 60
         done = False
 
         reward = 0
@@ -621,11 +636,11 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward = 60
-        elif goal_distance_after > goal_range or object_current[1] >= self.bottom_line:
+            reward = self.goal_reward
+        elif goal_distance_after > self.goal_range or object_current[1] >= self.bottom_line:
             reward = 0
         else:
-            reward = round((-goal_distance_after+goal_range),2)
+            reward = round((-goal_distance_after+self.goal_range),2)
         
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
@@ -639,6 +654,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     #overriding method
     def _reward_function_delta_change(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
+        self.goal_reward = 4 # goal reward minus the potential moving away negativity
         done = False
 
         reward = 0
@@ -684,8 +700,9 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         return reward, done
 
     #overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
+    def _reward_function_staged(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
+        self.goal_reward = 4 # goal reward minus the potential moving away negativity
         done = False
 
         reward = 0
@@ -749,6 +766,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     #overriding method touch_staged
     def _reward_function_touch_staged(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
+        self.goal_reward = 4 # goal reward minus the potential moving away negativity
         done = False
 
         reward = 0
@@ -806,4 +824,14 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             right = current_environment_info["touch"][1]
 
             reward += 0.5 if left or right else 0
+
+    
+        logging.debug(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        print(object_current, reward)
+
+        return reward, done
+
 

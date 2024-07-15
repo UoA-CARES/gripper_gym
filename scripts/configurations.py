@@ -44,3 +44,5 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
 
     # For when ssh to train, display can be turned off 
     display: Optional[bool] = True
+
+    reward_function: Optional[str] = "staged"
