@@ -291,7 +291,7 @@ class GripperTrainer:
             next_state, reward_extrinsic, done, truncated = self.environment_step(
                 action_env
             )
-            if reward_extrinsic == self.environment.goal_reward:
+            if reward_extrinsic >= self.environment.goal_reward:
                 if steps_to_success == 0:
                     steps_to_success = self.environment.step_counter
                 success_counter += 1

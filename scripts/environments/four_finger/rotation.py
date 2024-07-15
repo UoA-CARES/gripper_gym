@@ -203,7 +203,7 @@ class FourFingerRotationFlat(FourFingerRotation):
             reward: reward = 10 if at goal, negative when rotated away from goal(max of -1), otherwise a fraction of the progress made to the goal.
                     reward = -1 if the cube is not rotated at all.
         """
-
+        self.goal_reward = 150
         Precision_tolerance = 15
         done = False
         logging.debug(previous_environment_info['poses']['object']['orientation'])
