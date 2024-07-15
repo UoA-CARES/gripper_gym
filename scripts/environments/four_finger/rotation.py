@@ -226,12 +226,12 @@ class FourFingerRotationFlat(FourFingerRotation):
         reward = round(delta, 2)
         if reward < -100:
             reward = -100
-
+        
         if abs(delta) < 1:
             reward = -10
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward = 150
+            reward = self.goal_reward
         print(reward)
         return reward, done
     
