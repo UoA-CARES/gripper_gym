@@ -31,7 +31,8 @@ class TwoFingerTranslation(TwoFingerTask):
 
         super().__init__(env_config, gripper_config)
         self.env_config = env_config
-        if env_config.touch == True:
+        self.touch_config = gripper_config.touch
+        if gripper_config.touch == True:
             self.Touch = Sensor("/dev/ttyACM1", 921600)
             self.Touch.initialise()
 
@@ -75,7 +76,7 @@ class TwoFingerTranslation(TwoFingerTask):
         state += self.goal
 
         #Touch Sensor Values
-        if self.env_config.touch:
+        if self.touch_config:
             state += environment_info["touch"]
 
         return state
@@ -403,7 +404,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             reward = -1
 
         # Touch Sensor Reward
-        if self.env_config.touch:
+        if self.touch_config:
             left = current_environment_info["touch"][0]
             right = current_environment_info["touch"][1]
 
@@ -440,7 +441,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
         )
-        if self.env_config.touch:
+        if self.touch_config:
             self.Touch.reset_pressure_readings()
         return reward, done
 
@@ -800,7 +801,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             reward = -1
 
         # Touch Sensor Reward
-        if self.env_config.touch:
+        if self.touch_config:
             left = current_environment_info["touch"][0]
             right = current_environment_info["touch"][1]
 

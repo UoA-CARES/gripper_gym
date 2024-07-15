@@ -354,7 +354,7 @@ class GripperTrainer:
         end_time = time.time()
         elapsed_time = end_time - start_time
         print("Training time:", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
-        if self.env_config.touch:
+        if self.gripper_config.touch:
             self.environment.Touch.stop()
 
     def dynamic_sleep(self, env_start):
