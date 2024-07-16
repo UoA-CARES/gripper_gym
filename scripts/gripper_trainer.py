@@ -194,9 +194,9 @@ class GripperTrainer:
 
                 start_time = time.time()
 
-                if eval_episode_counter == 0:
-                    frame = self.environment.grab_rendered_frame()
-                    self.record.log_video(frame)
+                # if eval_episode_counter == 0:
+                frame = self.environment.grab_rendered_frame()
+                self.record.log_video(frame)
 
                 episode_reward += reward
 
