@@ -74,7 +74,9 @@ class GripperTrainer:
         self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
 
         # TODO: reconcile deep file_path dependency
-        self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{env_config.reward_function}'
+
+        self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
+
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
@@ -174,6 +176,8 @@ class GripperTrainer:
             episode_timesteps = 0
             episode_reward = 0
             episode_num = 0
+            success_counter = 0
+            steps_to_success = 0
             done = False
             truncated = False
 
@@ -185,12 +189,16 @@ class GripperTrainer:
                 action_env = self.environment.denormalize(action)
 
                 state, reward, done, truncated = self.environment_step(action_env)
+                if reward >= self.environment.goal_reward:
+                    if steps_to_success == 0:
+                        steps_to_success = self.environment.step_counter
+                    success_counter += 1
 
                 start_time = time.time()
 
-                if eval_episode_counter == 0:
-                    frame = self.environment.grab_rendered_frame()
-                    self.record.log_video(frame)
+                # record all eps in the same timestamp video
+                frame = self.environment.grab_rendered_frame()
+                self.record.log_video(frame)
 
                 episode_reward += reward
 
@@ -199,12 +207,16 @@ class GripperTrainer:
                         total_steps=total_steps + 1,
                         episode=eval_episode_counter + 1,
                         episode_reward=episode_reward,
+                        success_counter = success_counter,
+                        steps_to_success = steps_to_success,
                         display=self.env_config.display,
                     )
 
                     state = self.environment_reset()
                     episode_reward = 0
                     episode_timesteps = 0
+                    success_counter = 0
+                    steps_to_success = 0
                     episode_num += 1
 
                 # Run loop at a fixed frequency
