@@ -174,6 +174,8 @@ class GripperTrainer:
             episode_timesteps = 0
             episode_reward = 0
             episode_num = 0
+            success_counter = 0
+            steps_to_success = 0
             done = False
             truncated = False
 
@@ -185,6 +187,10 @@ class GripperTrainer:
                 action_env = self.environment.denormalize(action)
 
                 state, reward, done, truncated = self.environment_step(action_env)
+                if reward >= self.environment.goal_reward:
+                    if steps_to_success == 0:
+                        steps_to_success = self.environment.step_counter
+                    success_counter += 1
 
                 start_time = time.time()
 
@@ -199,12 +205,16 @@ class GripperTrainer:
                         total_steps=total_steps + 1,
                         episode=eval_episode_counter + 1,
                         episode_reward=episode_reward,
+                        success_counter = success_counter,
+                        steps_to_success = steps_to_success,
                         display=self.env_config.display,
                     )
 
                     state = self.environment_reset()
                     episode_reward = 0
                     episode_timesteps = 0
+                    success_counter = 0
+                    steps_to_success = 0
                     episode_num += 1
 
                 # Run loop at a fixed frequency
