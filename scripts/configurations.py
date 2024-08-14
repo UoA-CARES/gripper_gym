@@ -39,6 +39,9 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     elevator_baudrate: Optional[int] = 1000000
     elevator_servo_id: Optional[int] = 10
     elevator_limits: Optional[list] = [0,0] # [MAX,MIN]
+    touch: Optional[bool] = False
+    touch_server_id: Optional[str] = "ID1",
+
 
     is_debug = False
 

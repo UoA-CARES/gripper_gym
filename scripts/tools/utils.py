@@ -2,6 +2,8 @@ import os
 import shutil
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import socket
 
 
 def position_to_pixel(position, reference_position, camera_matrix):
@@ -121,6 +123,40 @@ def slack_post_plot(environment, slack_bot, file_path, plots):
                 f"#{environment.gripper.gripper_id}: {plot_name} plot not ready yet or doesn't exist",
             )
 
+def lineseg_dists(p,a,b):
+    # Calculate shortest distance between points p and line segments defined by each point in a to b
+
+    d_ba = b - a
+    d = np.divide(d_ba, (np.hypot(d_ba[:, 0], d_ba[:, 1]).reshape(-1,1)))
+
+    s = np.multiply(a - p, d).sum(axis=1)
+    t = np.multiply(p - b, d).sum(axis=1)
+
+    h = np.maximum.reduce([s, t, np.zeros(len(s))])
+
+    d_pa = p - a
+    c = d_pa[:, 0] * d[:, 1] - d_pa[:, 1] * d[:, 0]
+    
+    return np.hypot(h,c)
+
+def get_values(id, host='localhost', port=65432):
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            client_socket.connect((host, port))
+            client_socket.sendall(id.encode('utf-8'))
+            data = client_socket.recv(1024).decode('utf-8')
+            list = eval(data)
+            return list
+    except ConnectionRefusedError:
+        return "Failed to connect to the server."
+
+def euclidean_dist(p1,p2):
+
+    temp = p1 - p2
+
+    euclid_dist = np.sqrt(np.dot(temp.T, temp))
+
+    return euclid_dist
 
 def save_evaluation_values(data_eval_reward, filename, file_path):
     data = pd.DataFrame.from_dict(data_eval_reward)

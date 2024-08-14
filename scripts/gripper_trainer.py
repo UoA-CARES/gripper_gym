@@ -189,10 +189,14 @@ class GripperTrainer:
                 action_env = self.environment.denormalize(action)
 
                 state, reward, done, truncated = self.environment_step(action_env)
-                if reward >= self.environment.goal_reward:
-                    if steps_to_success == 0:
-                        steps_to_success = self.environment.step_counter
-                    success_counter += 1
+
+                # reward_val, _ = reward
+                # print(f"{reward}")
+                reward_val = reward
+                # if reward_val >= self.environment.goal_reward:
+                #     if steps_to_success == 0:
+                #         steps_to_success = self.environment.step_counter
+                #     success_counter += 1
 
                 start_time = time.time()
 
@@ -200,7 +204,7 @@ class GripperTrainer:
                 frame = self.environment.grab_rendered_frame()
                 self.record.log_video(frame)
 
-                episode_reward += reward
+                episode_reward += reward_val
 
                 if done or truncated:
                     self.record.log_eval(
@@ -234,7 +238,8 @@ class GripperTrainer:
         start_time = time.time()
 
         max_steps_training = self.alg_config.max_steps_training
-        max_steps_exploration = self.alg_config.max_steps_exploration
+        # max_steps_exploration = self.alg_config.max_steps_exploration
+        max_steps_exploration = 1000
         number_steps_per_evaluation = self.train_config.number_steps_per_evaluation
         number_steps_per_train_policy = self.alg_config.number_steps_per_train_policy
 
@@ -303,10 +308,10 @@ class GripperTrainer:
             next_state, reward_extrinsic, done, truncated = self.environment_step(
                 action_env
             )
-            if reward_extrinsic >= self.environment.goal_reward:
-                if steps_to_success == 0:
-                    steps_to_success = self.environment.step_counter
-                success_counter += 1
+            # if reward_extrinsic >= self.environment.goal_reward:
+            #     if steps_to_success == 0:
+            #         steps_to_success = self.environment.step_counter
+            #     success_counter += 1
 
             env_start_time = time.time()
 

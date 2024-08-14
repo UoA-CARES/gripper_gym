@@ -1,6 +1,7 @@
 import logging
 import math
 from random import randrange
+import random
 import numpy as np
 import cv2
 
@@ -31,15 +32,14 @@ class TwoFingerTranslation(TwoFingerTask):
 
         super().__init__(env_config, gripper_config)
         self.env_config = env_config
-        self.touch_config = gripper_config.touch
-        if gripper_config.touch == True:
-            self.Touch = Sensor("/dev/ttyACM1", 921600)
-            self.Touch.initialise()
+        if env_config.touch == True:
+            self.server_id = env_config.touch_server_id
 
             self.left_touch = False
             self.right_touch = False
             self.previous_pressure_readings = [0,0]
             self.previous_delta_changes = [0,0]
+            self.episode_touch_pressure = [0,0]
 
             
     # overriding method
@@ -76,42 +76,47 @@ class TwoFingerTranslation(TwoFingerTask):
         state += self.goal
 
         #Touch Sensor Values
-        if self.touch_config:
+        if self.env_config.touch:
+            printer = environment_info["touch"]
+            print(f"touch val: {printer}")
             state += environment_info["touch"]
+
+        print(state)
 
         return state
     
-    def _get_touch(self):
-        readings = self.Touch.get_raw_readings()
-        self.process_touch(readings)
+    def set_episode_touch(self):
+        if self.env_config.touch:
+            touch_vals = utils.get_values(self.server_id)
+            self.episode_touch_pressure = [float(touch_vals[0]),float(touch_vals[1])]
+            print(f"Episode Start Touch Val.{self.episode_touch_pressure}")
 
-        print(self.right_touch, self.left_touch)
-        return [int(self.right_touch), int(self.left_touch)]
+    def _get_touch(self):
+        readings = utils.get_values(self.server_id)
+        print(f"Current Touch: {readings}")
+        self.process_touch(readings)
+        # print(f"Prev pressure: {self.previous_pressure_readings}")
+        # print(f"Prev Delta - {self.previous_delta_changes}")
+        # print(f"right, left touch - {self.right_touch}, {self.left_touch}")
+        return [int(self.left_touch),int(self.right_touch)]
 
     def process_touch(self, readings):
-            toggle_threshold = 2
+            toggle_threshold = 5
+            print(readings)
+            print(self.episode_touch_pressure)
 
-            # left
-            delta_change,toggled = self.update_touch(readings[0], self.previous_pressure_readings[0], self.previous_delta_changes[0], 'left_touch', toggle_threshold)
-            self.previous_delta_changes[0] = delta_change if toggled else self.previous_delta_changes[0]
-
-            # right
-            delta_change,toggled = self.update_touch(readings[1], self.previous_pressure_readings[1], self.previous_delta_changes[1], 'right_touch', toggle_threshold)
-            self.previous_delta_changes[1] = delta_change if toggled else self.previous_delta_changes[1]
+            self.update_touch(readings[0], 'left_touch', toggle_threshold, self.episode_touch_pressure[0])
+            self.update_touch(readings[1], 'right_touch', toggle_threshold, self.episode_touch_pressure[1])
 
             self.previous_pressure_readings = readings
 
-    def update_touch(self, reading, prev_reading, prev_delta_change, touch_flag, toggle_threshold):
-        toggled = False
-        delta_change = reading - prev_reading
-        delta_change_sign = (delta_change * prev_delta_change) <= 0
+    def update_touch(self, reading, touch_flag, toggle_threshold, episode_pressure):
 
-        if (abs(delta_change) > toggle_threshold) and delta_change_sign:
-            setattr(self, touch_flag, not getattr(self, touch_flag))
-            toggled = True
+        if (reading > (toggle_threshold + episode_pressure)):
+            setattr(self, touch_flag, True)
+        else:
+            setattr(self, touch_flag, False)
 
-
-        return delta_change, toggled
             
     
     def _draw_circle(self, image, position, reference_position, color):
@@ -248,6 +253,11 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         self.goal_range = 70
         self.elevator_max = env_config.elevator_limits[0]
         self.elevator_min = env_config.elevator_limits[1]
+        self.reward_function_type = env_config.reward_function
+        self.total_moves = 0
+        self.decay = 1
+
+
         #TODO add instantiation of the elevator elevator servo here 
 
     def init_elevator(self):
@@ -286,11 +296,15 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
         # TODO implement object centred check
         self.gripper.move([312, 712, 512, 512])
+        self.set_episode_touch()
+
         while not (self.gripper.is_home()):
             if self.elevator.current_goal_position() < (self.elevator_max-100):
                 self.elevator.move(self.elevator_max)
             self.elevator.move(self.elevator_min)
             self.gripper.home()
+
+
 
     def _get_poses(self):
         """
@@ -335,6 +349,16 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         return min_x <= object_current[0] <= max_x and min_y <= object_current[1] <= max_y
     
     def _flat_hold(self, current_environment_info):
+        
+        # Self touch check joints
+        joint1 = self._pose_to_state(current_environment_info["poses"]["gripper"][1])
+        joint2 = self._pose_to_state(current_environment_info["poses"]["gripper"][2])
+        joint3 = self._pose_to_state(current_environment_info["poses"]["gripper"][3])
+        joint4 = self._pose_to_state(current_environment_info["poses"]["gripper"][4])
+        target = self._pose_to_state(current_environment_info["poses"]["object"])
+
+
+
         tip_left = self._pose_to_state(current_environment_info["poses"]["gripper"][5])
         tip_right = self._pose_to_state(current_environment_info["poses"]["gripper"][6])
 
@@ -343,15 +367,217 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         left = current_environment_info["touch"][0]
         right = current_environment_info["touch"][1]
 
-        cube_size_with_tolerance = 50 - self.noise_tolerance
+        # Self Touch Check.
+        left_seg_a = np.array([joint1, joint3])
+        left_seg_b = np.array([joint3, tip_left])
 
-        return tip_distance >= cube_size_with_tolerance and left and right
+        right_seg_a = np.array([joint2, joint4])
+        right_seg_b = np.array([joint4, tip_right])
+        
+        dist_left_self = min(utils.lineseg_dists(tip_left, right_seg_a, right_seg_b))
+        dist_right_self = min(utils.lineseg_dists(tip_right, left_seg_a, left_seg_b))
+        dist_left_target = math.dist(tip_left, target)
+        dist_right_target = math.dist(tip_right, target)
+
+
+        self_touch = (left and dist_left_self < dist_left_target) or (right and dist_right_self < dist_right_target)
+
+        cube_size_with_tolerance = 50 - self.noise_tolerance
+        # for (double/single) touch to reward for holding swap (left and/or right)
+        return tip_distance >= cube_size_with_tolerance and (left or right) and not self_touch
+
+
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        match self.reward_function_type:
+            case "distance":
+                return self._reward_function_distance(previous_environment_info, current_environment_info)
+            case "touch_staged":
+                return self._reward_function_touch_staged(previous_environment_info, current_environment_info)
+            case "touch_hold":
+                return self._reward_function_touch_hold(previous_environment_info, current_environment_info)
+            case "touch_hold_testing":
+                return self._reward_function_touch_hold_testing(previous_environment_info, current_environment_info)
+            case "touch_hold_testing_new":
+                return self._reward_function_touch_hold_testing_new(previous_environment_info, current_environment_info)
+            case  "touchless_decay":
+                return self._reward_function_touchless_decay(previous_environment_info, current_environment_info)
+
+        # Specifically Just holding with double touch.
+    def _reward_function_touch_hold(self, previous_environment_info, current_environment_info):
+        self.goal_range = 15
+        done = False
+        reward = 0
+
+        hold = self._flat_hold(current_environment_info)
+
+        if hold:
+            reward = 1
+
+        return reward, done
+    def _reward_function_touchless_decay(self, previous_environment_info, current_environment_info):
+
+        done = False
+
+        reward = 0
+        tactile_reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+        
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        # if goal_distance_after <= self.noise_tolerance:
+        #     logging.info("----------Reached the Goal!----------")
+        #     reward = 80 + tactile_reward
+        # elif goal_distance_after > self.goal_range:
+        #     reward = 0 + tactile_reward
+        #     # should remove later
+        #     # if self.decay < 1:
+        #     #    self.decay *= 2
+        # elif goal_distance_after >= goal_distance_before*0.95 and goal_distance_after <= goal_distance_before*1.05:
+        #     reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+        #     if self.decay > 0.0001:
+        #         self.decay /= 2
+        # elif goal_distance_after < goal_distance_before*0.95:
+        #     reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+        #     if self.decay < 1:
+        #         self.decay = 1
+        if goal_distance_after <= self.noise_tolerance:
+            logging.info("----------Reached the Goal!----------")
+            reward = 80 + tactile_reward
+        elif goal_distance_after > self.goal_range:
+            reward = -10 + tactile_reward
+        elif goal_distance_after >= goal_distance_before*0.95:
+            reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+            if self.decay > 0.0001:
+                self.decay /= 2
+        elif goal_distance_after < goal_distance_before*0.75:
+            if self.decay < 1:
+                self.decay = 1
+            reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+
+                
+        # should remove later
+        # elif goal_distance_after > goal_distance_before*1.05:
+        #    reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+        #    if self.decay < 1:
+        #    self.decay *= 2
+
+        logging.debug(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        self.render_reward = reward
+
+        return reward, done
+
+
+    def _reward_function_touch_hold_testing(self, previous_environment_info, current_environment_info):
+        print("running")
+        done = False
+
+        reward = 0
+        tactile_reward = 0
+
+        target_goal = current_environment_info["goal"]
+
+        # This now converts the poses with respect to reference marker
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+        
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        logging.debug(f"Distance to Goal: {goal_distance_after}")
+
+        hold = self._flat_hold(current_environment_info)
+
+        if hold:
+            rand = random.randint(1,100)
+            if rand > 55:
+                print("no touch reward rand")
+                tactile_reward = 100
+
+
+        ###
+        if goal_distance_after <= self.noise_tolerance:
+            logging.info("----------Reached the Goal!----------")
+            if not hold:
+                reward = 300
+            else:
+                reward = 1000
+        elif goal_distance_after > self.goal_range:
+            reward = -10 + tactile_reward
+        elif goal_distance_after >= goal_distance_before*0.95:
+            reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+            if self.decay > 0.0001 and not hold:
+                self.decay /= 2
+            elif self.decay > 0.0001 and hold:
+                self.decay /= 1.15
+        elif goal_distance_after < goal_distance_before*0.75:
+            if self.decay < 1:
+                self.decay = 1
+            reward = (round((-goal_distance_after+self.goal_range),2) + tactile_reward) * self.decay
+
+        logging.debug(
+            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
+        )
+
+        self.render_reward = reward
+
+        return reward, done
+
+
+    def _reward_function_touch_hold_testing_new(self, previous_environment_info, current_environment_info):
+        self.goal_range = 25
+        done = False
+        reward = 0
+
+        hold = self._flat_hold(current_environment_info)
+
+        target_goal = current_environment_info["goal"]
+
+        object_previous = self._pose_to_state(previous_environment_info["poses"]["object"])
+        object_current = self._pose_to_state(current_environment_info["poses"]["object"])
+        logging.debug(f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}")
+ 
+        goal_distance_before = math.dist(target_goal, object_previous)
+        goal_distance_after = math.dist(target_goal, object_current)
+        # TODO: ADD Negative reward for not doing anything, Delta Distance Reward and/or Distance reward
+
+
+        # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
+        
+
+
+        if hold:
+            reward = 20
+            if goal_distance_after <= self.goal_range:
+                    # done = True
+                    if goal_distance_after <= self.noise_tolerance:
+                        logging.info("----------Reached the Goal!----------")
+                        reward += 80
+                    elif goal_distance_after > self.goal_range:
+                        reward = 0
+                    else:
+                        reward += round((-goal_distance_after+self.goal_range),2)
+
+
+
+        return reward, done
+
 
     #overriding method touch_staged
     def _reward_function_touch_staged(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
         done = False
-
+        # print("Please activate")
         reward = 0
 
         target_goal = current_environment_info["goal"]
@@ -369,6 +595,10 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         hold = self._flat_hold(current_environment_info)
 
         # Staged reward system
+        # TODO: Make this less strict, if it was holding it on the previous step it can, enter into the part where it gets rewarded for .
+        # Might be very hard to always keep it holding.
+
+
         # ----------> S1: Hold <---------- #
         if hold:
             reward = 1
@@ -394,6 +624,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
                 # S3: Reach Goal
                 if goal_distance_after <= self.goal_range:
                     logging.info("----------Reached the Goal!----------")
+                    done = True
                     reward += 5
 
                 # S3: No move outside of goal range
@@ -404,15 +635,17 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             reward = -1
 
         # Touch Sensor Reward
-        if self.touch_config:
+        if self.env_config.touch:
             left = current_environment_info["touch"][0]
             right = current_environment_info["touch"][1]
 
             reward += 0.5 if left or right else 0
+
+        return reward, done
     
     
     #overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
+    def _reward_function_distance(self, previous_environment_info, current_environment_info):
         done = False
 
         reward = 0
@@ -441,7 +674,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
         )
-        if self.touch_config:
+        if self.env_config.touch:
             self.Touch.reset_pressure_readings()
         return reward, done
 
@@ -819,7 +1052,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             reward = -1
 
         # Touch Sensor Reward
-        if self.touch_config:
+        if self.env_config.touch:
             left = current_environment_info["touch"][0]
             right = current_environment_info["touch"][1]
 

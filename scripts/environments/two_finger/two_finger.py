@@ -15,8 +15,6 @@ class TwoFingerTask(Environment):
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
     ):
-        self.touch_config = gripper_config.touch
-
         super().__init__(env_config, gripper_config)
 
         # The reference position normalises the positions regardless of the camera position
@@ -76,7 +74,7 @@ class TwoFingerTask(Environment):
         environment_info["gripper"] = self.gripper.state()
         environment_info["poses"] = self._get_poses()
         environment_info["goal"] = self.goal
-        if self.touch_config:
+        if self.env_config.touch:
             environment_info["touch"] = self._get_touch()
         
         return environment_info
