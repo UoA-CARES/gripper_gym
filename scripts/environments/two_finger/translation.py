@@ -33,7 +33,8 @@ class TwoFingerTranslation(TwoFingerTask):
         super().__init__(env_config, gripper_config)
         self.env_config = env_config
         if env_config.touch == True:
-            self.server_id = env_config.touch_server_id
+            self.Touch = Sensor("/dev/ttyACM0", 921600)
+            self.Touch.initialise()
 
             self.left_touch = False
             self.right_touch = False
@@ -87,12 +88,11 @@ class TwoFingerTranslation(TwoFingerTask):
     
     def set_episode_touch(self):
         if self.env_config.touch:
-            touch_vals = utils.get_values(self.server_id)
-            self.episode_touch_pressure = [float(touch_vals[0]),float(touch_vals[1])]
+            self.episode_touch_pressure = self.Touch.get_raw_readings()
             print(f"Episode Start Touch Val.{self.episode_touch_pressure}")
 
     def _get_touch(self):
-        readings = utils.get_values(self.server_id)
+        readings = self.Touch.get_raw_readings()
         print(f"Current Touch: {readings}")
         self.process_touch(readings)
         # print(f"Prev pressure: {self.previous_pressure_readings}")
@@ -480,6 +480,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
     def _reward_function_touch_hold_testing(self, previous_environment_info, current_environment_info):
         print("running")
+        print(self.noise_tolerance)
         done = False
 
         reward = 0
@@ -500,18 +501,17 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
         if hold:
             rand = random.randint(1,100)
-            if rand > 55:
+            if rand > 45:
                 print("no touch reward rand")
-                tactile_reward = 100
+                tactile_reward = 10
 
 
-        ###
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
             if not hold:
                 reward = 300
             else:
-                reward = 1000
+                reward = 1150
         elif goal_distance_after > self.goal_range:
             reward = -10 + tactile_reward
         elif goal_distance_after >= goal_distance_before*0.95:

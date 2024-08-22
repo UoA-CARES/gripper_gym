@@ -26,7 +26,7 @@ class GripperEnvironmentConfig(cares_cfg.SubscriptableClass):
     cube_ids: Optional[list] = [1,2,3,4,5,6]
 
     # Tolerance in position error for object being at goal
-    noise_tolerance: Optional[int] = 5  # mm or degrees
+    noise_tolerance: Optional[int] = 5  # mm or degrees (was 5 Josh changed to 3 for testing)
 
     # Rotation Environment specific
     object_device_name: Optional[str] = "/dev/ttyUSB0"
