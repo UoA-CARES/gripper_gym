@@ -193,10 +193,12 @@ class GripperTrainer:
                 # reward_val, _ = reward
                 # print(f"{reward}")
                 reward_val = reward
-                # if reward_val >= self.environment.goal_reward:
-                #     if steps_to_success == 0:
-                #         steps_to_success = self.environment.step_counter
-                #     success_counter += 1
+
+                # TODO: Fix to stop reward.
+                if reward_val >= self.environment.goal_reward:
+                    if steps_to_success == 0:
+                        steps_to_success = self.environment.step_counter
+                    success_counter += 1
 
                 start_time = time.time()
 
@@ -205,7 +207,7 @@ class GripperTrainer:
                 self.record.log_video(frame)
 
                 episode_reward += reward_val
-
+                
                 if done or truncated:
                     self.record.log_eval(
                         total_steps=total_steps + 1,
@@ -308,10 +310,12 @@ class GripperTrainer:
             next_state, reward_extrinsic, done, truncated = self.environment_step(
                 action_env
             )
-            # if reward_extrinsic >= self.environment.goal_reward:
-            #     if steps_to_success == 0:
-            #         steps_to_success = self.environment.step_counter
-            #     success_counter += 1
+
+            # TODO: Fix to stop crashes
+            if reward_extrinsic >= self.environment.goal_reward:
+                if steps_to_success == 0:
+                    steps_to_success = self.environment.step_counter
+                success_counter += 1
 
             env_start_time = time.time()
 

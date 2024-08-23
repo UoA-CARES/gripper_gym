@@ -415,7 +415,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
         return reward, done
     def _reward_function_touchless_decay(self, previous_environment_info, current_environment_info):
-
+        self.goal_reward = 80
         done = False
 
         reward = 0
@@ -479,8 +479,10 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
 
 
     def _reward_function_touch_hold_testing(self, previous_environment_info, current_environment_info):
-        print("running")
-        print(self.noise_tolerance)
+        # print("running")
+        # print(self.noise_tolerance)
+        self.goal_reward = 300
+
         done = False
 
         reward = 0
@@ -505,13 +507,12 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
                 print("no touch reward rand")
                 tactile_reward = 10
 
-
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
             if not hold:
                 reward = 300
             else:
-                reward = 1150
+                reward = 1500
         elif goal_distance_after > self.goal_range:
             reward = -10 + tactile_reward
         elif goal_distance_after >= goal_distance_before*0.95:
