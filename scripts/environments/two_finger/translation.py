@@ -199,7 +199,7 @@ class TwoFingerTranslation(TwoFingerTask):
         image, goal_pixel = self._draw_circle(
             image,
             self.goal,
-            goal_reference_position,
+            self.reference_position,#goal_reference_position,
             goal_color,
         )
 
@@ -222,7 +222,7 @@ class TwoFingerTranslation(TwoFingerTask):
         # Draw circle highlighting goal_range
         pixel_location_goal = utils.position_to_pixel(
             self.goal,
-            goal_reference_position,
+            self.reference_position,#goal_reference_position,
             self.camera.camera_matrix,
         )
         cv2.circle(image, pixel_location_goal, 2*self.goal_range, (0, 255, 0), 2)
@@ -461,10 +461,11 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self.reward_function_type = env_config.reward_function
 
         super().__init__(env_config, gripper_config)
-        self.max_value = 3500
+        self.max_value = 3500 if gripper_config.gripper_id == 1 else 4000
         self.min_value = 0
         self.goal_line = 45
-        self.bottom_line = 90 + abs(self.reference_position[1])
+        print(abs(self.reference_position[1]))
+        self.bottom_line = 130#90 + abs(self.reference_position[1])
 
         self.total_moves = 0
 
@@ -482,6 +483,9 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             self.lift_servo.enable()
         except (GripperError, DynamixelServoError) as error:
             raise GripperError(f"Gripper#{self.gripper_id}: Failed to initialise lift servo") from error
+
+    def _lift_reboot(self):
+        self._init_lift_servo(self.gripper)
 
     # overriding method
     def _reset(self):
@@ -702,7 +706,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     #overriding method
     def _reward_function_staged(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
-        self.goal_reward = 4 # goal reward minus the potential moving away negativity
+        self.goal_reward = 10 # goal reward minus the potential moving away negativity
         done = False
 
         reward = 0
@@ -745,7 +749,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
                 # S3: Reach Goal
                 if goal_distance_after <= self.goal_range:
                     logging.info("----------Reached the Goal!----------")
-                    reward += 5
+                    reward += self.goal_reward
 
                 # S3: No move outside of goal range
                 if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:

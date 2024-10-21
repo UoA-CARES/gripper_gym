@@ -74,7 +74,9 @@ class GripperTrainer:
         self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
 
         # TODO: reconcile deep file_path dependency
-        self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H:%M:%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{env_config.reward_function}'
+
+        self.file_path = f'{alg_config.algorithm}-{training_config.seeds}-{env_config.reward_function}-{alg_config.hidden_size}-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}'
+
         self.record = Record(
             glob_log_dir="../gripper-training",
             log_dir=self.file_path,
@@ -176,6 +178,9 @@ class GripperTrainer:
             episode_num = 0
             done = False
             truncated = False
+
+            frame = self.environment.grab_rendered_frame()
+            self.record.log_video(frame)
 
             start_time = time.time()
             while not done and not truncated:
