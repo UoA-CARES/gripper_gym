@@ -8,7 +8,7 @@ import numpy as np
 
 from configurations import GripperEnvironmentConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from gripper_trainer import GripperTrainer
+from gripper_trainer_episode_reward import GripperTrainer
 
 from cares_reinforcement_learning.util import RLParser
 from cares_reinforcement_learning.util import configurations as cares_cfg
