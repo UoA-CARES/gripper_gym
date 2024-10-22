@@ -350,7 +350,7 @@ class GripperTrainer:
 
             if (total_step_counter + 1) % number_steps_per_evaluation == 0:
                 evaluate = True
-            if (total_step_counter + 1) % RF == 0 and memory.long_term_memory.get_length() > 0:  # and total_step_counter >10000:
+            if (total_step_counter + 1) % RF == 0 and self.memory.long_term_memory.get_length() > 0:  # and total_step_counter >10000:
                 number_of_crucial_episodes = RN + 1
 
             if done or truncated:
