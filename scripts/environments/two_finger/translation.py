@@ -706,7 +706,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     #overriding method
     def _reward_function_staged(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
-        self.goal_reward = 10 # goal reward minus the potential moving away negativity
+        self.goal_reward = 4 # goal reward minus the potential moving away negativity
         done = False
 
         reward = 0
@@ -749,7 +749,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
                 # S3: Reach Goal
                 if goal_distance_after <= self.goal_range:
                     logging.info("----------Reached the Goal!----------")
-                    reward += self.goal_reward
+                    reward += self.goal_reward + 1
 
                 # S3: No move outside of goal range
                 if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:

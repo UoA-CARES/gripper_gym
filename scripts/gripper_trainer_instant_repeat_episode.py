@@ -75,7 +75,7 @@ class GripperTrainer:
 
         # TODO: reconcile deep file_path dependency
 
-        self.file_path = f'{alg_config.algorithm}-{training_config.seeds}-{env_config.reward_function}-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-episode'
+        self.file_path = f'{alg_config.algorithm}-{training_config.seeds}-{env_config.reward_function}-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-instant'
 
         self.record = Record(
             glob_log_dir="../gripper-training",
@@ -226,11 +226,11 @@ class GripperTrainer:
         """
         start_time = time.time()
         ### Episodic parameters
-        RN=5
-        RF= 500
+        RN=4
         crucial_steps = False
         number_of_crucial_episodes = 0
         crucial_actions = []
+        max_reward = -float('inf')
 
         max_steps_training = self.alg_config.max_steps_training
         max_steps_exploration = self.alg_config.max_steps_exploration
@@ -287,10 +287,7 @@ class GripperTrainer:
                 action = self.environment.normalize(action_env)
             elif crucial_steps and number_of_crucial_episodes > 0:
 
-                if episode_timesteps == 1:
-                    crucial_actions, crucial_states, crucial_episode_num, episode_steps, crucial_rewards, crucial_total_reward = self.memory.long_term_memory.get_crucial_path(
-                        1)
-                action = crucial_actions[episode_timesteps - 1]
+                action = crucial_actions[episode_timesteps - 1]  
                 action_env = self.environment.denormalize(action)
                 if episode_timesteps >= len(crucial_actions):
                     crucial_steps = False
@@ -350,9 +347,7 @@ class GripperTrainer:
 
             if (total_step_counter + 1) % number_steps_per_evaluation == 0:
                 evaluate = True
-            if (total_step_counter + 1) % RF == 0 and self.memory.long_term_memory.get_length() > 0:  # and total_step_counter >10000:
-                number_of_crucial_episodes = RN + 1
-
+           
             if done or truncated:
                 episode_time = time.time() - episode_start
                 self.record.log_train(
@@ -367,24 +362,22 @@ class GripperTrainer:
                 if number_of_crucial_episodes == 1:
                     crucial_steps = False
                     number_of_crucial_episodes -= 1
+                    
                 elif number_of_crucial_episodes > 1:
-
                     number_of_crucial_episodes -= 1
                     crucial_steps = True
+                    
                 # When try to find episode with higher episode reward
-                elif (not self.memory.long_term_memory.is_full() and not crucial_steps and episode_reward > 0) or \
-                         (
-                                     not crucial_steps and self.memory.long_term_memory.is_full() and episode_reward > self.memory.long_term_memory.get_min_reward() and episode_timesteps > 2):
-                    print(
-                        f"Addddddddddddddddddd episode num:{episode_num}, episode reward:{episode_reward}, min_reward:{self.memory.long_term_memory.get_min_reward()}")
-
-
+                elif ( not crucial_steps and episode_reward > max_reward):
+                    print(f" finddddd higher episode reward:{episode_reward}, max_reward:{max_reward}")
                     states, actions, rewards, next_states, dones, episode_nums, episode_steps = self.memory.short_term_memory.sample_complete_episode(
                         episode_num, episode_timesteps)
-
-                    self.memory.long_term_memory.add(
-                        [episode_num, episode_reward, states, actions, rewards, next_states, dones, episode_nums,
-                         episode_steps])
+                    max_reward = episode_reward
+                    crucial_actions = actions
+                    number_of_crucial_episodes = RN
+                    crucial_steps = True
+                    
+                    
                 if evaluate & (total_step_counter > max_steps_exploration):
                     logging.info("*************--Evaluation Loop--*************")
                     self.evaluation_loop(total_step_counter)
