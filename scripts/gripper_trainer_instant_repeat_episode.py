@@ -75,7 +75,7 @@ class GripperTrainer:
 
         # TODO: reconcile deep file_path dependency
 
-        self.file_path = f'{alg_config.algorithm}-{training_config.seeds}-{env_config.reward_function}-{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-instant'
+        self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
 
         self.record = Record(
             glob_log_dir="../gripper-training",
@@ -176,11 +176,10 @@ class GripperTrainer:
             episode_timesteps = 0
             episode_reward = 0
             episode_num = 0
+            success_counter = 0
+            steps_to_success = 0
             done = False
             truncated = False
-
-            frame = self.environment.grab_rendered_frame()
-            self.record.log_video(frame)
 
             start_time = time.time()
             while not done and not truncated:
@@ -190,12 +189,16 @@ class GripperTrainer:
                 action_env = self.environment.denormalize(action)
 
                 state, reward, done, truncated = self.environment_step(action_env)
+                if reward >= self.environment.goal_reward:
+                    if steps_to_success == 0:
+                        steps_to_success = self.environment.step_counter
+                    success_counter += 1
 
                 start_time = time.time()
 
-                if eval_episode_counter == 0:
-                    frame = self.environment.grab_rendered_frame()
-                    self.record.log_video(frame)
+                # record all eps in the same timestamp video
+                frame = self.environment.grab_rendered_frame()
+                self.record.log_video(frame)
 
                 episode_reward += reward
 
@@ -204,12 +207,16 @@ class GripperTrainer:
                         total_steps=total_steps + 1,
                         episode=eval_episode_counter + 1,
                         episode_reward=episode_reward,
+                        success_counter = success_counter,
+                        steps_to_success = steps_to_success,
                         display=self.env_config.display,
                     )
 
                     state = self.environment_reset()
                     episode_reward = 0
                     episode_timesteps = 0
+                    success_counter = 0
+                    steps_to_success = 0
                     episode_num += 1
 
                 # Run loop at a fixed frequency
@@ -268,7 +275,9 @@ class GripperTrainer:
         episode_timesteps = 0
         episode_reward = 0
         episode_num = 0
-
+        success_counter = 0
+        steps_to_success = 0
+        
         evaluate = False
 
         state = self.environment_reset()
@@ -285,6 +294,7 @@ class GripperTrainer:
 
                 # algorithm range [-1, 1]
                 action = self.environment.normalize(action_env)
+            
             elif crucial_steps and number_of_crucial_episodes > 0:
 
                 action = crucial_actions[episode_timesteps - 1]  
@@ -292,7 +302,7 @@ class GripperTrainer:
                 if episode_timesteps >= len(crucial_actions):
                     crucial_steps = False
                     print(f"Reach end of crucial path for {RN - number_of_crucial_episodes} time")
-
+                    
             else:
                 noise_scale *= noise_decay
                 noise_scale = max(min_noise, noise_scale)
@@ -308,6 +318,10 @@ class GripperTrainer:
             next_state, reward_extrinsic, done, truncated = self.environment_step(
                 action_env
             )
+            if reward_extrinsic >= self.environment.goal_reward:
+                if steps_to_success == 0:
+                    steps_to_success = self.environment.step_counter
+                success_counter += 1
 
             env_start_time = time.time()
 
@@ -319,13 +333,13 @@ class GripperTrainer:
 
             total_reward = reward_extrinsic + intrinsic_reward
 
-            self.memory.short_term_memory.add(
-            state,
-            action,
-            total_reward,
-            next_state,
-            done,
-            episode_num,
+            self.memory.short_
+            state,            
+            action,           
+            total_reward,     
+            next_state,       
+            done,             
+            episode_num,      
             episode_timesteps)
 
             state = next_state
@@ -347,7 +361,7 @@ class GripperTrainer:
 
             if (total_step_counter + 1) % number_steps_per_evaluation == 0:
                 evaluate = True
-           
+
             if done or truncated:
                 episode_time = time.time() - episode_start
                 self.record.log_train(
@@ -356,28 +370,29 @@ class GripperTrainer:
                     episode_steps=episode_timesteps,
                     episode_reward=episode_reward,
                     episode_time=episode_time,
+                    success_counter = success_counter,
+                    steps_to_success = steps_to_success,
                     display=self.env_config.display,
                 )
+                
+                if number_of_crucial_episodes == 1:                                                                                                           
+                    crucial_steps = False                                                                                                                     
+                    number_of_crucial_episodes -= 1                                                                                                           
+                                                                                                                                                            
+                elif number_of_crucial_episodes > 1:                                                                                                          
+                    number_of_crucial_episodes -= 1                                                                                                           
+                    crucial_steps = True                                                                                                                      
+                                                                                                                                                            
+                # When try to find episode with higher episode reward                                                                                         
+                elif ( not crucial_steps and episode_reward > max_reward):                                                                                    
+                    print(f" finddddd higher episode reward:{episode_reward}, max_reward:{max_reward}")                                                       
+                    states, actions, rewards, next_states, dones, episode_nums, episode_steps = self.memory.short_term_memory.sample_complete_episode(        
+                        episode_num, episode_timesteps)                                                                                                       
+                    max_reward = episode_reward                                                                                                               
+                    crucial_actions = actions                                                                                                                 
+                    number_of_crucial_episodes = RN                                                                                                           
+                    crucial_steps = True                                                                                                                      
 
-                if number_of_crucial_episodes == 1:
-                    crucial_steps = False
-                    number_of_crucial_episodes -= 1
-                    
-                elif number_of_crucial_episodes > 1:
-                    number_of_crucial_episodes -= 1
-                    crucial_steps = True
-                    
-                # When try to find episode with higher episode reward
-                elif ( not crucial_steps and episode_reward > max_reward):
-                    print(f" finddddd higher episode reward:{episode_reward}, max_reward:{max_reward}")
-                    states, actions, rewards, next_states, dones, episode_nums, episode_steps = self.memory.short_term_memory.sample_complete_episode(
-                        episode_num, episode_timesteps)
-                    max_reward = episode_reward
-                    crucial_actions = actions
-                    number_of_crucial_episodes = RN
-                    crucial_steps = True
-                    
-                    
                 if evaluate & (total_step_counter > max_steps_exploration):
                     logging.info("*************--Evaluation Loop--*************")
                     self.evaluation_loop(total_step_counter)
@@ -390,6 +405,8 @@ class GripperTrainer:
                 episode_timesteps = 0
                 episode_reward = 0
                 episode_num += 1
+                success_counter = 0
+                steps_to_success = 0
                 episode_start = time.time()
 
             # Run loop at a fixed frequency
