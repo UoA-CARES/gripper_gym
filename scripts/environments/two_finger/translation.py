@@ -658,7 +658,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
     #overriding method
     def _reward_function_delta_change(self, previous_environment_info, current_environment_info):
         self.goal_range = 25
-        self.goal_reward = 5 # goal reward minus the potential moving away negativity
+        self.goal_reward = 4 # goal reward minus the potential moving away negativity
         done = False
 
         reward = 0
@@ -675,25 +675,23 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         
         logging.debug(f"Distance to Goal: {goal_distance_after}")
         
-        if object_current[1] < self.bottom_line:
+        if object_current[1] <= self.bottom_line:
+            reward = 1
+
             delta_changes = goal_distance_before - goal_distance_after
 
-            if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
-                reward = -1
-            else:
-                raw_reward = delta_changes / goal_distance_before
-                if raw_reward >= 1:
-                    reward = 1
-                elif raw_reward <= -1:
-                    reward = -1
-                else:
-                    reward = raw_reward
+            raw_reward = delta_changes / goal_distance_before
+
+            reward += 1 if raw_reward >= 1 else -1 if raw_reward <= -1 else raw_reward
 
             if goal_distance_after <= self.goal_range:
                 logging.info("----------Reached the Goal!----------")
-                reward += self.goal_reward
+                reward += self.goal_reward + 1
+
+            if goal_distance_after >= self.goal_range and -self.noise_tolerance <= delta_changes <= self.noise_tolerance:
+                reward += -0.5
         else:
-            reward = -2
+            reward = -1
 
         logging.debug(
             f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
