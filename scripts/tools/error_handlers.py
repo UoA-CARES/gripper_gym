@@ -4,7 +4,7 @@ from time import sleep
 logging.basicConfig(level=logging.INFO)
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.Servo import DynamixelServoError
-from environments.environment import EnvironmentError
+from scripts.environments.environment import EnvironmentError
 from pytimedinput import timedInput
 
 WAIT_TIME = 5  # wait 5 seconds for auto sequences
