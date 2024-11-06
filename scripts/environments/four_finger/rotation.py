@@ -15,6 +15,9 @@ from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.touch_sensors.sensor import Sensor
 from cares_lib.dynamixel.Servo import Servo
+from cares_lib.touch_sensors import server
+import threading
+import socket
 import dynamixel_sdk as dxl
 
 
@@ -26,8 +29,29 @@ class FourFingerRotation(FourFingerTask):
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
     ):
-        
+        self.port = gripper_config.touch_port
         super().__init__(env_config, gripper_config)
+        if self.touch_config == True:
+            print("Starting server...")
+            self.tactile_server = server.Server(port=self.port, baudrate=921600)
+            server_thread = threading.Thread(target=self.tactile_server.start)
+            server_thread.daemon = True
+            server_thread.start()
+            print("Server started in separate thread.")
+            while not self.tactile_server.server_ready:
+                time.sleep(0.5)
+            print("Server ready.")
+
+    def get_values(self, host='localhost', server_port=65432):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+                client_socket.connect((host, server_port))
+                data = client_socket.recv(1024).decode('utf-8')
+                return data
+        except ConnectionRefusedError:
+            return "Failed to connect to the server."
+        except ConnectionResetError:
+            return "Connection to the server was reset."
 
     # overriding method
     def _choose_goal(self):
@@ -200,10 +224,13 @@ class FourFingerRotationFlat(FourFingerRotation):
         Computes the reward based on the target goal and the change in yaw.
 
         Returns:
-            reward: reward = 10 if at goal, negative when rotated away from goal(max of -1), otherwise a fraction of the progress made to the goal.
-                    reward = -1 if the cube is not rotated at all.
+            reward: Dependedent on the reward function.
+                -Function 1: Distance-to-Goal reward function
+                -Function 2: Delta Difference to goal reward function
+                -Function 3: Combined Reward Function
+            done: True if the goal is reached.
         """
-        self.goal_reward = 150
+        self.goal_reward = 300
         Precision_tolerance = 15
         done = False
         logging.debug(previous_environment_info['poses']['object']['orientation'])
@@ -213,22 +240,51 @@ class FourFingerRotationFlat(FourFingerRotation):
         current_yaw = current_environment_info['poses']['object']['orientation'][2]
         current_yaw_diff = self.rotation_min_difference(self.goal[0], current_yaw)
 
+        #Touch-based reward
+        if self.touch_config == True:
+            print("Getting touch data in reward function")
+            touch_data = self.get_values()
+            print(touch_data)
+
+        ##### Function 1
         # # Distance-to-Goal reward function
-        # reward = round(-current_yaw_diff+90, 2)
+        # reward = round(-current_yaw_diff, 2)
         # # Reward set ot 0 if no cube no move
         # if abs(current_yaw_diff - previous_yaw_diff)<5:
         #     reward = 0
         #     print(reward)
         #     return reward, done
+        #####
 
-        # Delta Difference to goal reward function
+        ##### Function 2
+        # # Delta Difference to goal reward function
+        # delta = ((previous_yaw_diff - current_yaw_diff)/previous_yaw_diff) * 100
+        # reward = round(delta, 2)
+        # if reward < -100:
+        #     reward = -100
+        # # Negatively rewards for not moving the cube
+        # if abs(delta) < 1:
+        #     reward = -10
+        #####
+           
+        ##### Function 3
+        # Combined Reward Function
+        A = 0.1 # Distance Coeffecient
+        B = 1 # Delta Coefficient
+        # Delta
         delta = ((previous_yaw_diff - current_yaw_diff)/previous_yaw_diff) * 100
-        reward = round(delta, 2)
-        if reward < -100:
-            reward = -100
-        
-        if abs(delta) < 1:
-            reward = -10
+        delta_reward = round(delta, 2)
+        if delta_reward < -100:
+            delta_reward = -100
+        elif abs(delta_reward) < 1:
+            delta_reward = 0
+        # Distance
+        distance_reward = round((-current_yaw_diff+180), 2)
+        if abs(current_yaw_diff - previous_yaw_diff) < 1:
+            distance_reward = 0
+        reward = round((A*distance_reward) + (B*delta_reward), 2)
+        #####
+
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward = self.goal_reward
@@ -285,19 +341,16 @@ class FourFingerRotationSuspended(FourFingerRotation):
 
         # TODO implement object centred check
         self.elevator.move(self.elevator_min) # Lower Elevator
-        self.gripper.wiggle_home()
+        self.gripper.wiggle_home() # Home Gripper 
         # Opening Grasp
-        self.gripper.move([2100,1500,3000,2100,1500,3000,2100,1500,3000,2100,1500,3000])
         self.elevator.move(self.elevator_max) # Raise Elevator
-        self.gripper.move([2100,2048,2500,2100,2048,2500,2100,2048,2500,2100,2048,2500])
-        # Closing Grasp
-        self.gripper.home()
+        self.gripper.move([2048,2200,2350,2048,2200,2350,2048,2200,2350,2048,2200,2350]) #Grasp Cube
         self.elevator.move(self.elevator_min)
         
         
-
     def _reward_function(self, previous_environment_info, current_environment_info):
         done = False
+        self.goal_reward = 300
 
         reward = 1
         return reward, done
