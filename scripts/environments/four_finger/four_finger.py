@@ -15,6 +15,7 @@ class FourFingerTask(Environment):
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
     ):
+        self.touch_config = gripper_config.touch
         super().__init__(env_config, gripper_config)
 
     @abstractmethod
