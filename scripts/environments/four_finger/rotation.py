@@ -18,6 +18,7 @@ from cares_lib.dynamixel.Servo import Servo
 from cares_lib.touch_sensors import server
 import threading
 import socket
+import ast
 import dynamixel_sdk as dxl
 
 
@@ -30,23 +31,30 @@ class FourFingerRotation(FourFingerTask):
         gripper_config: GripperConfig,
     ):
         self.port = gripper_config.touch_port
+        self.num_sensors = gripper_config.num_touch_sensors
         super().__init__(env_config, gripper_config)
         if self.touch_config == True:
+            # Initialise Touch Sensors
             print("Starting server...")
             self.tactile_server = server.Server(port=self.port, baudrate=921600)
-            server_thread = threading.Thread(target=self.tactile_server.start)
-            server_thread.daemon = True
-            server_thread.start()
+            self.server_thread = threading.Thread(target=self.tactile_server.start)
+            self.server_thread.daemon = True
+            self.server_thread.start()
             print("Server started in separate thread.")
             while not self.tactile_server.server_ready:
                 time.sleep(0.5)
             print("Server ready.")
 
+            # Create Sensor data object
+            self.sensor_baselines = self.tactile_server.baseline_values
+            print("Baselines: ", self.sensor_baselines)
+        
     def get_values(self, host='localhost', server_port=65432):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
                 client_socket.connect((host, server_port))
                 data = client_socket.recv(1024).decode('utf-8')
+                data = ast.literal_eval(data)
                 return data
         except ConnectionRefusedError:
             return "Failed to connect to the server."
@@ -232,6 +240,8 @@ class FourFingerRotationFlat(FourFingerRotation):
         """
         self.goal_reward = 300
         Precision_tolerance = 15
+        touch_reward = 0
+        touch_threshold = 1
         done = False
         logging.debug(previous_environment_info['poses']['object']['orientation'])
         
@@ -243,8 +253,17 @@ class FourFingerRotationFlat(FourFingerRotation):
         #Touch-based reward
         if self.touch_config == True:
             print("Getting touch data in reward function")
-            touch_data = self.get_values()
-            print(touch_data)
+            print("Max values after step: ", self.tactile_server.max_values)
+            # Do reward based on touch sensor values
+            for i in range(self.num_sensors):
+                delta_touch = self.tactile_server.max_values[i] - self.sensor_baselines[i]
+                if delta_touch < touch_threshold:
+                    continue
+                else:
+                    touch_reward += 1
+                    print("Touch Reward: ", touch_reward)
+            # Reset the max values after each step
+            self.tactile_server.max_values = self.sensor_baselines
 
         ##### Function 1
         # # Distance-to-Goal reward function
@@ -288,7 +307,7 @@ class FourFingerRotationFlat(FourFingerRotation):
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward = self.goal_reward
-        print(reward)
+        print(f"Reward: ",reward)
         return reward, done
     
 class FourFingerRotationSuspended(FourFingerRotation):
