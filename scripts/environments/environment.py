@@ -216,6 +216,7 @@ class Environment(ABC):
     def reboot(self):
         logging.info("Rebooting Gripper")
         self.gripper.reboot()
+        self._lift_reboot()
 
     @abstractmethod
     def _reset(self):
@@ -239,4 +240,9 @@ class Environment(ABC):
 
     @abstractmethod
     def _render_environment(self, state, environment_info):
+        pass
+
+    
+    @abstractmethod
+    def _lift_reboot(self):
         pass
