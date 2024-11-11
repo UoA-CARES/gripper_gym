@@ -116,7 +116,6 @@ def main():
     gripper_trainer = GripperTrainer(
         env_config, training_config, alg_config, gripper_config
     )
-
     print(gripper_trainer)
 
     # # Load Models and just evaluate

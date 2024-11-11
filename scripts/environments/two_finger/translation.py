@@ -464,7 +464,6 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self.max_value = 3500 if gripper_config.gripper_id == 1 else 4000
         self.min_value = 0
         self.goal_line = 45
-        print(abs(self.reference_position[1]))
         self.bottom_line = 130#90 + abs(self.reference_position[1])
 
         self.total_moves = 0
