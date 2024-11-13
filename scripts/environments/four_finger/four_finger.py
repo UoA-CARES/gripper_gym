@@ -5,6 +5,7 @@ import logging
 import tools.utils as utils
 from configurations import GripperEnvironmentConfig
 from environments.environment import Environment
+import time
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
@@ -27,6 +28,7 @@ class FourFingerTask(Environment):
         pass
 
     def _get_marker_poses(self, cube_ids):
+        missednum = 0
         while True:
             logging.debug(f"Attempting to Detect markers: {cube_ids}")
             frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
@@ -40,7 +42,13 @@ class FourFingerTask(Environment):
             # This will check that at least one of the markers are detected correctly
             if any(ids in list(marker_poses.keys()) for ids in cube_ids):
                 break
-                
+            else:
+                logging.error(f"Markers not detected!")
+                missednum += 1
+                time.sleep(0.5)
+                if missednum > 10:
+                    logging.error(f"Markers not detected after 10 attempts, resetting environment.")
+                    self.reset()
         return marker_poses
 
 
@@ -81,3 +89,6 @@ class FourFingerTask(Environment):
         #TODO
 
         return image
+    
+    def _lift_reboot(self):
+        pass
