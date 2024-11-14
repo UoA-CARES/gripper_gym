@@ -1,0 +1,21 @@
+{
+    "domain": "two_finger",
+    "task": "translation",
+    "elevator_device_name": "/dev/ttyUSB0",
+    "elevator_baudrate": 1000000,
+    "elevator_servo_id": 10,
+    "elevator_limits": [8000, 1500],
+    "camera_id": 2,
+    "camera_matrix": "/home/anyone/PycharmProjects/gripper_gym/scripts/config_examples/group2/camera_matrix.txt",
+    "camera_distortion": "/home/anyone/PycharmProjects/gripper_gym/scripts/config_examples/group2/camera_distortion.txt",
+    "is_inverted": true,
+    "episode_horizon": 20,
+    "marker_size": 18,
+    "noise_tolerance": 10,
+    "blindable": false,
+    "observation_type": 1,
+    "goal_selection_method": 0,
+    "actuated_target": false,
+    "display": true,
+    "touch": false
+}

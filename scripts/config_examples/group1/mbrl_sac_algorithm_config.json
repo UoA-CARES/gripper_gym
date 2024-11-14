@@ -1,5 +1,5 @@
 {
-    "algorithm": "TD3",
+    "algorithm": "DynaSAC",
     "seed": 456,
     "batch_size": 100,
     "buffer_capacity": 1000000,
@@ -7,7 +7,7 @@
 
     "G": 10,
     "plot_freq": 10,
-    "max_steps_exploration": 1000,
+    "max_steps_exploration": 100,
     "max_steps_training": 50000,
 
     "actor_lr": 1e-3,
