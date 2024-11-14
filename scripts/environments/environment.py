@@ -67,7 +67,8 @@ class Environment(ABC):
 
         self.gripper.wiggle_home()
         self.step_counter = 0
-        self.goal_reward = None
+        # self.goal_reward = None
+        self.goal_reward = 0.5
         self.episode_horizon = env_config.episode_horizon
 
         # Pose to normalise the other positions against - consider (0,0)
