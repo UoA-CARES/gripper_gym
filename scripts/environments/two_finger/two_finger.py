@@ -1,9 +1,9 @@
 from abc import abstractmethod
 
 import cv2
-import tools.utils as utils
-from configurations import GripperEnvironmentConfig
-from environments.environment import Environment
+import scripts.tools.utils as utils
+from scripts.configurations import GripperEnvironmentConfig
+from scripts.environments.environment import Environment
 import logging
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig

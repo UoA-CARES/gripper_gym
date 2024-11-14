@@ -3,10 +3,10 @@ import math
 from random import randrange
 import numpy as np
 import cv2
-
-import tools.utils as utils
-from configurations import GripperEnvironmentConfig
-from environments.two_finger.two_finger import TwoFingerTask
+import time
+import scripts.tools.utils as utils
+from scripts.configurations import GripperEnvironmentConfig
+from scripts.environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 from cares_lib.dynamixel.Gripper import GripperError
@@ -15,7 +15,7 @@ from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.touch_sensors.sensor import Sensor
 import dynamixel_sdk as dxl
-import time
+import random
 
 
 class TwoFingerTranslation(TwoFingerTask):
@@ -25,6 +25,8 @@ class TwoFingerTranslation(TwoFingerTask):
         gripper_config: GripperConfig,
     ):
         self.noise_tolerance = env_config.noise_tolerance
+        self.goal_reward = 0.5
+
         logging.debug(
             f"Goal Min: {self.goal_min} Goal Max: {self.goal_max} Tolerance: {self.noise_tolerance}"
         )
@@ -47,8 +49,8 @@ class TwoFingerTranslation(TwoFingerTask):
         x1, y1 = self.goal_min
         x2, y2 = self.goal_max
 
-        goal_x = randrange(x1, x2)
-        goal_y = randrange(y1, y2)
+        goal_x = randrange(int(x1), int(x2))
+        goal_y = randrange(int(y1), int(y2))
 
         return [goal_x, goal_y]
 
@@ -289,6 +291,8 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         while not (self.gripper.is_home()):
             if self.elevator.current_goal_position() < (self.elevator_max-100):
                 self.elevator.move(self.elevator_max)
+            random_init_time = random.random() * 2
+            time.sleep(random_init_time)
             self.elevator.move(self.elevator_min)
             self.gripper.home()
 
