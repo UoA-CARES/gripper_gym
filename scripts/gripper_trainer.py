@@ -2,16 +2,27 @@ import logging
 import time
 from datetime import datetime
 
+import torch
+from rl_zoo.networks.mfrl.tqc.critic_tqc import TQC_Critic
+from rl_zoo.networks.mfrl.common.actor import Actor
+from rl_zoo.networks.mfrl.sac.critic_sac import SAC_Critic
+from rl_zoo.networks.world_models.ensembles import Ensemble_Dyna_One_Reward
+from rl_zoo.networks.world_models.deterministic import Single_PNN
+import numpy as np
+
+from rl_zoo.agents.mfrl.sac import SAC
+from rl_zoo.agents.mfrl.tqc import TQC
+from rl_zoo.agents.mbrl import Dyna_SAC_NS
+
 import tools.error_handlers as erh
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from cares_reinforcement_learning.memory.memory_factory import MemoryFactory
+from rl_zoo.utils import PrioritizedReplayBuffer
 from cares_reinforcement_learning.util import Record
 from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
 )
-from cares_reinforcement_learning.util.network_factory import NetworkFactory
 from configurations import GripperEnvironmentConfig
 from environments.environment_factory import EnvironmentFactory
 
@@ -20,11 +31,11 @@ logging.basicConfig(level=logging.INFO)
 
 class GripperTrainer:
     def __init__(
-        self,
-        env_config: GripperEnvironmentConfig,
-        training_config: TrainingConfig,
-        alg_config: AlgorithmConfig,
-        gripper_config: GripperConfig,
+            self,
+            env_config: GripperEnvironmentConfig,
+            training_config: TrainingConfig,
+            alg_config: AlgorithmConfig,
+            gripper_config: GripperConfig,
     ) -> None:
         """
         Initializes the GripperTrainer class for training gripper actions in various environments.
@@ -59,19 +70,47 @@ class GripperTrainer:
         logging.info(
             f"Observation Space: {observation_size} Action Space: {action_num}"
         )
+        ########################################################################
+        algo = 'mbrl'
+        actor = Actor(observation_size, action_num)
+        self.memory = PrioritizedReplayBuffer()
 
-        network_factory = NetworkFactory()
-        self.agent = network_factory.create_network(
-            observation_size, action_num, alg_config
-        )
-        # file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-06-24-11:40:16-gripper2-rotation-TD3-5-position11"
-        # model_name = "TD3-checkpoint-1000"
-        # self.agent.load_models(file_path, model_name)
-        # print('Successfully Loaded models')
+        if algo == 'sac':
+            critic = SAC_Critic(observation_size, action_num)
+            self.agent = SAC(actor, critic, gamma=0.99,
+                             tau=0.005, reward_scale=1.0,
+                             action_num=action_num,
+                             actor_lr=3e-4, critic_lr=3e-4,
+                             alpha_lr=0.001, device="cuda")
+        if algo == 'tqc':
+            critic = TQC_Critic(observation_size=observation_size,
+                                num_actions=action_num,
+                                num_critics=5,
+                                num_quantiles=25)
+            self.agent = TQC(actor, critic, gamma=0.99,
+                             tau=0.005, action_num=action_num,
+                             top_quantiles_to_drop=2,
+                             actor_lr=3e-4, critic_lr=3e-4,
+                             alpha_lr=0.001, device="cuda")
+        if algo == 'mbrl':
+            self.world_model = Single_PNN(observation_size,
+                                                action_num,
+                                                device='cuda')
+            critic = SAC_Critic(observation_size, action_num)
+            self.agent = Dyna_SAC_NS(actor_network=actor,
+                                     critic_network=critic,
+                                     world_network=self.world_model,
+                                     gamma=0.99,
+                                     tau=0.005,
+                                     action_num=action_num,
+                                     actor_lr=1e-3,
+                                     critic_lr=1e-3,
+                                     alpha_lr=0.001,
+                                     num_samples=20,
+                                     horizon=1,
+                                     device='cuda')
 
-        memory_factory = MemoryFactory()
-        memory_kwargs = {}
-        self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
+        ########################################################################
 
         # TODO: reconcile deep file_path dependency
 
@@ -150,81 +189,6 @@ class GripperTrainer:
                 self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
-    def evaluation_loop(self, total_steps, num_eval_steps=None, num_eval_episodes=None):
-        """
-        Executes an evaluation loop to assess the agent's performance.
-
-        Args:
-        total_counter: The total step count leading up to the current evaluation loop.
-        file_name: Name of the file where evaluation results will be saved.
-        historical_reward_evaluation: Historical rewards list that holds average rewards from previous evaluations.
-
-        The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
-        """
-        number_eval_episodes = int(self.train_config.number_eval_episodes)
-
-        if num_eval_steps is not None:
-            self.environment.episode_horizon = num_eval_steps
-            number_eval_episodes = num_eval_episodes
-
-        state = self.environment_reset()
-
-        frame = self.environment.grab_rendered_frame()
-        self.record.start_video(total_steps + 1, frame, fps=1)
-
-        for eval_episode_counter in range(number_eval_episodes):
-            episode_timesteps = 0
-            episode_reward = 0
-            episode_num = 0
-            success_counter = 0
-            steps_to_success = 0
-            done = False
-            truncated = False
-
-            start_time = time.time()
-            while not done and not truncated:
-                episode_timesteps += 1
-
-                action = self.agent.select_action_from_policy(state, evaluation=True)
-                action_env = self.environment.denormalize(action)
-
-                state, reward, done, truncated = self.environment_step(action_env)
-                if reward >= self.environment.goal_reward:
-                    if steps_to_success == 0:
-                        steps_to_success = self.environment.step_counter
-                    success_counter += 1
-
-                start_time = time.time()
-
-                # record all eps in the same timestamp video
-                frame = self.environment.grab_rendered_frame()
-                self.record.log_video(frame)
-
-                episode_reward += reward
-
-                if done or truncated:
-                    self.record.log_eval(
-                        total_steps=total_steps + 1,
-                        episode=eval_episode_counter + 1,
-                        episode_reward=episode_reward,
-                        success_counter = success_counter,
-                        steps_to_success = steps_to_success,
-                        display=self.env_config.display,
-                    )
-
-                    state = self.environment_reset()
-                    episode_reward = 0
-                    episode_timesteps = 0
-                    success_counter = 0
-                    steps_to_success = 0
-                    episode_num += 1
-
-                # Run loop at a fixed frequency
-                if self.gripper_config.action_type == "velocity":
-                    self.dynamic_sleep(start_time)
-
-        self.record.stop_video()
-
     def train(self):
         """
         This method is the main training loop that is called to start training the agent a given environment.
@@ -237,32 +201,6 @@ class GripperTrainer:
         max_steps_exploration = self.alg_config.max_steps_exploration
         number_steps_per_evaluation = self.train_config.number_steps_per_evaluation
         number_steps_per_train_policy = self.alg_config.number_steps_per_train_policy
-
-        # Algorthm specific attributes - e.g. NaSA-TD3 dd
-        intrinsic_on = (
-            bool(self.alg_config.intrinsic_on)
-            if hasattr(self.alg_config, "intrinsic_on")
-            else False
-        )
-
-        min_noise = (
-            self.alg_config.min_noise if hasattr(self.alg_config, "min_noise") else 0
-        )
-        noise_decay = (
-            self.alg_config.noise_decay
-            if hasattr(self.alg_config, "noise_decay")
-            else 1.0
-        )
-        noise_scale = (
-            self.alg_config.noise_scale
-            if hasattr(self.alg_config, "noise_scale")
-            else 0.1
-        )
-
-        logging.info(
-            f"Training {max_steps_training} Exploration {max_steps_exploration} Evaluation {number_steps_per_evaluation}"
-        )
-
         batch_size = self.alg_config.batch_size
         G = self.alg_config.G
 
@@ -279,27 +217,9 @@ class GripperTrainer:
         episode_start = time.time()
         for total_step_counter in range(int(max_steps_training)):
             episode_timesteps += 1
-
-            if total_step_counter < max_steps_exploration:
-                message = f"Running Exploration Steps {total_step_counter}/{max_steps_exploration}"
-                logging.info(message)
-
-                action_env = self.environment.sample_action()
-
-                # algorithm range [-1, 1]
-                action = self.environment.normalize(action_env)
-            else:
-                noise_scale *= noise_decay
-                noise_scale = max(min_noise, noise_scale)
-
-                # returns a 1D array with range [-1, 1], only TD3 has noise scale
-                action = self.agent.select_action_from_policy(
-                    state, noise_scale=noise_scale
-                )
-
-                # gripper range
-                action_env = self.environment.denormalize(action)
-
+            action = self.agent.select_action_from_policy(state)
+            # gripper range
+            action_env = self.environment.denormalize(action)
             next_state, reward_extrinsic, done, truncated = self.environment_step(
                 action_env
             )
@@ -309,16 +229,7 @@ class GripperTrainer:
                 success_counter += 1
 
             env_start_time = time.time()
-
-            intrinsic_reward = 0
-            if intrinsic_on and total_step_counter > max_steps_exploration:
-                intrinsic_reward = self.agent.get_intrinsic_reward(
-                    state, action, next_state
-                )
-
-            total_reward = reward_extrinsic + intrinsic_reward
-
-            self.memory.add(state, action, total_reward, next_state, done)
+            self.memory.add(state, action, reward_extrinsic, next_state, done)
 
             state = next_state
             # Note we only track the extrinsic reward for the episode for proper comparison
@@ -330,8 +241,16 @@ class GripperTrainer:
                 total_step_counter >= max_steps_exploration
                 and total_step_counter % number_steps_per_train_policy == 0
             ):
+                if len(self.memory) == (batch_size + 1):
+                    statistics = self.memory.get_statistics()
+                    self.agent.set_statistics(statistics)
                 for _ in range(G):
-                    info = self.agent.train_policy(self.memory, batch_size)
+                    self.agent.train_policy(self.memory, batch_size)
+
+                for _ in range(int(10)):
+                    self.agent.train_world_model(memory=self.memory,
+                                                 batch_size=batch_size)
+
             end_train_time = time.time()
             logging.debug(
                 f"Time to run training loop {end_train_time-start_train_time} \n"
@@ -341,6 +260,10 @@ class GripperTrainer:
                 evaluate = True
 
             if done or truncated:
+                if len(self.memory) > batch_size:
+                    statistics = self.memory.get_statistics()
+                    self.agent.set_statistics(statistics)
+
                 episode_time = time.time() - episode_start
                 self.record.log_train(
                     total_steps=total_step_counter + 1,
@@ -378,6 +301,84 @@ class GripperTrainer:
         print("Training time:", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
         if self.gripper_config.touch:
             self.environment.Touch.stop()
+
+    def evaluation_loop(self, total_steps, num_eval_steps=None,
+                        num_eval_episodes=None):
+        """
+        Executes an evaluation loop to assess the agent's performance.
+
+        Args:
+        total_counter: The total step count leading up to the current evaluation loop.
+        file_name: Name of the file where evaluation results will be saved.
+        historical_reward_evaluation: Historical rewards list that holds average rewards from previous evaluations.
+
+        The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
+        """
+        model_errors = 0.0
+        eval_steps = 0
+        number_eval_episodes = int(self.train_config.number_eval_episodes)
+        state = self.environment_reset()
+        frame = self.environment.grab_rendered_frame()
+        self.record.start_video(total_steps + 1, frame, fps=1)
+        for eval_episode_counter in range(number_eval_episodes):
+            episode_timesteps = 0
+            episode_reward = 0
+            episode_num = 0
+            success_counter = 0
+            steps_to_success = 0
+            done = False
+            truncated = False
+            while not done and not truncated:
+                episode_timesteps += 1
+                action = self.agent.select_action_from_policy(state,
+                                                              evaluation=True)
+                action_env = self.environment.denormalize(action)
+                next_state, reward, done, truncated = self.environment_step(
+                    action_env)
+
+                # Simple Evaluate the world model
+                tensor_state = torch.FloatTensor(state).to('cuda').unsqueeze(
+                    dim=0)
+                tensor_action = torch.FloatTensor(action_env).to(
+                    'cuda').unsqueeze(dim=0)
+                pred_next, _, _, _ = self.agent.world_model.pred_next_states(
+                    tensor_state, tensor_action)
+                pred_next = pred_next.squeeze().detach().cpu().numpy()
+                pred_next = np.concatenate((pred_next, next_state[-2:]))
+                mse_loss = np.mean((pred_next - state) ** 2) ** 0.5
+                model_errors += mse_loss
+                eval_steps += 1
+
+                if reward >= self.environment.goal_reward:
+                    if steps_to_success == 0:
+                        steps_to_success = self.environment.step_counter
+                    success_counter += 1
+                start_time = time.time()
+                # record all eps in the same timestamp video
+                frame = self.environment.grab_rendered_frame()
+                self.record.log_video(frame)
+                episode_reward += reward
+                state = next_state
+                if done or truncated:
+                    self.record.log_eval(
+                        total_steps=total_steps + 1,
+                        episode=eval_episode_counter + 1,
+                        episode_reward=episode_reward,
+                        success_counter=success_counter,
+                        steps_to_success=steps_to_success,
+                        display=self.env_config.display,
+                    )
+                    state = self.environment_reset()
+                    episode_reward = 0
+                    episode_timesteps = 0
+                    success_counter = 0
+                    steps_to_success = 0
+                    episode_num += 1
+                # Run loop at a fixed frequency
+                if self.gripper_config.action_type == "velocity":
+                    self.dynamic_sleep(start_time)
+        logging.info(f"Model Error: {model_errors / eval_steps}")
+        self.record.stop_video()
 
     def dynamic_sleep(self, env_start):
         process_time = time.time() - env_start
