@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-import random
+from random import randrange
 import time
 
 import numpy as np
@@ -33,6 +33,13 @@ class FourFingerTranslation(FourFingerTask):
         self.port = gripper_config.touch_port
         self.num_sensors = gripper_config.num_touch_sensors
         self.socket_port = gripper_config.socket_port
+
+        self.boundary_size = 75
+        self.image_size = [640,480]
+        self.image_centre = [(self.image_size[0]/2), (self.image_size[1]/2)]
+        self.goal_min = [(self.image_centre[0]-self.boundary_size),(self.image_centre[1]-self.boundary_size)]
+        self.goal_max = [(self.image_centre[0]+self.boundary_size),(self.image_centre[1]+self.boundary_size)]
+
         super().__init__(env_config, gripper_config)
         if self.touch_config == True:
             # Initialise Touch Sensors
@@ -69,12 +76,14 @@ class FourFingerTranslation(FourFingerTask):
         Returns:
             Chosen goal.
         """
-        []
+        x1, y1 = self.goal_min
+        x2, y2 = self.goal_max
 
-        # Random Angle Goal Generation
-        new_goal = random.randrange(0,361,1)
-        print("new goal" , new_goal)
-        return [new_goal]
+        goal_x = randrange(x1, x2)
+        goal_y = randrange(y1, y2)
+        
+        print("New Goal: ", goal_x, goal_y)
+        return [goal_x, goal_y]
         
 
     def _environment_info_to_state(self, environment_info):
@@ -108,55 +117,21 @@ class FourFingerTranslation(FourFingerTask):
             image, self.camera.camera_matrix, self.camera.camera_distortion
         )
 
-        # Image Size X640 Y480
-        position = environment_state['poses']['object']['position']
-        pixel_x = self.camera.camera_matrix[0,0] * position[0]/320 + self.camera.camera_matrix[0,2]
-        pixel_y = self.camera.camera_matrix[1,1] * position[1]/240 + self.camera.camera_matrix[1,2]
-        centre = [round(pixel_x), round(pixel_y)]
+        # Draw the goal boundary, X640 Y480
+        boundary_colour = (255,0,0)
+        print("Centre: ", self.image_centre, "Top Left: ", self.goal_min, "Bottom Right: ", self.goal_max)
+        # Draw the goal
+        goal_colour = (0,0,255)
+        cv2.circle(image, self.goal, 10, goal_colour, -1)
+        # Draw the boundary box
+        cv2.rectangle(
+            image,
+            (int(self.goal_min[0]), int(self.goal_min[1])),             # Top left corner
+            (int(self.goal_max[0]), int(self.goal_max[1])),         # Bottom right corner
+            boundary_colour,
+            2,
+        )
 
-        # TODO put arrow_end calculation into function
-        yaw = environment_state['poses']['object']['orientation'][2]
-        lineSize = 35
-        arrow_end_x = position[0] + (math.sin(math.radians(yaw)) * lineSize)
-        arrow_end_x = self.camera.camera_matrix[0,0] * arrow_end_x/320 + self.camera.camera_matrix[0,2]
-        arrow_end_y = position[1] - (math.cos(math.radians(yaw)) * lineSize)
-        arrow_end_y = self.camera.camera_matrix[1,1] * arrow_end_y/240 + self.camera.camera_matrix[1,2]
-        arrow_end_axis = [round(arrow_end_x), round(arrow_end_y)]
-
-        arrow_end_x = position[0] + (math.sin(math.radians(self.goal[0])) * lineSize)
-        arrow_end_x = self.camera.camera_matrix[0,0] * arrow_end_x/320 + self.camera.camera_matrix[0,2]
-        arrow_end_y = position[1] - (math.cos(math.radians(self.goal[0])) * lineSize)
-        arrow_end_y = self.camera.camera_matrix[1,1] * arrow_end_y/240 + self.camera.camera_matrix[1,2]
-        arrow_end_goal = [round(arrow_end_x), round(arrow_end_y)]
-        
-        # Places a circle at the centre of the cube marker
-        cv2.circle(image, centre, 5, (0,0,255), -1)
-        # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.
-        cv2.arrowedLine(image, centre, arrow_end_axis, (255,0,0), 3)
-        # Draws an arrow of the markers desired X axis placement, i.e. the goal angle
-        cv2.arrowedLine(image, centre, arrow_end_goal, (255,0,0), 3)
-
-        cv2.putText(
-                image,
-                f"{'Current'}",
-                arrow_end_axis,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                2,
-                cv2.LINE_AA,
-            )
-        
-        cv2.putText(
-                image,
-                f"{'Goal'}",
-                arrow_end_goal,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                2,
-                cv2.LINE_AA,
-            )
 
         return image
     
@@ -237,6 +212,7 @@ class FourFingerTranslationFlat(FourFingerTranslation):
         done = False
         touch_threshold = 1
         touch_reward = 50
+        num_touch = 0
         # Combined Distance-Delta Reward Function
         # Combined Reward Function
         A = 0.1 # Distance Coeffecient
@@ -321,8 +297,6 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
         self.elevator.move(self.elevator_min) # Lower Elevator
         self.gripper.wiggle_home() # Home Gripper 
         # Opening Grasp
-        print("Reestablishing Baseline Values")
-        time.sleep(5)
         if self.gripper_config.touch:
             time.sleep(1)
             self.tactile_server.baseline_values = self.get_values(self.gripper_config.socket_port)
@@ -343,7 +317,7 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
             reward += self.goal_reward
         if self.touch_config == True:
             num_touch = 0
-            touch_threshold = 1
+            touch_threshold = 2
             touch_reward = 50
             print("Getting touch data in reward function")
             print("Max values after step: ", self.tactile_server.max_values)

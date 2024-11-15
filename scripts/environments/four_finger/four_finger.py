@@ -19,6 +19,8 @@ class FourFingerTask(Environment):
         self.touch_config = gripper_config.touch
         super().__init__(env_config, gripper_config)
 
+        self.reset_counter = 0
+
     @abstractmethod
     def _reset(self):
         pass
@@ -29,6 +31,7 @@ class FourFingerTask(Environment):
 
     def _get_marker_poses(self, cube_ids):
         missednum = 0
+        reset_limit = 3
         while True:
             logging.debug(f"Attempting to Detect markers: {cube_ids}")
             frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
@@ -48,7 +51,13 @@ class FourFingerTask(Environment):
                 time.sleep(0.5)
                 if missednum > 10:
                     logging.error(f"Markers not detected after 10 attempts, resetting environment.")
+                    self.reset_counter += 1
                     self.reset()
+                if self.reset_counter > reset_limit:
+                    input("Reset limit reached, manually reset cube and press any key to continue.")
+                    print("Continuing...")
+                    self.reset_counter = 0
+                    
         return marker_poses
 
 

@@ -377,8 +377,6 @@ class FourFingerRotationSuspended(FourFingerRotation):
         self.elevator.move(self.elevator_min) # Lower Elevator
         self.gripper.wiggle_home() # Home Gripper 
         # Opening Grasp
-        print("Reestablishing Baseline Values")
-        time.sleep(5)
         if self.gripper_config.touch:
             time.sleep(1)
             self.tactile_server.baseline_values = self.get_values(self.gripper_config.socket_port)
@@ -399,7 +397,7 @@ class FourFingerRotationSuspended(FourFingerRotation):
             reward += self.goal_reward
         if self.touch_config == True:
             num_touch = 0
-            touch_threshold = 1
+            touch_threshold = 2
             touch_reward = 50
             print("Getting touch data in reward function")
             print("Max values after step: ", self.tactile_server.max_values)
