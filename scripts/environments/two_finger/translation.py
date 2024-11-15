@@ -25,7 +25,7 @@ class TwoFingerTranslation(TwoFingerTask):
         gripper_config: GripperConfig,
     ):
         self.noise_tolerance = env_config.noise_tolerance
-        self.goal_reward = 0.5
+        self.goal_reward = 800
 
         logging.debug(
             f"Goal Min: {self.goal_min} Goal Max: {self.goal_max} Tolerance: {self.noise_tolerance}"
@@ -436,7 +436,7 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         # For Translation. noise_tolerance is 15, it would affect the performance to some extent.
         if goal_distance_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward = 80
+            reward = self.goal_reward
         elif goal_distance_after > self.goal_range:
             reward = 0
         else:

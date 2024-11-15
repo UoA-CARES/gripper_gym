@@ -71,16 +71,17 @@ class GripperTrainer:
             f"Observation Space: {observation_size} Action Space: {action_num}"
         )
         ########################################################################
-        algo = 'mbrl'
+        algo = alg_config.algorithm
+        print(algo)
         actor = Actor(observation_size, action_num)
         self.memory = PrioritizedReplayBuffer()
 
-        if algo == 'sac':
+        if algo == 'SAC':
             critic = SAC_Critic(observation_size, action_num)
             self.agent = SAC(actor, critic, gamma=0.99,
                              tau=0.005, reward_scale=1.0,
                              action_num=action_num,
-                             actor_lr=3e-4, critic_lr=3e-4,
+                             actor_lr=1e-3, critic_lr=1e-3,
                              alpha_lr=0.001, device="cuda")
         if algo == 'tqc':
             critic = TQC_Critic(observation_size=observation_size,
@@ -92,7 +93,7 @@ class GripperTrainer:
                              top_quantiles_to_drop=2,
                              actor_lr=3e-4, critic_lr=3e-4,
                              alpha_lr=0.001, device="cuda")
-        if algo == 'mbrl':
+        if algo == 'DynaSAC':
             self.world_model = Single_PNN(observation_size,
                                                 action_num,
                                                 device='cuda')
@@ -106,7 +107,7 @@ class GripperTrainer:
                                      actor_lr=1e-3,
                                      critic_lr=1e-3,
                                      alpha_lr=0.001,
-                                     num_samples=20,
+                                     num_samples=40,
                                      horizon=1,
                                      device='cuda')
 
@@ -117,7 +118,6 @@ class GripperTrainer:
         self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
 
         self.record = Record(
-            glob_log_dir="../gripper-training",
             log_dir=self.file_path,
             algorithm=alg_config.algorithm,
             task=env_config.task,
@@ -247,7 +247,7 @@ class GripperTrainer:
                 for _ in range(G):
                     self.agent.train_policy(self.memory, batch_size)
 
-                for _ in range(int(10)):
+                for _ in range(int(20)):
                     self.agent.train_world_model(memory=self.memory,
                                                  batch_size=batch_size)
 
@@ -315,7 +315,7 @@ class GripperTrainer:
         The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
         """
         model_errors = 0.0
-        eval_steps = 0
+        eval_steps = 1
         number_eval_episodes = int(self.train_config.number_eval_episodes)
         state = self.environment_reset()
         frame = self.environment.grab_rendered_frame()
@@ -336,18 +336,19 @@ class GripperTrainer:
                 next_state, reward, done, truncated = self.environment_step(
                     action_env)
 
-                # Simple Evaluate the world model
-                tensor_state = torch.FloatTensor(state).to('cuda').unsqueeze(
-                    dim=0)
-                tensor_action = torch.FloatTensor(action_env).to(
-                    'cuda').unsqueeze(dim=0)
-                pred_next, _, _, _ = self.agent.world_model.pred_next_states(
-                    tensor_state, tensor_action)
-                pred_next = pred_next.squeeze().detach().cpu().numpy()
-                pred_next = np.concatenate((pred_next, next_state[-2:]))
-                mse_loss = np.mean((pred_next - state) ** 2) ** 0.5
-                model_errors += mse_loss
-                eval_steps += 1
+                if self.alg_config.algorithm == 'DynaSAC':
+                    # Simple Evaluate the world model
+                    tensor_state = torch.FloatTensor(state).to('cuda').unsqueeze(
+                        dim=0)
+                    tensor_action = torch.FloatTensor(action_env).to(
+                        'cuda').unsqueeze(dim=0)
+                    pred_next, _, _, _ = self.agent.world_model.pred_next_states(
+                        tensor_state, tensor_action)
+                    pred_next = pred_next.squeeze().detach().cpu().numpy()
+                    pred_next = np.concatenate((pred_next, next_state[-2:]))
+                    mse_loss = np.mean((pred_next - state) ** 2) ** 0.5
+                    model_errors += mse_loss
+                    eval_steps += 1
 
                 if reward >= self.environment.goal_reward:
                     if steps_to_success == 0:
