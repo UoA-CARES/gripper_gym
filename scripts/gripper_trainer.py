@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime
+
 
 import tools.error_handlers as erh
 from cares_lib.dynamixel.Gripper import GripperError
@@ -25,6 +25,7 @@ class GripperTrainer:
         training_config: TrainingConfig,
         alg_config: AlgorithmConfig,
         gripper_config: GripperConfig,
+        record: Record,
     ) -> None:
         """
         Initializes the GripperTrainer class for training gripper actions in various environments.
@@ -42,6 +43,8 @@ class GripperTrainer:
         self.train_config = training_config
         self.alg_config = alg_config
         self.gripper_config = gripper_config
+
+        self.record = record
 
         env_factory = EnvironmentFactory()
 
@@ -64,33 +67,10 @@ class GripperTrainer:
         self.agent = network_factory.create_network(
             observation_size, action_num, alg_config
         )
-        # file_path = "/home/koen/Documents/Gripper-Code/gripper-training/2024-06-24-11:40:16-gripper2-rotation-TD3-5-position11"
-        # model_name = "TD3-checkpoint-1000"
-        # self.agent.load_models(file_path, model_name)
-        # print('Successfully Loaded models')
 
         memory_factory = MemoryFactory()
         memory_kwargs = {}
         self.memory = memory_factory.create_memory(alg_config, **memory_kwargs)
-
-        # TODO: reconcile deep file_path dependency
-
-        self.file_path = f'{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}-gripper{gripper_config.gripper_id}-{env_config.task}-{alg_config.algorithm}-{training_config.seeds}-{gripper_config.action_type}'
-
-        self.record = Record(
-            glob_log_dir="../gripper-training",
-            log_dir=self.file_path,
-            algorithm=alg_config.algorithm,
-            task=env_config.task,
-            plot_frequency=training_config.plot_frequency,
-            checkpoint_frequency=training_config.checkpoint_frequency,
-            network=self.agent,
-        )
-
-        self.record.save_config(env_config, "env_config")
-        self.record.save_config(alg_config, "alg_config")
-        self.record.save_config(training_config, "training_config")
-        self.record.save_config(gripper_config, "gripper_config")
 
     def environment_reset(self):
         """
@@ -110,13 +90,12 @@ class GripperTrainer:
 
             logging.error(error_message)
             if erh.handle_gripper_error_home(
-                self.environment, error_message, self.file_path
+                self.environment, error_message, file_path='None'
             ):
                 # might keep looping if it keep having issues
                 return self.environment_reset()
             else:
                 self.environment.gripper.close()
-                self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
     def environment_step(self, action_env):
@@ -140,14 +119,14 @@ class GripperTrainer:
             error_message = f"Failed to step environment with message: {error}"
             logging.error(error_message)
             if erh.handle_gripper_error_home(
-                self.environment, error_message, self.file_path
+                self.environment, error_message, file_path='None'
             ):
                 state = self.environment.reset()
                 # Truncated to True to skip the episode
                 return state, 0, False, True
             else:
                 self.environment.gripper.close()
-                self.agent.save_models("error_models", self.file_path)
+                self.agent
                 exit(1)
 
     def evaluation_loop(self, total_steps, num_eval_steps=None, num_eval_episodes=None):
@@ -155,10 +134,8 @@ class GripperTrainer:
         Executes an evaluation loop to assess the agent's performance.
 
         Args:
-        total_counter: The total step count leading up to the current evaluation loop.
-        file_name: Name of the file where evaluation results will be saved.
-        historical_reward_evaluation: Historical rewards list that holds average rewards from previous evaluations.
-
+        total_steps: The total step count leading up to the current evaluation loop.
+        
         The method aims to evaluate the agent's performance by running the environment for a set number of steps and recording the average reward.
         """
         number_eval_episodes = int(self.train_config.number_eval_episodes)
@@ -377,7 +354,7 @@ class GripperTrainer:
         elapsed_time = end_time - start_time
         print("Training time:", time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
         if self.gripper_config.touch:
-            self.environment.Touch.stop()
+            self.environment.tactile_server.stop()
 
     def dynamic_sleep(self, env_start):
         process_time = time.time() - env_start

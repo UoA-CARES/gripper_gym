@@ -5,6 +5,8 @@ from environments.two_finger.translation import (
 from environments.two_finger.rotation import TwoFingerRotationTask
 from environments.four_finger.rotation import FourFingerRotationFlat
 from environments.four_finger.rotation import FourFingerRotationSuspended
+from environments.four_finger.translation import FourFingerTranslationFlat
+from environments.four_finger.translation import FourFingerTranslationSuspended
 
 
 class EnvironmentFactory:
@@ -35,7 +37,9 @@ class EnvironmentFactory:
                 environment = TwoFingerRotationTask(env_config, gripper_config)
         if domain == "four_finger":
             if task == "translation":
-                environment = None
+                environment = FourFingerTranslationFlat(env_config, gripper_config)
+            elif task == "suspended_translation":
+                environment = FourFingerTranslationSuspended(env_config, gripper_config)
             elif task == "rotation":
                 environment = FourFingerRotationFlat(env_config, gripper_config)
             elif task == "suspended_rotation":
