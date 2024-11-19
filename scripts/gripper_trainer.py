@@ -90,13 +90,12 @@ class GripperTrainer:
 
             logging.error(error_message)
             if erh.handle_gripper_error_home(
-                self.environment, error_message, self.file_path
+                self.environment, error_message, file_path='None'
             ):
                 # might keep looping if it keep having issues
                 return self.environment_reset()
             else:
                 self.environment.gripper.close()
-                self.agent.save_models("error_models", self.file_path)
                 exit(1)
 
     def environment_step(self, action_env):
@@ -120,14 +119,14 @@ class GripperTrainer:
             error_message = f"Failed to step environment with message: {error}"
             logging.error(error_message)
             if erh.handle_gripper_error_home(
-                self.environment, error_message, self.file_path
+                self.environment, error_message, file_path='None'
             ):
                 state = self.environment.reset()
                 # Truncated to True to skip the episode
                 return state, 0, False, True
             else:
                 self.environment.gripper.close()
-                self.agent.save_models("error_models", self.file_path)
+                self.agent
                 exit(1)
 
     def evaluation_loop(self, total_steps, num_eval_steps=None, num_eval_episodes=None):
