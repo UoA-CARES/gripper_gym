@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Python 3.11.4](https://img.shields.io/badge/python-3.11.4-blue.svg)](https://www.python.org/downloads/release/python-3114/)
+[![Python 3.10.12](https://img.shields.io/badge/python-3.10.12-blue.svg)](https://www.python.org/downloads/release/python-31012/)
 [![Pytorch 1.13.1](https://img.shields.io/badge/pytorch-1.13.1-blue)](https://pytorch.org/)
 
 </div>
