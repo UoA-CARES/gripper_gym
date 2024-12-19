@@ -45,10 +45,6 @@ class FourFingerRotation(FourFingerTask):
             while not self.tactile_server.server_ready:
                 time.sleep(0.5)
             print("Server ready.")
-
-            # Create Sensor data object
-            self.sensor_baselines = self.tactile_server.baseline_values
-            print("Baselines: ", self.sensor_baselines)
         
     def get_values(self, server_port, host='localhost'):
         try:
@@ -103,10 +99,22 @@ class FourFingerRotation(FourFingerTask):
 
         # Touch Sensor Values
         if self.touch_config == True:
-            for val in self.tactile_server.max_values:
-                state += [val]
+            if self.tactile_server.error == True:
+                print("Touch sensor server error. Rebooting server...")
+                self.tactile_server.stop()
+                time.sleep(10)
+                self.tactile_server = server.Server(port="/dev/Arduino_Flat", baudrate=921600, socket_port=self.socket_port)
+                self.server_thread = threading.Thread(target=self.tactile_server.start)
+                self.server_thread.daemon = True
+                self.server_thread.start()
+                time.sleep(10)
+                while not self.tactile_server.server_ready:
+                    time.sleep(1)
+                self.tactile_server.error = False
+            # for val in self.tactile_server.max_values:
+            #     state += [val]
 
-        logging.debug("State: ", state)
+        logging.debug(state)
         return [round(val, 2) for val in state]
 
     def _render_environment(self, state, environment_state):
@@ -233,7 +241,7 @@ class FourFingerRotationFlat(FourFingerRotation):
         self.gripper.wiggle_home()
         if self.gripper_config.touch:
             time.sleep(1)
-            self.tactile_server.baseline_values = self.get_values(self.gripper_config.socket_port)
+            self.tactile_server.baseline_values = self.get_values(self.socket_port)
             print("Baseline values updated", self.tactile_server.baseline_values)
 
 
@@ -254,6 +262,7 @@ class FourFingerRotationFlat(FourFingerRotation):
         num_touch = 0
         touch_threshold = 1
         touch_reward = 50
+        # touch_included = True
         done = False
         logging.debug(previous_environment_info['poses']['object']['orientation'])
         
@@ -273,14 +282,14 @@ class FourFingerRotationFlat(FourFingerRotation):
         #####
 
         ##### Function 2
-        # # Delta Difference to goal reward function
+        # Delta Difference to goal reward function
         # delta = ((previous_yaw_diff - current_yaw_diff)/previous_yaw_diff) * 100
         # reward = round(delta, 2)
         # if reward < -100:
         #     reward = -100
-        # # Negatively rewards for not moving the cube
+        # # No reward for not moving the cube
         # if abs(delta) < 1:
-        #     reward = -10
+        #     reward = 0
         #####
            
         ##### Function 3
@@ -294,6 +303,8 @@ class FourFingerRotationFlat(FourFingerRotation):
             delta_reward = -100
         elif abs(delta_reward) < 1:
             delta_reward = 0
+        # if delta_reward < 0:        # If reward is negative set flag to ignore touch sensor reward
+        #     touch_included = False
         # Distance
         distance_reward = round((-current_yaw_diff+180), 2)
         if abs(current_yaw_diff - previous_yaw_diff) < 1:
@@ -302,13 +313,13 @@ class FourFingerRotationFlat(FourFingerRotation):
         #####
 
         #Touch-based reward
-        if self.touch_config == True:
-            if delta_reward != 0 and distance_reward != 0:
+        if self.touch_config == True:# and touch_included == True:
+            if reward != 0:
                 print("Getting touch data in reward function")
                 print("Max values after step: ", self.tactile_server.max_values)
                 # Do reward based on touch sensor values
                 for i in range(self.num_sensors):
-                    delta_touch = self.tactile_server.max_values[i] - self.sensor_baselines[i]
+                    delta_touch = self.tactile_server.max_values[i] - self.tactile_server.baseline_values[i]
                     if delta_touch < touch_threshold:
                         continue
                     else:
@@ -317,7 +328,7 @@ class FourFingerRotationFlat(FourFingerRotation):
                 reward = round(reward, 2)
                 print("Number of touch sensors triggered: ", num_touch, "Reward: ", num_touch*touch_reward)
                 # Reset the max values after each step
-                self.tactile_server.max_values = self.sensor_baselines
+                self.tactile_server.max_values = self.tactile_server.baseline_values
 
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
@@ -379,7 +390,7 @@ class FourFingerRotationSuspended(FourFingerRotation):
         # Opening Grasp
         if self.gripper_config.touch:
             time.sleep(1)
-            self.tactile_server.baseline_values = self.get_values(self.gripper_config.socket_port)
+            self.tactile_server.baseline_values = self.get_values(self.socket_port)
             print("Baseline values updated", self.tactile_server.baseline_values)
         self.elevator.move(self.elevator_max) # Raise Elevator
         self.gripper.move([2048,2200,2350,2048,2200,2350,2048,2200,2350,2048,2200,2350]) #Grasp Cube
@@ -403,7 +414,7 @@ class FourFingerRotationSuspended(FourFingerRotation):
             print("Max values after step: ", self.tactile_server.max_values)
             # Do reward based on touch sensor values
             for i in range(self.num_sensors):
-                delta_touch = self.tactile_server.max_values[i] - self.sensor_baselines[i]
+                delta_touch = self.tactile_server.max_values[i] - self.tactile_server.baseline_values[i]
                 if delta_touch < touch_threshold:
                     continue
                 else:
@@ -414,7 +425,7 @@ class FourFingerRotationSuspended(FourFingerRotation):
                 reward = round(reward, 2)
             print("Number of touch sensors triggered: ", num_touch, "Reward: ", num_touch*touch_reward)
             # Reset the max values after each step
-            self.tactile_server.max_values = self.sensor_baselines
+            self.tactile_server.max_values = self.tactile_server.baseline_values
 
         print(f"Total Reward: ",reward)
         return reward, done
