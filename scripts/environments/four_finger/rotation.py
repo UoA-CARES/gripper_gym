@@ -111,8 +111,8 @@ class FourFingerRotation(FourFingerTask):
                 while not self.tactile_server.server_ready:
                     time.sleep(1)
                 self.tactile_server.error = False
-            # for val in self.tactile_server.max_values:
-            #     state += [val]
+            for val in self.tactile_server.max_values:
+                state += [val]
 
         logging.debug(state)
         return [round(val, 2) for val in state]
@@ -261,7 +261,7 @@ class FourFingerRotationFlat(FourFingerRotation):
         Precision_tolerance = 15
         num_touch = 0
         touch_threshold = 1
-        touch_reward = 50
+        touch_reward = 20
         # touch_included = True
         done = False
         logging.debug(previous_environment_info['poses']['object']['orientation'])
@@ -273,7 +273,7 @@ class FourFingerRotationFlat(FourFingerRotation):
 
         ##### Function 1
         # # Distance-to-Goal reward function
-        # reward = round(-current_yaw_diff, 2)
+        # reward = round(-current_yaw_diff+180, 2)
         # # Reward set ot 0 if no cube no move
         # if abs(current_yaw_diff - previous_yaw_diff)<5:
         #     reward = 0

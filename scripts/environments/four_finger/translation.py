@@ -65,8 +65,10 @@ class FourFingerTranslation(FourFingerTask):
     def _pose_to_state(self, pose):
         state = []
         position = pose["position"]
-        state.append(position[0] - self.reference_position[0])  # X
-        state.append(position[1] - self.reference_position[1])  # Y
+        state.append(round(position[0] - self.reference_position[0]))  # X
+        state.append(round(position[1] - self.reference_position[1]))  # Y
+        if self.task == "suspended_translation":
+            state.append(round(position[2])) # Z
         return state
 
     # overriding method
@@ -92,7 +94,7 @@ class FourFingerTranslation(FourFingerTask):
         # Servo Angles - Steps
         state += environment_info["gripper"]["positions"]
 
-        # Object position - XY 
+        # Object position - XYZ 
         state += self._pose_to_state(environment_info["poses"]["object"])
 
         # Goal
@@ -112,10 +114,10 @@ class FourFingerTranslation(FourFingerTask):
                 while not self.tactile_server.server_ready:
                     time.sleep(1)
                 self.tactile_server.error = False
-            # for val in self.tactile_server.max_values:
-            #     state += [val]
+            for val in self.tactile_server.max_values:
+                state += [val]
                 
-        logging.debug("State: ", state)
+        logging.debug(f"State: {state}")
         return [round(val, 2) for val in state]
 
     def _render_environment(self, state, environment_state):
@@ -411,6 +413,7 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
         self.elevator_max = env_config.elevator_limits[1] # Extended Elevator Position
 
         self.total_moves = 0
+        self.total_lifts = 0
 
     def init_elevator(self):
         self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
@@ -454,7 +457,7 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
             self.tactile_server.baseline_values = self.get_values(self.socket_port)
             print("Baseline values updated", self.tactile_server.baseline_values)
         self.elevator.move(self.elevator_max) # Raise Elevator
-        self.gripper.move([2048,2200,2350,2048,2200,2350,2048,2200,2350,2048,2200,2350]) #Grasp Cube
+        self.gripper.move([2048,2250,2350,2048,2250,2350,2048,2250,2350,2048,2250,2350]) #Grasp Cube
         self.elevator.move(self.elevator_min)
         
         
@@ -463,6 +466,7 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
         reward = 0
         self.goal_reward = 400
         height_threshold = 200
+        movement_threshold = 10
         if self.iscubedropped:
             current_height = 230
         else:
@@ -481,10 +485,11 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
         print("Previous Goal Distance: ", previous_goal_distance, "Current Goal Distance: ", current_goal_distance)
 
         # Touch-based reward oustside of height threshold check
+        # if self.step_counter == 5 or current_height < height_threshold:
         if self.touch_config == True:
                 num_touch = 0
-                touch_threshold = 1
-                touch_reward = 50
+                touch_threshold = 3
+                touch_reward = 20
                 print("Getting touch data in reward function")
                 print("Max values after step: ", self.tactile_server.max_values)
                 # Do reward based on touch sensor values
@@ -524,33 +529,33 @@ class FourFingerTranslationSuspended(FourFingerTranslation):
         
         ##### Staged Reward Function
         # Check if cube above height threshold
-        if current_height < height_threshold:
-            # Stage 1
-            reward += 100
+        # if current_height < height_threshold:
+        #     # Stage 1
+        #     reward += 100
+        #     self.total_lifts += 1
 
-            delta = previous_goal_distance - current_goal_distance
-            print("Delta: ", delta)
+        #     delta = previous_goal_distance - current_goal_distance
+        #     print("Delta: ", delta)
 
-            if self.total_moves < 50:
-                #Stage 2
-                if -10 < delta < 10:
-                    # Did not move cube
-                    reward -= 50
-                else:
-                    # Did move cube
-                    reward += 50
-                    self.total_moves += 1
-                    print("Moved", self.total_moves)
-            else:
-                #Stage 3
-                raw_reward = (delta/previous_goal_distance)
-                print("Raw Reward: ", raw_reward*self.goal_reward)
-                reward += round((raw_reward*self.goal_reward), 2)
-        else:
-            # Cube fallen threshold
-            reward = -100
+        #     if self.total_moves < 50 and self.total_lifts > 5:
+        #         #Stage 2
+        #         if -movement_threshold < delta < movement_threshold:
+        #             # Did not move cube
+        #             reward -= 50
+        #         else:
+        #             # Did move cube
+        #             reward += 50
+        #             self.total_moves += 1
+        #     elif self.total_moves > 50 and self.total_lifts > 5:
+        #         #Stage 3
+        #         raw_reward = (delta/previous_goal_distance)
+        #         print("Raw Reward: ", raw_reward*self.goal_reward)
+        #         reward += round((raw_reward*self.goal_reward), 2)
+        # else:
+        #     # Cube fallen threshold
+        #     reward += -100
 
-
+        print("Moved", self.total_moves, "Lifts", self.total_lifts)
         # Check if the goal is reached
         if current_goal_distance < self.noise_tolerance and current_height < height_threshold:
                 reward = self.goal_reward
