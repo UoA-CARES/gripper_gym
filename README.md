@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Python 3.10.12](https://img.shields.io/badge/python-3.10.12-blue.svg)](https://www.python.org/downloads/release/python-31012/)
+[![Python 3.11.4](https://img.shields.io/badge/python-3.11.4-blue.svg)](https://www.python.org/downloads/release/python-3114/)
 [![Pytorch 1.13.1](https://img.shields.io/badge/pytorch-1.13.1-blue)](https://pytorch.org/)
 
 </div>
@@ -14,7 +14,7 @@
 </div>
 
 <div align="center">
-This repository contains the code used to control and train the grippers (Two-finger and Three-Finger) currently being designed and used in the <a href="https://cares.blogs.auckland.ac.nz/">CARES lab</a> at the <a href="https://www.auckland.ac.nz">The University of Auckland</a>. 
+This repository contains the code used to control and train the grippers (Two-finger, Three-Finger and Four-Finger) currently being designed and used in the <a href="https://cares.blogs.auckland.ac.nz/">CARES lab</a> at the <a href="https://www.auckland.ac.nz">The University of Auckland</a>. 
 While being written for this specific system, it also intends to be applicable to many dynamixel servo systems with minor changes to the code.
 
 <br/>
@@ -23,9 +23,9 @@ See the gripper in action, learning to rotate the valve by 90 degrees:
 <br/>
 <br/>
 
-| Exploration Phase                                                                      | During Training                                                                     | Final Policy                                                                      |
+| Two-Finger                                                                     | Three-Finger                                                                     | Four-Finger                                                                      |
 | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| <img src="readme_wiki_media/exploration_phase_final.gif" alt="explore" height="500px"> | <img src="readme_wiki_media/during_training_final.gif" alt="during" height="500px"> | <img src="readme_wiki_media/trained_policy_final.gif" alt="final" height="500px"> |
+| <img src="readme_wiki_media/two_finger_sus.png" alt="Two-Finger" height="500px"> | <img src="readme_wiki_media/trained_policy_final.gif" alt="Three-Finger " height="500px"> | <img src="readme_wiki_media/four-finger-sus.jpg" alt="Four-Finger" height="500px"> |
 
 </div>
 
@@ -73,7 +73,8 @@ A list of items required to build the grippers can be found in [Grippers BOM](ht
 
 ### STL files
 
-3D printed parts for both grippers can be found in [Two-Finger STL](https://drive.google.com/drive/folders/1AuBA8254ImEZFrz9au1Tdciz5qx39S2c?usp=share_link) and [Three-Finger STL](https://drive.google.com/drive/folders/1AuBA8254ImEZFrz9au1Tdciz5qx39S2c?usp=share_link).
+3D printed parts for all grippers can be found in [Two-Finger STL](https://drive.google.com/drive/folders/1AuBA8254ImEZFrz9au1Tdciz5qx39S2c?usp=share_link), [Three-Finger STL](https://drive.google.com/drive/folders/1AuBA8254ImEZFrz9au1Tdciz5qx39S2c?usp=share_link),
+[Four-Finger STL](https://onedrive.live.com/?redeem=aHR0cHM6Ly8xZHJ2Lm1zL2YvYy80YTM5ZjFlNDA5YzEzMzZkL0VzWm42WnZqRWVsQmsxOXFLOHlqcHdBQnZ2LXNBcGpRckdYSVV4QmNING9oUkE%5FZT1hc3B3TTI&id=4A39F1E409C1336D%21s9be967c611e341e9935f6a2bcca3a700&cid=4A39F1E409C1336D).
 
 ![Picture of a CAD assembly that shows a rig that is holding a three-fingered gripper with the fingers hanging down](https://user-images.githubusercontent.com/105029122/205157459-ef70f9fb-dcea-464a-af8a-14d66047497a.png)
 
