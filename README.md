@@ -25,7 +25,7 @@ See the gripper in action, learning to rotate the valve by 90 degrees:
 
 | Two-Finger                                                                     | Three-Finger                                                                     | Four-Finger                                                                      |
 | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| <img src="readme_wiki_media/two_finger_sus.png" alt="Two-Finger" height="500px"> | <img src="readme_wiki_media/trained_policy_final.gif" alt="Three-Finger " height="500px"> | <img src="readme_wiki_media/four-finger-sus.jpg" alt="Four-Finger" height="500px"> |
+| <img src="readme_wiki_media/two_finger_sus.jpg" alt="Two-Finger" height="500px"> | <img src="readme_wiki_media/trained_policy_final.gif" alt="Three-Finger " height="500px"> | <img src="readme_wiki_media/four-finger-sus.jpg" alt="Four-Finger" height="500px"> |
 
 </div>
 
