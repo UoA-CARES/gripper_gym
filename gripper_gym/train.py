@@ -12,14 +12,13 @@ from configurations import GripperEnvironmentConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from gripper_trainer import GripperTrainer
 
-from cares_reinforcement_learning.util import Record
-from cares_reinforcement_learning.util import RLParser
-from cares_reinforcement_learning.util.rl_parser import RunConfig
+from cares_reinforcement_learning.util.record import Record
+from cares_reinforcement_learning.util.rl_parser import RLParser, RunConfig
 from cares_reinforcement_learning.util import configurations as cares_cfg
 from cares_reinforcement_learning.util import helpers as hlp
 import yaml
 
-
+    
 def main():
     parser = RLParser(GripperEnvironmentConfig)
     parser.add_configuration("gripper_config", GripperConfig)

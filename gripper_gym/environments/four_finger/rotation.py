@@ -6,9 +6,9 @@ import time
 import numpy as np
 import cv2
 import math
-import tools.utils as utils
-from configurations import GripperEnvironmentConfig
-from environments.four_finger.four_finger import FourFingerTask
+import gripper_gym.tools.utils as utils
+from gripper_gym.configurations import GripperEnvironmentConfig
+from gripper_gym.environments.four_finger.four_finger import FourFingerTask
 from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.STagDetector import STagDetector
 from cares_lib.dynamixel.Gripper import GripperError

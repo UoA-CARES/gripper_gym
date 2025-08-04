@@ -1,12 +1,12 @@
-from environments.two_finger.translation import (
+from gripper_gym.environments.two_finger.translation import (
     TwoFingerTranslationFlat,
     TwoFingerTranslationSuspended,
 )
-from environments.two_finger.rotation import TwoFingerRotationTask
-from environments.four_finger.rotation import FourFingerRotationFlat
-from environments.four_finger.rotation import FourFingerRotationSuspended
-from environments.four_finger.translation import FourFingerTranslationFlat
-from environments.four_finger.translation import FourFingerTranslationSuspended
+from gripper_gym.environments.two_finger.rotation import TwoFingerRotationTask
+from gripper_gym.environments.four_finger.rotation import FourFingerRotationFlat
+from gripper_gym.environments.four_finger.rotation import FourFingerRotationSuspended
+from gripper_gym.environments.four_finger.translation import FourFingerTranslationFlat
+from gripper_gym.environments.four_finger.translation import FourFingerTranslationSuspended
 
 
 class EnvironmentFactory:

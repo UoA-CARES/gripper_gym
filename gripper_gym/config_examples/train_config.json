@@ -1,0 +1,10 @@
+{
+    "seeds": [5],
+    
+    "plot_frequency": 10,
+    "checkpoint_frequency": 250,
+    
+    "episode_horizon": 20,
+    "number_steps_per_evaluation": 500,
+    "number_eval_episodes": 5
+}

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from functools import wraps
 
 import cv2
-from configurations import GripperEnvironmentConfig
+from gripper_gym.configurations import GripperEnvironmentConfig
 
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
@@ -68,7 +68,7 @@ class Environment(ABC):
         self.gripper.wiggle_home()
         self.step_counter = 0
         self.goal_reward = None
-        self.episode_horizon = env_config.episode_horizon
+        #self.episode_horizon = env_config.episode_horizon
 
         # Pose to normalise the other positions against - consider (0,0)
         self.reference_marker_id = env_config.reference_marker_id

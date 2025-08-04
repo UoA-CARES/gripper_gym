@@ -13,7 +13,7 @@ import tools.utils as utils
 from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
-from cares_reinforcement_learning.util import RLParser
+from cares_reinforcement_learning.util.rl_parser import RLParser
 from configurations import GripperEnvironmentConfig
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_reinforcement_learning.util import configurations as cares_cfg

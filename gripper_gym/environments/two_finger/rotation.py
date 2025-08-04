@@ -3,8 +3,8 @@ import random
 from enum import Enum
 
 import numpy as np
-from configurations import GripperEnvironmentConfig
-from environments.two_finger.two_finger import TwoFingerTask
+from gripper_gym.configurations import GripperEnvironmentConfig
+from gripper_gym.environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 

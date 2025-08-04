@@ -6,7 +6,7 @@ import tools.error_handlers as erh
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_reinforcement_learning.memory.memory_factory import MemoryFactory
-from cares_reinforcement_learning.util import Record
+from cares_reinforcement_learning.util.record import Record
 from cares_reinforcement_learning.util.configurations import (
     AlgorithmConfig,
     TrainingConfig,
