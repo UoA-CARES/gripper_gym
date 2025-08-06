@@ -206,9 +206,6 @@ class FourFingerRotation(FourFingerTask):
         cube_ids = [1,2,3,4,5,6]
         detected_ids = [id for id in cube_ids if id in marker_poses]
         cube_pose = (list(marker_poses.values()))[0]
-        # print('HERE')
-        # print(cube_pose)
-        #Output ={'position': array([  2.446419  ,   7.76192778, 285.87887697]), 'orientation': [179.44675100439056, 354.68999719345857, 178.36348896387162], 'r_vec': array([[-0.04422488, -3.04869736, -0.01673843]])}
 
         return cube_pose
     
