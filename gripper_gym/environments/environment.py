@@ -4,11 +4,13 @@ from abc import ABC, abstractmethod
 from functools import wraps
 
 import cv2
-from configurations import GripperEnvironmentConfig
+from gripper_gym.configurations import GripperEnvironmentConfig
 
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 from cares_lib.vision.Camera import Camera
+
+import numpy as np
 
 
 def exception_handler(error_message):
@@ -56,7 +58,7 @@ class Environment(ABC):
         self.task = env_config.task
         self.domain = env_config.domain
         self.display = env_config.display
-        
+            
         self.gripper = Gripper(gripper_config)
         self.is_inverted = env_config.is_inverted
         self.camera = Camera(
@@ -64,6 +66,8 @@ class Environment(ABC):
         )
 
         self.action_type = gripper_config.action_type
+        self.max_action_value = np.array(gripper_config.max_values)
+        self.min_action_value = np.array(gripper_config.min_values)
 
         self.gripper.wiggle_home()
         self.step_counter = 0
@@ -121,7 +125,7 @@ class Environment(ABC):
             min_value = self.gripper.min_values[i]
             max_value = self.gripper.max_values[i]
             action.append(random.randint(min_value, max_value))
-        return action
+        return np.array(action)
 
     def sample_action_velocity(self):
         action = []
@@ -129,7 +133,7 @@ class Environment(ABC):
             action.append(
                 random.randint(self.gripper.velocity_min, self.gripper.velocity_max)
             )
-        return action
+        return np.array(action)
 
     def sample_action(self):
         if self.action_type == "velocity":
@@ -137,7 +141,7 @@ class Environment(ABC):
         return self.sample_action_position()
 
     @exception_handler("Failed to step")
-    def step(self, action):
+    def step(self, action ):
         """
         Takes a step in the environment using the given action and returns the results.
 
@@ -151,6 +155,8 @@ class Environment(ABC):
         truncated: Whether the step was truncated or not.
         """
         self.step_counter += 1
+
+        action = np.round(np.asarray(action)).astype(int) # Convert to int, as sample_action returns float
 
         if self.action_type == "velocity":
             self.gripper.move_velocity_joint(action)
@@ -173,44 +179,7 @@ class Environment(ABC):
 
         truncated = self.step_counter >= self.episode_horizon
         
-        return state, reward, done, truncated
-
-    def denormalize(self, action_norm):
-        # return action in gripper range [-min, +max] for each servo
-        action_gripper = [0 for _ in range(0, len(action_norm))]
-        min_value_in = -1
-        max_value_in = 1
-        for i in range(0, self.gripper.num_motors):
-            if self.action_type == "velocity":
-                servo_min_value = self.gripper.velocity_min
-                servo_max_value = self.gripper.velocity_max
-            else:
-                servo_min_value = self.gripper.min_values[i]
-                servo_max_value = self.gripper.max_values[i]
-            action_gripper[i] = int(
-                (action_norm[i] - min_value_in)
-                * (servo_max_value - servo_min_value)
-                / (max_value_in - min_value_in)
-                + servo_min_value
-            )
-        return action_gripper
-
-    def normalize(self, action_gripper):
-        # return action in algorithm range [-1, +1]
-        max_range_value = 1
-        min_range_value = -1
-        action_norm = [0 for _ in range(0, len(action_gripper))]
-        for i in range(0, self.gripper.num_motors):
-            if self.action_type == "velocity":
-                servo_min_value = self.gripper.velocity_min
-                servo_max_value = self.gripper.velocity_max
-            else:
-                servo_min_value = self.gripper.min_values[i]
-                servo_max_value = self.gripper.max_values[i]
-            action_norm[i] = (action_gripper[i] - servo_min_value) * (
-                max_range_value - min_range_value
-            ) / (servo_max_value - servo_min_value) + min_range_value
-        return action_norm
+        return state, reward, done, truncated, self.current_environment_info
     
     @exception_handler("Environment failed to reboot")
     def reboot(self):

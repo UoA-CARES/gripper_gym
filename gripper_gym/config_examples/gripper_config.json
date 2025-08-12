@@ -1,0 +1,29 @@
+
+{
+    "gripper_type": 0,
+    "gripper_id": 1,
+    "device_name": "/dev/ttyUSB1",
+    "baudrate": 1000000,
+    "servo_type":  "XC330-T288-T",
+    "action_type": "position",
+
+    "torque_limit": 200,
+    "speed_limit":  225,
+    "PWM_limit": 225,
+    
+    "velocity_min": -100,
+    "velocity_max": 100,
+
+    "num_motors": 12,
+    "min_values": [1848,1900,2048,1848,1900,2048,1848,1900,2048,1848,1900,2048],
+    "max_values": [2248,2300,2500,2248,2300,2500,2248,2300,2500,2248,2300,2500],
+
+    "home_sequence": [	[2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048,2048],
+			[2048,2250,2500,2048,2250,2500,2048,2250,2500,2048,2250,2500],
+			[2048,1900,2300,2048,1900,2300,2048,1900,2300,2048,1900,2300]],
+	
+    "touch": false,
+    "touch_port": "/dev/Arduino_Sus",
+    "socket_port": 12345,
+    "num_touch_sensors": 4
+}

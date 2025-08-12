@@ -1,0 +1,8 @@
+{
+    "algorithm": "TQC",
+    
+    "G": 8,
+    "max_steps_exploration": 2000,
+    "max_steps_training": 20000
+    
+}

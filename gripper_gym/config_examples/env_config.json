@@ -1,0 +1,25 @@
+{
+    "domain": "four_finger",
+    "task": "suspended_translation",
+    
+    "camera_id": 0,
+    "blindable": false,
+    "observation_type": 1,
+    
+    "goal_selection_method": 0,
+    "reference_marker_id": 7,
+    "cube_ids": [1,2,3,4,5,6],
+    
+    "marker_size": 40,
+    "noise_tolerance": 15,
+    
+    "elevator_device_name": "/dev/ttyUSB0",
+    "elevator_baudrate": 1000000,
+    "elevator_servo_id": 13,
+    "elevator_limits": [6000,1500],
+    
+    "is_inverted": false,
+    "camera_matrix": "/path/to/camera_matrix.txt",
+    "camera_distortion": "/path/to/camera_distortion.txt"
+
+}

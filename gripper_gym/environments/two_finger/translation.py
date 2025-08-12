@@ -4,9 +4,9 @@ from random import randrange
 import numpy as np
 import cv2
 
-import tools.utils as utils
-from configurations import GripperEnvironmentConfig
-from environments.two_finger.two_finger import TwoFingerTask
+import gripper_gym.tools.utils as utils
+from gripper_gym.configurations import GripperEnvironmentConfig
+from gripper_gym.environments.two_finger.two_finger import TwoFingerTask
 
 from cares_lib.dynamixel.Servo import Servo, DynamixelServoError
 from cares_lib.dynamixel.Gripper import GripperError

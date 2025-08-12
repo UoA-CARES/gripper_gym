@@ -2,9 +2,9 @@ from abc import abstractmethod
 
 import cv2
 import logging
-import tools.utils as utils
-from configurations import GripperEnvironmentConfig
-from environments.environment import Environment
+import gripper_gym.tools.utils as utils
+from gripper_gym.configurations import GripperEnvironmentConfig
+from gripper_gym.environments.environment import Environment
 import time
 
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
