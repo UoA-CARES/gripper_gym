@@ -7,3 +7,4 @@ slack_token.txt
 gripper_example_local.py
 servo_errors
 gripper-training/
+gripper_gym.egg-info/

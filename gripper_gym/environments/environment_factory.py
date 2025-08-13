@@ -6,7 +6,9 @@ from gripper_gym.environments.two_finger.rotation import TwoFingerRotationTask
 from gripper_gym.environments.four_finger.rotation import FourFingerRotationFlat
 from gripper_gym.environments.four_finger.rotation import FourFingerRotationSuspended
 from gripper_gym.environments.four_finger.translation import FourFingerTranslationFlat
-from gripper_gym.environments.four_finger.translation import FourFingerTranslationSuspended
+from gripper_gym.environments.four_finger.translation import (
+    FourFingerTranslationSuspended,
+)
 
 
 class EnvironmentFactory:
@@ -26,7 +28,7 @@ class EnvironmentFactory:
         """
         domain = env_config.domain
         task = env_config.task
-        
+
         environment = None
         if domain == "two_finger":
             if task == "translation":
@@ -44,7 +46,6 @@ class EnvironmentFactory:
                 environment = FourFingerRotationFlat(env_config, gripper_config)
             elif task == "suspended_rotation":
                 environment = FourFingerRotationSuspended(env_config, gripper_config)
-
 
         if environment is None:
             raise ValueError(f"Invalid domain or task: {domain}, {task}")

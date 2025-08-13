@@ -8,4 +8,3 @@ pydantic==1.10.7
 pyserial==3.5
 pytimedinput==2.0.1
 scipy==1.10.1
-torch==1.13.1
