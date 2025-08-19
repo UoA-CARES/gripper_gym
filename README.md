@@ -1,4 +1,4 @@
-<h1 align="center">CARES Gripper Gym</h1>
+# gripper_gym
 
 This repository contains the code used to control and train custom dynamixel grippers currently being designed and used in the <a href="https://robotlearningteam.org/">Robot Learning Team</a> at the <a href="https://www.auckland.ac.nz">The University of Auckland</a>. 
 

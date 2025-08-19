@@ -1,13 +1,15 @@
 import logging
 from time import sleep
 
-logging.basicConfig(level=logging.INFO)
 from cares_lib.dynamixel.Gripper import GripperError
 from cares_lib.dynamixel.Servo import DynamixelServoError
-from environments.environment import EnvironmentError
+from environments.environment import TaskError
 from pytimedinput import timedInput
 
 WAIT_TIME = 5  # wait 5 seconds for auto sequences
+
+logging.basicConfig(level=logging.INFO)
+
 
 def auto_reboot_sequence(environment):
     try:
@@ -15,7 +17,7 @@ def auto_reboot_sequence(environment):
         sleep(WAIT_TIME)
         wiggle_home(environment)
         return True
-    except (GripperError, EnvironmentError, DynamixelServoError):
+    except (GripperError, TaskError, DynamixelServoError):
         return False
 
 
@@ -24,7 +26,7 @@ def auto_wiggle_sequence(environment):
         wiggle_home(environment)
         sleep(WAIT_TIME)
         return True
-    except (GripperError, EnvironmentError, DynamixelServoError):
+    except (GripperError, TaskError, DynamixelServoError):
         return False
 
 
@@ -32,7 +34,7 @@ def reboot(environment):
     try:
         environment.reboot()
         logging.info("Rebooting succeeded")
-    except (EnvironmentError, GripperError):
+    except (TaskError, GripperError):
         warning_message = "Reboot failed"
         logging.warning(warning_message)
         raise GripperError(warning_message)
@@ -43,7 +45,7 @@ def home(environment):
         logging.info("Trying to home")
         environment.gripper.home()
         logging.info("Home succeeded")
-    except (EnvironmentError, GripperError):
+    except (TaskError, GripperError):
         warning_message = "Home failed"
         logging.warning(warning_message)
         raise GripperError(warning_message)
@@ -54,7 +56,7 @@ def wiggle_home(environment):
         logging.info("Trying to wiggle home")
         environment.gripper.wiggle_home()
         logging.info("Wiggle home succeeded")
-    except (EnvironmentError, GripperError):
+    except (TaskError, GripperError):
         warning_message = "Wiggle home failed"
         logging.warning(warning_message)
         raise GripperError(warning_message)
@@ -67,7 +69,7 @@ def handle_gripper_error_home(environment, error_message, file_path):
     try:
         wiggle_home(environment)
         return True
-    except (EnvironmentError, GripperError):
+    except (TaskError, GripperError):
         # Repeat this sequence n times before resorting to manual error handler
         for _ in range(5):
             # Try auto reboot first
@@ -103,7 +105,7 @@ def handle_gripper_error(environment, error_message, file_path):
                 wiggle_home(environment)
             elif value == "r":
                 reboot(environment)
-        except (EnvironmentError, GripperError) as error:
+        except (TaskError, GripperError) as error:
             # Error was encountered after user selects operation, allow them to select again
             retry_error_message = (
                 f"Error encountered during manual error handling with message: {error}"

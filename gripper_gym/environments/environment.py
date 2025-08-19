@@ -1,16 +1,26 @@
 import logging
+import os
 import random
 from abc import ABC, abstractmethod
 from functools import wraps
 
 import cv2
-from gripper_gym.configurations import GripperEnvironmentConfig
-
+import numpy as np
 from cares_lib.dynamixel.Gripper import Gripper
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.touch_sensors.sensor import SerialReader
+from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
+from cares_lib.vision.STagDetector import STagDetector
 
-import numpy as np
+from gripper_gym.configurations import GripperEnvironmentConfig
+
+
+# TODO rename
+class TaskError(IOError):
+    def __init__(self, gripper, message):
+        self.gripper = gripper
+        super().__init__(message)
 
 
 def exception_handler(error_message):
@@ -19,11 +29,11 @@ def exception_handler(error_message):
         def wrapper(self, *args, **kwargs):
             try:
                 return function(self, *args, **kwargs)
-            except EnvironmentError as error:
+            except TaskError as error:
                 logging.error(
                     f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}"
                 )
-                raise EnvironmentError(
+                raise TaskError(
                     error.gripper,
                     f"Environment for Gripper#{error.gripper.gripper_id}: {error_message}",
                 ) from error
@@ -31,12 +41,6 @@ def exception_handler(error_message):
         return wrapper
 
     return decorator
-
-
-class EnvironmentError(IOError):
-    def __init__(self, gripper, message):
-        self.gripper = gripper
-        super().__init__(message)
 
 
 class Environment(ABC):
@@ -58,31 +62,67 @@ class Environment(ABC):
         self.task = env_config.task
         self.domain = env_config.domain
         self.display = env_config.display
-            
+
         self.gripper = Gripper(gripper_config)
         self.is_inverted = env_config.is_inverted
-        self.camera = Camera(
-            env_config.camera_id, env_config.camera_matrix, env_config.camera_distortion
+
+        camera_name = f"/dev/camera{env_config.gripper_id}"
+        calibration_path = os.path.expanduser(
+            f"~/gripper_configs/{env_config.gripper_id}"
         )
+        camera_matrix_path = os.path.join(calibration_path, "camera_matrix.txt")
+        camera_distortion_path = os.path.join(calibration_path, "camera_distortion.txt")
+
+        self.camera = Camera(camera_name, camera_matrix_path, camera_distortion_path)
+
+        if env_config.aruco_detector == "Aruco":
+            self.marker_detector = ArucoDetector(env_config.marker_size)
+        elif env_config.aruco_detector == "STag":
+            self.marker_detector = STagDetector(env_config.marker_size)
+        else:
+            raise ValueError(
+                f"Unsupported aruco_detector: {env_config.aruco_detector}. "
+                "Supported values are 'Aruco' or 'STag'."
+            )
+
+        self.use_touch = env_config.use_touch
+
+        if self.use_touch:
+            touch_device_name = f"/dev/touch{env_config.gripper_id}"
+            self.touch_sensor = SerialReader(touch_device_name, 921600)
+
+            self.left_touch = False
+            self.right_touch = False
+            self.previous_pressure_readings = [0, 0]
+            self.previous_delta_changes = [0, 0]
 
         self.action_type = gripper_config.action_type
         self.max_action_value = np.array(gripper_config.max_values)
         self.min_action_value = np.array(gripper_config.min_values)
 
         self.gripper.wiggle_home()
+
         self.step_counter = 0
-        self.goal_reward = None
         self.episode_horizon = env_config.episode_horizon
 
         # Pose to normalise the other positions against - consider (0,0)
         self.reference_marker_id = env_config.reference_marker_id
-        
-        self.goal = []
-        self.current_environment_info = {}
-        self.previous_environment_info = {}
+
+        self.goal: list[int] | int = []
+        self.current_environment_info: dict = {}
+        self.previous_environment_info: dict = {}
+
+    def _get_touch(self):
+        if self.use_touch:
+            return self.touch_sensor.get_latest()
+        return [0, 0]
 
     def grab_frame(self):
-        frame = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
+        frame = (
+            cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+            if self.is_inverted
+            else self.camera.get_frame()
+        )
         return frame
 
     def grab_rendered_frame(self):
@@ -113,10 +153,10 @@ class Environment(ABC):
             self._get_environment_info()
         )
         logging.debug(f"Env Info: {self.current_environment_info}")
-        
+
         state = self._environment_info_to_state(self.current_environment_info)
         logging.debug(f"State: {state}")
-        
+
         return state
 
     def sample_action_position(self):
@@ -140,8 +180,24 @@ class Environment(ABC):
             return self.sample_action_velocity()
         return self.sample_action_position()
 
+    def _get_environment_info(self):
+        """
+        Gets the current state of the environment based on the configured observation type (4 different options).
+
+        Returns:
+        A list representing the state of the environment.
+        """
+        environment_info = {}
+        environment_info["gripper"] = self.gripper.state()
+        environment_info["poses"] = self._get_poses()
+        environment_info["touch"] = self._get_touch()
+        environment_info["goal"] = self.goal
+        environment_info["success"] = self._check_success(environment_info)
+
+        return environment_info
+
     @exception_handler("Failed to step")
-    def step(self, action ):
+    def step(self, action):
         """
         Takes a step in the environment using the given action and returns the results.
 
@@ -156,7 +212,9 @@ class Environment(ABC):
         """
         self.step_counter += 1
 
-        action = np.round(np.asarray(action)).astype(int) # Convert to int, as sample_action returns float
+        action = np.round(np.asarray(action)).astype(
+            int
+        )  # Convert to int, as sample_action returns float
 
         if self.action_type == "velocity":
             self.gripper.move_velocity_joint(action)
@@ -178,21 +236,16 @@ class Environment(ABC):
         self.previous_environment_info = self.current_environment_info
 
         truncated = self.step_counter >= self.episode_horizon
-        
+
         return state, reward, done, truncated, self.current_environment_info
-    
+
     @exception_handler("Environment failed to reboot")
     def reboot(self):
         logging.info("Rebooting Gripper")
         self.gripper.reboot()
-        self._lift_reboot()
 
     @abstractmethod
     def _reset(self):
-        pass
-
-    @abstractmethod
-    def _get_environment_info(self):
         pass
 
     @abstractmethod
@@ -204,14 +257,17 @@ class Environment(ABC):
         pass
 
     @abstractmethod
-    def _reward_function(self, previous_state, current_state):
+    def _reward_function(self, previous_environment_info, current_environment_info):
         pass
 
     @abstractmethod
     def _render_environment(self, state, environment_info):
         pass
 
-    
     @abstractmethod
-    def _lift_reboot(self):
+    def _get_poses(self):
+        pass
+
+    @abstractmethod
+    def _check_success(self, current_environment_info):
         pass

@@ -1,26 +1,24 @@
+import ast
 import logging
-from enum import Enum
-import random
-import time
-
-import numpy as np
-import cv2
 import math
+import random
+import socket
+import threading
+import time
+from enum import Enum
+
+import cv2
+import dynamixel_sdk as dxl
+import numpy as np
+from cares_lib.dynamixel.Gripper import GripperError
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
+from cares_lib.dynamixel.Servo import Servo
+from cares_lib.vision.ArucoDetector import ArucoDetector
+from cares_lib.vision.STagDetector import STagDetector
+
 import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import GripperEnvironmentConfig
 from gripper_gym.environments.four_finger.four_finger import FourFingerTask
-from cares_lib.vision.ArucoDetector import ArucoDetector
-from cares_lib.vision.STagDetector import STagDetector
-from cares_lib.dynamixel.Gripper import GripperError
-from cares_lib.dynamixel.gripper_configuration import GripperConfig
-from cares_lib.touch_sensors.sensor import Sensor
-from cares_lib.dynamixel.Servo import Servo
-from cares_lib.touch_sensors import server
-import threading
-import socket
-import ast
-import dynamixel_sdk as dxl
-
 
 
 class FourFingerRotation(FourFingerTask):
@@ -34,23 +32,12 @@ class FourFingerRotation(FourFingerTask):
         self.num_sensors = gripper_config.num_touch_sensors
         self.socket_port = gripper_config.socket_port
         super().__init__(env_config, gripper_config)
-        if self.touch_config == True:
-            # Initialise Touch Sensors
-            print("Starting server...")
-            self.tactile_server = server.Server(port=self.port, baudrate=921600, socket_port=self.socket_port)
-            self.server_thread = threading.Thread(target=self.tactile_server.start)
-            self.server_thread.daemon = True
-            self.server_thread.start()
-            print("Server started in separate thread.")
-            while not self.tactile_server.server_ready:
-                time.sleep(0.5)
-            print("Server ready.")
-        
-    def get_values(self, server_port, host='localhost'):
+
+    def get_values(self, server_port, host="localhost"):
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
                 client_socket.connect((host, server_port))
-                data = client_socket.recv(1024).decode('utf-8')
+                data = client_socket.recv(1024).decode("utf-8")
                 data = ast.literal_eval(data)
                 return data
         except ConnectionRefusedError:
@@ -66,7 +53,7 @@ class FourFingerRotation(FourFingerTask):
             Chosen goal.
         """
         []
-        object_orientation = (self._get_poses().get('object'))['orientation']
+        object_orientation = (self._get_poses().get("object"))["orientation"]
 
         # Constant Angle Goal Selection
         # new_goal = object_orientation[2] + random.choice([90,-90]) # +ve = CW, -ve = CCW
@@ -76,10 +63,9 @@ class FourFingerRotation(FourFingerTask):
         #     new_goal = 360 - abs(new_goal)
 
         # Random Angle Goal Generation
-        new_goal = random.randrange(0,361,1)
-        print("new goal" , new_goal)
+        new_goal = random.randrange(0, 361, 1)
+        print("new goal", new_goal)
         return [new_goal]
-        
 
     def _environment_info_to_state(self, environment_info):
         state = []
@@ -87,12 +73,12 @@ class FourFingerRotation(FourFingerTask):
         # Servo Angles - Steps
         state += environment_info["gripper"]["positions"]
 
-        # Object position - XY 
-        for i in range(0,2):
-            state += [round(environment_info["poses"]["object"]["position"][i],2)]
+        # Object position - XY
+        for i in range(0, 2):
+            state += [round(environment_info["poses"]["object"]["position"][i], 2)]
 
         # Object orientation
-        state += [round(environment_info["poses"]["object"]["orientation"][2],2)]
+        state += [round(environment_info["poses"]["object"]["orientation"][2], 2)]
 
         # Goal
         state += environment_info["goal"]
@@ -103,7 +89,11 @@ class FourFingerRotation(FourFingerTask):
                 print("Touch sensor server error. Rebooting server...")
                 self.tactile_server.stop()
                 time.sleep(10)
-                self.tactile_server = server.Server(port="/dev/Arduino_Flat", baudrate=921600, socket_port=self.socket_port)
+                self.tactile_server = server.Server(
+                    port="/dev/Arduino_Flat",
+                    baudrate=921600,
+                    socket_port=self.socket_port,
+                )
                 self.server_thread = threading.Thread(target=self.tactile_server.start)
                 self.server_thread.daemon = True
                 self.server_thread.start()
@@ -121,65 +111,87 @@ class FourFingerRotation(FourFingerTask):
         # Get base rendering of the four-finger environment
         image = super()._render_environment(state, environment_state)
 
-        image = cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180) if self.is_inverted else self.camera.get_frame()
+        image = (
+            cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+            if self.is_inverted
+            else self.camera.get_frame()
+        )
 
         image = cv2.undistort(
             image, self.camera.camera_matrix, self.camera.camera_distortion
         )
 
-        #TODO 
+        # TODO
         # Image Size X640 Y480
-        position = environment_state['poses']['object']['position']
-        pixel_x = self.camera.camera_matrix[0,0] * position[0]/320 + self.camera.camera_matrix[0,2]
-        pixel_y = self.camera.camera_matrix[1,1] * position[1]/240 + self.camera.camera_matrix[1,2]
+        position = environment_state["poses"]["object"]["position"]
+        pixel_x = (
+            self.camera.camera_matrix[0, 0] * position[0] / 320
+            + self.camera.camera_matrix[0, 2]
+        )
+        pixel_y = (
+            self.camera.camera_matrix[1, 1] * position[1] / 240
+            + self.camera.camera_matrix[1, 2]
+        )
         centre = [round(pixel_x), round(pixel_y)]
 
         # TODO put arrow_end calculation into function
-        yaw = environment_state['poses']['object']['orientation'][2]
+        yaw = environment_state["poses"]["object"]["orientation"][2]
         lineSize = 35
         arrow_end_x = position[0] + (math.sin(math.radians(yaw)) * lineSize)
-        arrow_end_x = self.camera.camera_matrix[0,0] * arrow_end_x/320 + self.camera.camera_matrix[0,2]
+        arrow_end_x = (
+            self.camera.camera_matrix[0, 0] * arrow_end_x / 320
+            + self.camera.camera_matrix[0, 2]
+        )
         arrow_end_y = position[1] - (math.cos(math.radians(yaw)) * lineSize)
-        arrow_end_y = self.camera.camera_matrix[1,1] * arrow_end_y/240 + self.camera.camera_matrix[1,2]
+        arrow_end_y = (
+            self.camera.camera_matrix[1, 1] * arrow_end_y / 240
+            + self.camera.camera_matrix[1, 2]
+        )
         arrow_end_axis = [round(arrow_end_x), round(arrow_end_y)]
 
         arrow_end_x = position[0] + (math.sin(math.radians(self.goal[0])) * lineSize)
-        arrow_end_x = self.camera.camera_matrix[0,0] * arrow_end_x/320 + self.camera.camera_matrix[0,2]
+        arrow_end_x = (
+            self.camera.camera_matrix[0, 0] * arrow_end_x / 320
+            + self.camera.camera_matrix[0, 2]
+        )
         arrow_end_y = position[1] - (math.cos(math.radians(self.goal[0])) * lineSize)
-        arrow_end_y = self.camera.camera_matrix[1,1] * arrow_end_y/240 + self.camera.camera_matrix[1,2]
+        arrow_end_y = (
+            self.camera.camera_matrix[1, 1] * arrow_end_y / 240
+            + self.camera.camera_matrix[1, 2]
+        )
         arrow_end_goal = [round(arrow_end_x), round(arrow_end_y)]
-        
+
         # Places a circle at the centre of the cube marker
-        cv2.circle(image, centre, 5, (0,0,255), -1)
+        cv2.circle(image, centre, 5, (0, 0, 255), -1)
         # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.
-        cv2.arrowedLine(image, centre, arrow_end_axis, (255,0,0), 3)
+        cv2.arrowedLine(image, centre, arrow_end_axis, (255, 0, 0), 3)
         # Draws an arrow of the markers desired X axis placement, i.e. the goal angle
-        cv2.arrowedLine(image, centre, arrow_end_goal, (255,0,0), 3)
+        cv2.arrowedLine(image, centre, arrow_end_goal, (255, 0, 0), 3)
 
         cv2.putText(
-                image,
-                f"{'Current'}",
-                arrow_end_axis,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                2,
-                cv2.LINE_AA,
-            )
-        
+            image,
+            f"{'Current'}",
+            arrow_end_axis,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
         cv2.putText(
-                image,
-                f"{'Goal'}",
-                arrow_end_goal,
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                2,
-                cv2.LINE_AA,
-            )
+            image,
+            f"{'Goal'}",
+            arrow_end_goal,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
 
         return image
-    
+
     def _get_poses(self):
         """
         Gets the current state of the environment using the Aruco markers.
@@ -190,10 +202,12 @@ class FourFingerRotation(FourFingerTask):
         """
         poses = {}
         marker_poses = self._get_marker_poses(self.env_config.cube_ids)
-        poses["object"] = self._get_cube_pose(marker_poses) # Converts marker pose into cube pose
-        
+        poses["object"] = self._get_cube_pose(
+            marker_poses
+        )  # Converts marker pose into cube pose
+
         return poses
-    
+
     def _get_cube_pose(self, marker_poses):
         """
         Returns the pose of the cube based on the detected marker
@@ -203,12 +217,12 @@ class FourFingerRotation(FourFingerTask):
             array: An array containing the orientation of the cube.
         """
 
-        cube_ids = [1,2,3,4,5,6]
+        cube_ids = [1, 2, 3, 4, 5, 6]
         detected_ids = [id for id in cube_ids if id in marker_poses]
         cube_pose = (list(marker_poses.values()))[0]
 
         return cube_pose
-    
+
     def rotation_min_difference(self, a, b):
         """
         Formula that calculates the minimum difference between two angles.
@@ -221,26 +235,25 @@ class FourFingerRotation(FourFingerTask):
             float: The minimum angular difference.
         """
         return min(abs(a - b), (360 + min(a, b) - max(a, b)))
-        
+
 
 class FourFingerRotationFlat(FourFingerRotation):
     def __init__(
-        self, 
-        env_config: GripperEnvironmentConfig, 
-        gripper_config: GripperConfig
+        self, env_config: GripperEnvironmentConfig, gripper_config: GripperConfig
     ):
         self.env_config = env_config
         self.gripper_config = gripper_config
-        self.aruco_detector = STagDetector(marker_size=env_config.marker_size, library_hd=11)
+        self.aruco_detector = STagDetector(
+            marker_size=env_config.marker_size, library_hd=11
+        )
         super().__init__(env_config, gripper_config)
-        
+
     def _reset(self):
         self.gripper.wiggle_home()
         if self.gripper_config.touch:
             time.sleep(1)
             self.tactile_server.baseline_values = self.get_values(self.socket_port)
             print("Baseline values updated", self.tactile_server.baseline_values)
-
 
     # overriding method
     def _reward_function(self, previous_environment_info, current_environment_info):
@@ -261,11 +274,11 @@ class FourFingerRotationFlat(FourFingerRotation):
         touch_reward = 20
         # touch_included = True
         done = False
-        logging.debug(previous_environment_info['poses']['object']['orientation'])
-        
-        previous_yaw = previous_environment_info['poses']['object']['orientation'][2]
+        logging.debug(previous_environment_info["poses"]["object"]["orientation"])
+
+        previous_yaw = previous_environment_info["poses"]["object"]["orientation"][2]
         previous_yaw_diff = self.rotation_min_difference(self.goal[0], previous_yaw)
-        current_yaw = current_environment_info['poses']['object']['orientation'][2]
+        current_yaw = current_environment_info["poses"]["object"]["orientation"][2]
         current_yaw_diff = self.rotation_min_difference(self.goal[0], current_yaw)
 
         ##### Function 1
@@ -288,13 +301,13 @@ class FourFingerRotationFlat(FourFingerRotation):
         # if abs(delta) < 1:
         #     reward = 0
         #####
-           
+
         ##### Function 3
         # Combined Reward Function
-        A = 0.1 # Distance Coeffecient
-        B = 1 # Delta Coefficient
+        A = 0.1  # Distance Coeffecient
+        B = 1  # Delta Coefficient
         # Delta
-        delta = ((previous_yaw_diff - current_yaw_diff)/previous_yaw_diff) * 100
+        delta = ((previous_yaw_diff - current_yaw_diff) / previous_yaw_diff) * 100
         delta_reward = round(delta, 2)
         if delta_reward < -100:
             delta_reward = -100
@@ -303,71 +316,80 @@ class FourFingerRotationFlat(FourFingerRotation):
         # if delta_reward < 0:        # If reward is negative set flag to ignore touch sensor reward
         #     touch_included = False
         # Distance
-        distance_reward = round((-current_yaw_diff+180), 2)
+        distance_reward = round((-current_yaw_diff + 180), 2)
         if abs(current_yaw_diff - previous_yaw_diff) < 1:
             distance_reward = 0
-        reward = round((A*distance_reward) + (B*delta_reward), 2)
+        reward = round((A * distance_reward) + (B * delta_reward), 2)
         #####
 
-        #Touch-based reward
-        if self.touch_config == True:# and touch_included == True:
+        # Touch-based reward
+        if self.touch_config == True:  # and touch_included == True:
             if reward != 0:
                 print("Getting touch data in reward function")
                 print("Max values after step: ", self.tactile_server.max_values)
                 # Do reward based on touch sensor values
                 for i in range(self.num_sensors):
-                    delta_touch = self.tactile_server.max_values[i] - self.tactile_server.baseline_values[i]
+                    delta_touch = (
+                        self.tactile_server.max_values[i]
+                        - self.tactile_server.baseline_values[i]
+                    )
                     if delta_touch < touch_threshold:
                         continue
                     else:
                         num_touch += 1
-                reward += num_touch*touch_reward
+                reward += num_touch * touch_reward
                 reward = round(reward, 2)
-                print("Number of touch sensors triggered: ", num_touch, "Reward: ", num_touch*touch_reward)
+                print(
+                    "Number of touch sensors triggered: ",
+                    num_touch,
+                    "Reward: ",
+                    num_touch * touch_reward,
+                )
                 # Reset the max values after each step
                 self.tactile_server.max_values = self.tactile_server.baseline_values
 
         if current_yaw_diff <= Precision_tolerance:
             logging.info("----------Reached the Goal!----------")
             reward = self.goal_reward
-        print(f"Total Reward: ",reward)
+        print(f"Total Reward: ", reward)
         return reward, done
-    
+
+
 class FourFingerRotationSuspended(FourFingerRotation):
     def __init__(
-        self, 
-        env_config: GripperEnvironmentConfig, 
-        gripper_config: GripperConfig
+        self, env_config: GripperEnvironmentConfig, gripper_config: GripperConfig
     ):
         self.env_config = env_config
         self.gripper_config = gripper_config
-        self.aruco_detector = STagDetector(marker_size=env_config.marker_size, library_hd=11)
+        self.aruco_detector = STagDetector(
+            marker_size=env_config.marker_size, library_hd=11
+        )
         super().__init__(env_config, gripper_config)
         self.elevator_device_name = env_config.elevator_device_name
         self.elevator_baudrate = env_config.elevator_baudrate
         self.elevator_servo_id = env_config.elevator_servo_id
-        self.elevator_min = env_config.elevator_limits[0] # Lowered Elevator Position
-        self.elevator_max = env_config.elevator_limits[1] # Extended Elevator Position
+        self.elevator_min = env_config.elevator_limits[0]  # Lowered Elevator Position
+        self.elevator_max = env_config.elevator_limits[1]  # Extended Elevator Position
 
     def init_elevator(self):
         self.elevator_port_handler = dxl.PortHandler(self.elevator_device_name)
         self.elevator_packet_handler = dxl.PacketHandler(2)
         self.elevator = Servo(
-            self.elevator_port_handler, 
-            self.elevator_packet_handler, 
-            2, 
-            self.elevator_servo_id, 
-            1, 
-            200, 
-            200, 
-            self.elevator_min, 
-            self.elevator_max, 
-            model="XL330-M077-T"
-            )
+            self.elevator_port_handler,
+            self.elevator_packet_handler,
+            2,
+            self.elevator_servo_id,
+            1,
+            200,
+            200,
+            self.elevator_min,
+            self.elevator_max,
+            model="XL330-M077-T",
+        )
 
         if not self.elevator_port_handler.openPort():
             error_message = f"Failed to open port {self.elevator_device_name}"
-            logging.error(error_message)    
+            logging.error(error_message)
             raise IOError(error_message)
         logging.debug(f"Succeeded to open port {self.elevator_device_name}")
 
@@ -376,30 +398,31 @@ class FourFingerRotationSuspended(FourFingerRotation):
             logging.error(error_message)
             raise IOError(error_message)
         logging.debug(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
-    
+
     def _reset(self):
         self.init_elevator()
         self.elevator.enable_torque()
 
         # TODO implement object centred check
-        self.elevator.move(self.elevator_min) # Lower Elevator
-        self.gripper.wiggle_home() # Home Gripper 
+        self.elevator.move(self.elevator_min)  # Lower Elevator
+        self.gripper.wiggle_home()  # Home Gripper
         # Opening Grasp
         if self.gripper_config.touch:
             time.sleep(1)
             self.tactile_server.baseline_values = self.get_values(self.socket_port)
             print("Baseline values updated", self.tactile_server.baseline_values)
-        self.elevator.move(self.elevator_max) # Raise Elevator
-        self.gripper.move([2048,2200,2350,2048,2200,2350,2048,2200,2350,2048,2200,2350]) #Grasp Cube
+        self.elevator.move(self.elevator_max)  # Raise Elevator
+        self.gripper.move(
+            [2048, 2200, 2350, 2048, 2200, 2350, 2048, 2200, 2350, 2048, 2200, 2350]
+        )  # Grasp Cube
         self.elevator.move(self.elevator_min)
-        
-        
+
     def _reward_function(self, previous_environment_info, current_environment_info):
         done = False
         reward = 0
         self.goal_reward = 400
         height_threshold = 350
-        current_height = current_environment_info['poses']['object']['position'][2]
+        current_height = current_environment_info["poses"]["object"]["position"][2]
         print("Current Height: ", current_height)
         if current_height < height_threshold:
             reward += self.goal_reward
@@ -411,18 +434,26 @@ class FourFingerRotationSuspended(FourFingerRotation):
             print("Max values after step: ", self.tactile_server.max_values)
             # Do reward based on touch sensor values
             for i in range(self.num_sensors):
-                delta_touch = self.tactile_server.max_values[i] - self.tactile_server.baseline_values[i]
+                delta_touch = (
+                    self.tactile_server.max_values[i]
+                    - self.tactile_server.baseline_values[i]
+                )
                 if delta_touch < touch_threshold:
                     continue
                 else:
                     num_touch += 1
             # Reward based on number of touch sensors triggered
             if current_height < height_threshold:
-                reward += num_touch*touch_reward
+                reward += num_touch * touch_reward
                 reward = round(reward, 2)
-            print("Number of touch sensors triggered: ", num_touch, "Reward: ", num_touch*touch_reward)
+            print(
+                "Number of touch sensors triggered: ",
+                num_touch,
+                "Reward: ",
+                num_touch * touch_reward,
+            )
             # Reset the max values after each step
             self.tactile_server.max_values = self.tactile_server.baseline_values
 
-        print(f"Total Reward: ",reward)
+        print(f"Total Reward: ", reward)
         return reward, done

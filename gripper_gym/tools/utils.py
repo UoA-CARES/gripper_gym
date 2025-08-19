@@ -1,7 +1,26 @@
 import os
 import shutil
+
 import matplotlib.pyplot as plt
 import pandas as pd
+import pydantic
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
+
+
+def load_gripper_config(config_path: str) -> GripperConfig:
+    try:
+        return pydantic.parse_file_as(path=config_path, type_=GripperConfig)
+    except FileNotFoundError as e:
+        error_msg = f"Gripper config file not found: {config_path}"
+        raise FileNotFoundError(error_msg) from e
+    except Exception as e:
+        error_msg = f"Failed to load gripper config from {config_path}: {e}"
+        raise ValueError(error_msg) from e
+
+
+def mm_to_pixels(size_mm, distance_mm, camera_matrix):
+    fx = camera_matrix[0, 0]
+    return int((size_mm * fx) / distance_mm)
 
 
 def position_to_pixel(position, reference_position, camera_matrix):
@@ -19,6 +38,22 @@ def position_to_pixel(position, reference_position, camera_matrix):
         + camera_matrix[1, 2]
     )
     return int(pixel_x), int(pixel_y)
+
+
+def angular_difference(angle_a: float, angle_b: float) -> float:
+    """
+    Compute the minimum absolute angular difference between two angles in degrees.
+    Works for any real inputs (not just [0, 360)).
+
+    Args:
+        angle_a (float): First angle in degrees.
+        angle_b (float): Second angle in degrees.
+
+    Returns:
+        float: Minimum angular difference in [0, 180].
+    """
+    diff = abs((angle_a - angle_b) % 360)
+    return min(diff, 360 - diff)
 
 
 def create_directories(local_results_path, folder_name):
