@@ -13,6 +13,7 @@ from cares_lib.vision.ArucoDetector import ArucoDetector
 from cares_lib.vision.Camera import Camera
 from cares_lib.vision.STagDetector import STagDetector
 
+import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import GripperEnvironmentConfig
 
 
@@ -43,6 +44,7 @@ def exception_handler(error_message):
     return decorator
 
 
+# TODO rename task
 class Environment(ABC):
     """
     Initialise the environment with the given configurations of the gripper and object.
@@ -108,6 +110,12 @@ class Environment(ABC):
         # Pose to normalise the other positions against - consider (0,0)
         self.reference_marker_id = env_config.reference_marker_id
 
+        # The reference position normalises the positions regardless of the camera position
+        self.reference_pose = self._get_marker_poses([self.reference_marker_id])[
+            self.reference_marker_id
+        ]
+        self.reference_position = self.reference_pose["position"]
+
         self.goal: list[int] | int = []
         self.current_environment_info: dict = {}
         self.previous_environment_info: dict = {}
@@ -128,6 +136,16 @@ class Environment(ABC):
     def grab_rendered_frame(self):
         state = self._environment_info_to_state(self.current_environment_info)
         return self._render_environment(state, self.current_environment_info)
+
+    def _relative_position(self, pose: dict) -> list[float]:
+        relative_position = []
+        position = pose["position"]
+        relative_position.append(position[0] - self.reference_position[0])  # X
+        relative_position.append(position[1] - self.reference_position[1])  # Y
+
+        # This makes the reference plane 0 for Z
+        relative_position.append(self.reference_position[2] - position[2])
+        return relative_position
 
     @exception_handler("Environment failed to reset")
     def reset(self):
@@ -262,12 +280,44 @@ class Environment(ABC):
 
     @abstractmethod
     def _render_environment(self, state, environment_info):
-        pass
+        image = (
+            cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+            if self.is_inverted
+            else self.camera.get_frame()
+        )
 
+        image = cv2.undistort(
+            image, self.camera.camera_matrix, self.camera.camera_distortion
+        )
+
+        # Draw reference marker
+        reference_pixels = utils.position_to_pixel(
+            [0, 0, 0], self.reference_position, self.camera.camera_matrix
+        )
+        cv2.circle(image, reference_pixels, 5, (255, 0, 0), -1)
+
+        cv2.putText(
+            image,
+            "(0,0,0)",
+            reference_pixels,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 0, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        return image
+
+    # TODO rename
     @abstractmethod
     def _get_poses(self):
         pass
 
     @abstractmethod
     def _check_success(self, current_environment_info):
+        pass
+
+    @abstractmethod
+    def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
         pass

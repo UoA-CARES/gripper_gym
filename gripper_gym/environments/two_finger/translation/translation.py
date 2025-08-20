@@ -18,7 +18,6 @@ class TwoFingerTranslation(TwoFingerTask):
 
         self.goal_min = env_config.goal_min
         self.goal_max = env_config.goal_max
-        self.goal_range = env_config.goal_range
 
         self.noise_tolerance = env_config.noise_tolerance
 
@@ -60,23 +59,8 @@ class TwoFingerTranslation(TwoFingerTask):
 
         return state
 
-    def _draw_circle(self, image, position, reference_position, color):
-        pixel_location = utils.position_to_pixel(
-            position,
-            reference_position,
-            self.camera.camera_matrix,
-        )
-
-        noise_tolerance_pixels = utils.mm_to_pixels(
-            self.noise_tolerance, reference_position[2], self.camera.camera_matrix
-        )
-
-        # Circle size now reflects the "Close enough" to goal tolerance
-        cv2.circle(image, pixel_location, int(noise_tolerance_pixels), color, -1)
-        return image, pixel_location
-
     def _render_environment(self, state, environment_info):
-        # Get base rendering of the two-finger environment
+        # Get base rendering of the four-finger environment
         image = super()._render_environment(state, environment_info)
 
         # Draw the goal boundry for the translation task
@@ -98,70 +82,74 @@ class TwoFingerTranslation(TwoFingerTask):
         # Draw object positions
         object_color = (0, 255, 0)
 
-        # Draw object's current position
-        current_object_pose = environment_info["poses"]["object"]
-        image, current_object_pixel = self._draw_circle(
-            image,
-            current_object_pose["position"][0:2],
-            [0, 0, current_object_pose["position"][2]],
-            object_color,
-        )
-
         noise_tolerance_pixels = utils.mm_to_pixels(
             self.noise_tolerance, self.reference_position[2], self.camera.camera_matrix
         )
         noise_tolerance_pixels = int(noise_tolerance_pixels)
 
-        cv2.putText(
-            image,
-            "Current",
-            (
-                current_object_pixel[0] + noise_tolerance_pixels,
-                current_object_pixel[1] + noise_tolerance_pixels,
-            ),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            object_color,
-            2,
-        )
+        # Draw object's current position
+        current_object_pose = environment_info["poses"]["object"]
+        if current_object_pose is not None:
+            image, current_object_pixel = utils.draw_circle(
+                image,
+                current_object_pose["position"],
+                self.noise_tolerance,
+                self.camera.camera_matrix,
+                object_color,
+                reference_position_mm=[0, 0, current_object_pose["position"][2]],
+            )
+
+            cv2.putText(
+                image,
+                "Current",
+                (
+                    current_object_pixel[0] + noise_tolerance_pixels,
+                    current_object_pixel[1] + noise_tolerance_pixels,
+                ),  # Text location adjusted for circle size
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                object_color,
+                2,
+            )
 
         # Draw object's previous position
         previous_object_pose = self.previous_environment_info["poses"]["object"]
-        image, previous_object_pixel = self._draw_circle(
-            image,
-            previous_object_pose["position"][0:2],
-            [0, 0, previous_object_pose["position"][2]],
-            object_color,
-        )
+        if previous_object_pose is not None:
+            image, previous_object_pixel = utils.draw_circle(
+                image,
+                previous_object_pose["position"][0:2],
+                self.noise_tolerance,
+                self.camera.camera_matrix,
+                object_color,
+                reference_position_mm=[0, 0, previous_object_pose["position"][2]],
+            )
 
-        cv2.putText(
-            image,
-            "Previous",
-            (
-                previous_object_pixel[0] + noise_tolerance_pixels,
-                previous_object_pixel[1] + noise_tolerance_pixels,
-            ),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            object_color,
-            2,
-        )
+            cv2.putText(
+                image,
+                "Previous",
+                (
+                    previous_object_pixel[0] + noise_tolerance_pixels,
+                    previous_object_pixel[1] + noise_tolerance_pixels,
+                ),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                object_color,
+                2,
+            )
 
         # Draw line from previous to current
-        cv2.line(image, current_object_pixel, previous_object_pixel, (255, 0, 0), 2)
+        if current_object_pose is not None and previous_object_pose is not None:
+            cv2.line(image, current_object_pixel, previous_object_pixel, (255, 0, 0), 2)
 
         # Draw goal position - note the reference Z is relative to the Marker ID of the target for proper math purposes
         goal_color = (0, 0, 255)
-        goal_reference_position = [
-            self.reference_position[0],
-            self.reference_position[1],
-            current_object_pose["position"][2],
-        ]
-        image, goal_pixel = self._draw_circle(
+        image, goal_pixel = utils.draw_circle(
             image,
             self.goal,
-            self.reference_position,  # goal_reference_position,
+            self.noise_tolerance,
+            self.camera.camera_matrix,
             goal_color,
+            reference_position_mm=self.reference_position,
         )
 
         # Draw line from object to goal
@@ -182,19 +170,5 @@ class TwoFingerTranslation(TwoFingerTask):
             (0, 0, 255),
             2,
         )
-
-        # Draw circle highlighting goal_range
-        pixel_location_goal = utils.position_to_pixel(
-            self.goal,
-            self.reference_position,  # goal_reference_position,
-            self.camera.camera_matrix,
-        )
-
-        goal_range_pixels = utils.mm_to_pixels(
-            self.goal_range, self.reference_position[2], self.camera.camera_matrix
-        )
-        goal_range_pixels = int(goal_range_pixels)
-
-        cv2.circle(image, pixel_location_goal, goal_range_pixels, (0, 255, 0), 2)
 
         return image

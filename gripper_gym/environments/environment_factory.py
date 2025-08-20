@@ -3,12 +3,13 @@ from gripper_gym.environments.four_finger.rotation import (
     FourFingerRotationFlat,
     FourFingerRotationSuspended,
 )
-from gripper_gym.environments.four_finger.translation import (
-    FourFingerTranslationFlat,
-    FourFingerTranslationSuspended,
-)
-from gripper_gym.environments.two_finger.rotation import TwoFingerRotationTask
-from gripper_gym.environments.two_finger.translation_flat import (
+
+# from gripper_gym.environments.four_finger.translation import (
+#     FourFingerTranslationFlat,
+#     FourFingerTranslationSuspended,
+# )
+from gripper_gym.environments.two_finger.rotation.rotation import TwoFingerRotationTask
+from gripper_gym.environments.two_finger.translation.translation_flat import (
     TwoFingerTranslationFlat,
 )
 

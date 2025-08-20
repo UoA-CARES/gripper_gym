@@ -188,7 +188,9 @@ class TwoFingerRotationTask(TwoFingerTask):
         # Servo + Two Finger Tips - X Y mm
         for i in range(1, self.gripper.num_motors + 3):
             servo_position = environment_info["poses"]["gripper"][i]
-            state += self._pose_to_state(servo_position)
+
+            servo_relative_position = self._relative_position(servo_position)
+            state += servo_relative_position[:-1]  # Exclude Z for servo tips
 
         # Rotator - angle degrees
         state += environment_info["poses"]["rotator"]
@@ -269,4 +271,4 @@ class TwoFingerRotationTask(TwoFingerTask):
             reward = delta_change / max(goal_difference_before, 1e-6)
             reward = max(-1.0, min(1.0, reward))  # Clip reward to [-1, 1]
 
-        return reward, False
+        return round(reward, 2), False

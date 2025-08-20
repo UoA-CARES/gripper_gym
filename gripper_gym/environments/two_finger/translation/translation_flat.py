@@ -3,12 +3,15 @@ import math
 import os
 import time
 
+import cv2
 import dynamixel_sdk as dxl
 from cares_lib.dynamixel.Servo import Servo
 
 import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import TwoFingerFlatConfig
-from gripper_gym.environments.two_finger.translation import TwoFingerTranslation
+from gripper_gym.environments.two_finger.translation.translation import (
+    TwoFingerTranslation,
+)
 
 
 class TwoFingerTranslationFlat(TwoFingerTranslation):
@@ -79,15 +82,37 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
     def _check_success(self, current_environment_info):
         target_goal = current_environment_info["goal"]
 
-        object_current = self._pose_to_state(
+        # Exclude Z for object
+        object_current = self._relative_position(
             current_environment_info["poses"]["object"]
-        )
+        )[:-1]
 
-        goal_distance_after = math.dist(target_goal, object_current)
+        goal_distance = math.dist(target_goal, object_current)
 
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
+        logging.debug(f"Distance to Goal: {goal_distance}")
 
-        return goal_distance_after <= self.noise_tolerance
+        return goal_distance <= self.noise_tolerance
+
+    def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
+        while True:
+            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
+            frame = (
+                cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+                if self.is_inverted
+                else self.camera.get_frame()
+            )
+            marker_poses = self.marker_detector.get_marker_poses(
+                frame,
+                self.camera.camera_matrix,
+                self.camera.camera_distortion,
+                display=self.display,
+            )
+
+            # This will check that all the markers are detected correctly
+            if all(ids in marker_poses for ids in must_see_ids):
+                break
+
+        return marker_poses
 
     def _get_poses(self):
         """
@@ -125,39 +150,70 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
         return poses
 
     # overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
-        done = False
+    def _environment_info_to_state(self, environment_info):
+        state = []
 
+        # Servo Angles - Steps
+        # state += environment_info["gripper"]["positions"]
+
+        # Servo Velocities - Steps per second
+        if self.action_type == "velocity":
+            state += environment_info["gripper"]["velocities"]
+
+        # Servo + Two Finger Tips - X Y mm
+        for i in range(1, self.gripper.num_motors + 3):
+            servo_position = environment_info["poses"]["gripper"][i]
+            servo_relative_position = self._relative_position(servo_position)
+
+            state += servo_relative_position[:-1]  # Exclude Z for servo tips
+
+        # Object - X Y mm
+        object_position = environment_info["poses"]["object"]
+        if object_position is None:
+            # Default position if object is not detected - indicates outside of bounds
+            # This is useful for tasks where the object might not be present
+            # or is outside the camera's view.
+            object_relative_position = [-1, -1, -1]
+        else:
+            object_relative_position = self._relative_position(object_position)
+
+        state += object_relative_position[:-1]  # Exclude Z for object
+
+        # Goal State - X Y mm
+        state += self.goal
+
+        # Touch Sensor Values
+        if self.use_touch:
+            state += environment_info["touch"]
+
+        return [round(val, 2) for val in state]
+
+    # overriding method
+    def _reward_function(self, previous_environment_info, current_environment_info):
         reward = 0
 
         target_goal = current_environment_info["goal"]
 
         # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(
-            previous_environment_info["poses"]["object"]
-        )
-        object_current = self._pose_to_state(
+        # Exclude Z for object
+        object_current = self._relative_position(
             current_environment_info["poses"]["object"]
-        )
-        logging.debug(
-            f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
-        )
+        )[:-1]
+        object_previous = self._relative_position(
+            previous_environment_info["poses"]["object"]
+        )[:-1]
 
-        goal_distance_before = math.dist(target_goal, object_previous)
-        goal_distance_after = math.dist(target_goal, object_current)
+        goal_difference_before = math.dist(target_goal, object_previous)
+        goal_difference_after = math.dist(target_goal, object_current)
 
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
+        delta_change = goal_difference_before - goal_difference_after
 
-        if goal_distance_after <= self.noise_tolerance:
+        reward = 0
+        if goal_difference_after <= self.noise_tolerance:
             logging.info("----------Reached the Goal!----------")
-            reward = 80
-        elif goal_distance_after > self.goal_range:
-            reward = 0
-        else:
-            reward = round((-goal_distance_after + self.goal_range), 2)
+            reward = 1.0
+        elif abs(delta_change) > self.noise_tolerance:
+            reward = delta_change / max(goal_difference_before, 1e-6)
+            reward = max(-1.0, min(1.0, reward))  # Clip reward to [-1, 1]
 
-        logging.debug(
-            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
-        )
-
-        return reward, done
+        return round(reward, 2), False

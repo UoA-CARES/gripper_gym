@@ -3,12 +3,13 @@ import math
 import os
 
 import cv2
-import numpy as np
 from cares_lib.dynamixel.Servo import Servo
 
 import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import TwoFingerSuspendedConfig
-from gripper_gym.environments.two_finger.translation import TwoFingerTranslation
+from gripper_gym.environments.two_finger.translation.translation import (
+    TwoFingerTranslation,
+)
 
 
 class TwoFingerTranslationSuspended(TwoFingerTranslation):
@@ -76,6 +77,27 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self.elevator.move(1000, timeout=1)
         self._lift_down()
 
+    def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
+        while True:
+            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
+            frame = (
+                cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+                if self.is_inverted
+                else self.camera.get_frame()
+            )
+            marker_poses = self.marker_detector.get_marker_poses(
+                frame,
+                self.camera.camera_matrix,
+                self.camera.camera_distortion,
+                display=self.display,
+            )
+
+            # This will check that all the markers are detected correctly
+            if all(ids in marker_poses for ids in must_see_ids):
+                break
+
+        return marker_poses
+
     def _get_poses(self):
         """
         Gets the current state of the environment using the Aruco markers.
@@ -100,65 +122,11 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
         )
 
-        poses["object"] = self._get_cube_pose(marker_poses)
+        poses["object"] = utils.get_cube_pose(
+            marker_poses, cube_ids=[7, 8, 9, 10, 11, 12], cube_size=50
+        )
 
         return poses
-
-    def _get_cube_pose(self, marker_poses):
-        """
-        Calculate the center point of a cube base on the detected markers.
-        Args:
-            marker_poses (dict): A dictionary containing the poses of the detected ArUco markers.
-        Returns:
-            dict: A dictionary containing the position and orientation of the cube.
-        """
-        cube_ids = [7, 8, 9, 10, 11, 12]
-        detected_ids = [ids for ids in marker_poses]
-
-        cube_marker_ids = [id for id in cube_ids if id in detected_ids]
-
-        if len(cube_marker_ids) == 0:
-            # If no cube marker detected, return a default pose assuming the cube has been dropped
-            return {
-                "position": np.array([1.0, 150.0, 200.0]),
-                "orientation": [1.0, 1.0, 1.0],
-            }
-        else:
-            # Calculate the cube centers for the marker IDs present in both cube_ids and detected_ids
-            cube_centers = [
-                self._calculate_cube_center(
-                    marker_poses[id]["position"], marker_poses[id]["r_vec"]
-                )
-                for id in cube_marker_ids
-            ]
-
-            # Calculate the final cube center by averaging
-            cube_centers = np.array(cube_centers)
-            cube_center = np.mean(cube_centers, axis=0)
-
-        return {"position": cube_center, "orientation": [1.0, 1.0, 1.0]}
-
-    def _calculate_cube_center(self, marker_position, r_vec, cube_size=50):
-        """
-        Calculate the center point of a cube given the position and orientation of one face.
-        Args:
-            marker_position (numpy.ndarray): A 1D array of length 3 representing the x, y, z coordinates of the center of the face.
-            r_vec (numpy.ndarray): A 1D array of length 3 representing the row, pitch, yaw angles (in radians) of the face.
-            cube_size (int): The size of the cube (default is 50).
-        Returns:
-            numpy.ndarray: A 1D array of length 3 representing the x, y, z coordinates of the center of the cube.
-        """
-
-        # Calculate the rotation matrix from the Rodrigues vector
-        rotation_matrix, _ = cv2.Rodrigues(r_vec)
-
-        # Calculate the offset from the face center to the cube center
-        offset = np.dot(rotation_matrix, np.array([0, 0, cube_size / 2]))
-
-        # Calculate the cube center
-        cube_center = marker_position - offset
-
-        return cube_center
 
     def _render_environment(self, state, environment_info):
         # Get base rendering of the two-finger environment translate
@@ -217,12 +185,13 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         target_goal = current_environment_info["goal"]
 
         # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(
+        # Exclude Z for object
+        object_previous = self._relative_position(
             previous_environment_info["poses"]["object"]
-        )
-        object_current = self._pose_to_state(
+        )[:-1]
+        object_current = self._relative_position(
             current_environment_info["poses"]["object"]
-        )
+        )[:-1]
         logging.debug(
             f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
         )
@@ -264,12 +233,12 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         target_goal = current_environment_info["goal"]
 
         # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(
+        object_previous = self._relative_position(
             previous_environment_info["poses"]["object"]
-        )
-        object_current = self._pose_to_state(
+        )[:-1]
+        object_current = self._relative_position(
             current_environment_info["poses"]["object"]
-        )
+        )[:-1]
         logging.debug(
             f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
         )
@@ -321,12 +290,12 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         target_goal = current_environment_info["goal"]
 
         # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(
+        object_previous = self._relative_position(
             previous_environment_info["poses"]["object"]
-        )
-        object_current = self._pose_to_state(
+        )[:-1]
+        object_current = self._relative_position(
             current_environment_info["poses"]["object"]
-        )
+        )[:-1]
         logging.debug(
             f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
         )
@@ -399,12 +368,12 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         target_goal = current_environment_info["goal"]
 
         # This now converts the poses with respect to reference marker
-        object_previous = self._pose_to_state(
+        object_previous = self._relative_position(
             previous_environment_info["poses"]["object"]
-        )
-        object_current = self._pose_to_state(
+        )[:-1]
+        object_current = self._relative_position(
             current_environment_info["poses"]["object"]
-        )
+        )[:-1]
         logging.debug(
             f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
         )

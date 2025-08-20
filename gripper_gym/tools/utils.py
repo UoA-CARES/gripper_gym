@@ -1,8 +1,5 @@
-import os
-import shutil
-
-import matplotlib.pyplot as plt
-import pandas as pd
+import cv2
+import numpy as np
 import pydantic
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
@@ -16,6 +13,29 @@ def load_gripper_config(config_path: str) -> GripperConfig:
     except Exception as e:
         error_msg = f"Failed to load gripper config from {config_path}: {e}"
         raise ValueError(error_msg) from e
+
+
+def draw_circle(
+    image,
+    position_mm: list[float],
+    size_mm: float,
+    camera_matrix,
+    color: tuple[int, int, int],
+    reference_position_mm: list[float] = [0, 0, 0],
+):
+    pixel_location = position_to_pixel(
+        position_mm,
+        reference_position_mm,
+        camera_matrix,
+    )
+
+    noise_tolerance_pixels = mm_to_pixels(
+        size_mm, reference_position_mm[2], camera_matrix
+    )
+
+    # Circle size now reflects the "Close enough" to goal tolerance
+    cv2.circle(image, pixel_location, int(noise_tolerance_pixels), color, -1)
+    return image, pixel_location
 
 
 def mm_to_pixels(size_mm, distance_mm, camera_matrix):
@@ -56,110 +76,58 @@ def angular_difference(angle_a: float, angle_b: float) -> float:
     return min(diff, 360 - diff)
 
 
-def create_directories(local_results_path, folder_name):
-    if not os.path.exists(local_results_path):
-        os.makedirs(local_results_path)
+def get_cube_pose(
+    marker_poses: dict,
+    cube_ids: tuple[int, int, int, int, int, int],
+    cube_size: float = 50,
+) -> dict | None:
+    """
+    Calculate the center point of a cube base on the detected markers.
+    Args:
+        marker_poses (dict): A dictionary containing the poses of the detected ArUco markers.
+        cube_ids (tuple[int, int, int, int, int, int]): IDs of the cube markers.
+    Returns:
+        dict: A dictionary containing the position and orientation of the cube.
+    """
+    detected_ids = [ids for ids in marker_poses]
 
-    file_path = f"{local_results_path}/{folder_name}"
+    cube_marker_ids = [id for id in cube_ids if id in detected_ids]
 
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
-    if not os.path.exists(f"{file_path}/data"):
-        os.makedirs(f"{file_path}/data")
-    if not os.path.exists(
-        "servo_errors"
-    ):  # servo error still here because it's used by servo.py which shouldn't know the local storage
-        os.makedirs("servo_errors")
-    return file_path
+    if len(cube_marker_ids) == 0:
+        # If no cube marker detected then return a default pose assuming the cube is not visible
+        return None
 
+    # Calculate the cube centers for the marker IDs present in both cube_ids and detected_ids
+    cube_centers = np.array(
+        [calculate_cube_center(marker_poses[id], cube_size) for id in cube_marker_ids]
+    )
 
-def store_configs(file_path, parent_path, folder_name="configs"):
-    if not os.path.isdir(f"{file_path + '/' + folder_name}"):
-        os.mkdir(file_path + "/" + folder_name)
+    # Calculate the final cube center by averaging
+    cube_center = np.mean(cube_centers, axis=0)
 
-    for file_name in os.listdir(parent_path):
-        # construct full file path
-        source = parent_path + "/" + file_name
-
-        destination = file_path + "/" + folder_name + "/" + file_name
-        print(f"Destination: {destination}")
-
-        # copy only files
-        if os.path.isfile(source):
-            shutil.copy(source, destination)
-            print("copied", file_name)
+    return {"position": cube_center, "orientation": [0.0, 0.0, 0.0]}
 
 
-def store_data(data, file_path, file_name):
-    with open(f"{file_path}/data/{file_name}.txt", "a") as f:
-        f.write(str(data) + "\n")
+def calculate_cube_center(marker_pose: dict, cube_size: float) -> np.ndarray:
+    """
+    Calculate the center point of a cube given the position and orientation of one face.
+    Args:
+        marker_pose (dict): A dictionary containing the position and orientation of the marker.
+        cube_size (int): The size of the cube.
+    Returns:
+        numpy.ndarray: A 1D array of length 3 representing the x, y, z coordinates of the center of the cube.
+    """
 
+    marker_position = np.array(marker_pose["position"])
+    r_vec = np.array(marker_pose["orientation"]["r_vec"])
 
-def plot_data(file_path, files):
-    if type(files) is not list:
-        files = [files]
+    # Calculate the rotation matrix from the Rodrigues vector
+    rotation_matrix, _ = cv2.Rodrigues(r_vec)
 
-    for file_name in files:
-        datas = []
-        with open(f"{file_path}/data/{file_name}.txt", "r") as file:
-            for line in file:
-                data = float(line.strip())
-                datas.append(data)
+    # Calculate the offset from the face center to the cube center
+    offset = np.dot(rotation_matrix, np.array([0, 0, cube_size / 2]))
 
-        plt.plot(datas)
-        plt.xlabel("Episode")
-        plt.ylabel(f"{file_name}")
-        plt.title(f"{file_name}")
-        plt.savefig(f"{file_path}/{file_name}")
-        plt.close()
+    # Calculate the cube center
+    cube_center = marker_position - offset
 
-
-def plot_data_time(file_path, files, file_name_average_reward, file_name_time):
-    average_reward = []
-    time = []
-    if type(files) is not list:
-        files = [files]
-
-    with open(f"{file_path}/data/{file_name_average_reward}.txt", "r") as file:
-        for line in file:
-            data = float(line.strip())
-            average_reward.append(data)
-
-    with open(f"{file_path}/data/{file_name_time}.txt", "r") as file:
-        for line in file:
-            data = float(line.strip())
-            time.append(data)
-
-        plt.plot(time, average_reward)
-        plt.xlabel("Time")
-        plt.ylabel(f"{file_name_average_reward}")
-        plt.title("Average Reward vs Time")
-        plt.savefig(f"{file_path}/reward_average_vs_time")
-        plt.close()
-
-
-def slack_post_plot(environment, slack_bot, file_path, plots):
-    if type(plots) is not list:
-        plots = [plots]
-
-    for plot_name in plots:
-        if os.path.exists(f"{file_path}/{plot_name}.png"):
-            slack_bot.upload_file(
-                "#cares-chat-bot",
-                f"#{environment.gripper.gripper_id}: {plot_name}",
-                f"{file_path}/",
-                f"{plot_name}.png",
-            )
-        else:
-            slack_bot.post_message(
-                "#cares-chat-bot",
-                f"#{environment.gripper.gripper_id}: {plot_name} plot not ready yet or doesn't exist",
-            )
-
-
-def save_evaluation_values(data_eval_reward, filename, file_path):
-    data = pd.DataFrame.from_dict(data_eval_reward)
-    data.to_csv(f"{file_path}/data/{filename}_evaluation", index=False)
-    data.plot(x="step", y="avg_episode_reward", title="Evaluation Reward Curve")
-    plt.savefig(f"{file_path}/data/{filename}_evaluation.png")
-    plt.close()
+    return cube_center

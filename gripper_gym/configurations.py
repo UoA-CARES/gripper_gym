@@ -45,6 +45,20 @@ class GripperEnvironmentConfig(SubscriptableClass):
     use_touch: Optional[bool] = False
 
 
+class TranslationConfig(GripperEnvironmentConfig):
+    """
+    Configuration for the Translation environment.
+    Inherits from GripperEnvironmentConfig.
+    """
+
+    task: str = "translation"
+
+    goal_min: list[float]  # mm
+    goal_max: list[float]  # mm
+
+    noise_tolerance: float = 10.0
+
+
 #########################################
 # Two Finger Environment Configurations #
 #########################################
@@ -68,8 +82,6 @@ class TwoFingerTranslationConfig(TwoFingerConfig):
     goal_min: list[float]  # mm
     goal_max: list[float]  # mm
 
-    goal_range: float  # mm
-
     noise_tolerance: float = 10.0  # mm
 
     # Translation Environment specific
@@ -89,8 +101,6 @@ class TwoFingerFlatConfig(TwoFingerTranslationConfig):
     goal_min: list[float] = [-40.0, 70.0]  # mm
     goal_max: list[float] = [100.0, 110.0]  # mm
 
-    goal_range: float = 70  # mm
-
     elevator_servo_id: int = 5
     elevator_limits: list = [3000, 1000]  # [MAX,MIN]
 
@@ -107,8 +117,6 @@ class TwoFingerSuspendedConfig(TwoFingerTranslationConfig):
 
     goal_min: list[float] = [-20.0, 70.0]  # mm
     goal_max: list[float] = [100.0, 105.0]  # mm
-
-    goal_range: float = 70  # mm
 
     elevator_servo_id: int = 5
     elevator_limits: list = [6000, 1200]  # [MAX,MIN]
@@ -130,3 +138,26 @@ class TwoFingerRotationConfig(TwoFingerConfig):
 
     rotator_baudrate: int = 1000000
     rotator_servo_id: int = 5
+
+
+class FourFingerConfig(GripperEnvironmentConfig):
+    """
+    Configuration for the Four Finger environment.
+    Inherits from GripperEnvironmentConfig.
+    """
+
+    domain: str = "four_finger"
+
+
+class FourFingerTranslationConfig(FourFingerConfig):
+    """
+    Configuration for the Four Finger Translation environment.
+    Inherits from FourFingerConfig.
+    """
+
+    task: str = "translation"
+
+    goal_min: list[float] = [40, 40]  # mm
+    goal_max: list[float] = [120, 120]  # mm
+
+    noise_tolerance: float = 10.0  # mm

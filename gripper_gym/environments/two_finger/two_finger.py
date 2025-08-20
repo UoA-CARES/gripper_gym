@@ -16,12 +16,6 @@ class TwoFingerTask(Environment):
     ):
         super().__init__(env_config, gripper_config)
 
-        # The reference position normalises the positions regardless of the camera position
-        self.reference_pose = self._get_marker_poses([self.reference_marker_id])[
-            self.reference_marker_id
-        ]
-        self.reference_position = self.reference_pose["position"]
-
     def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
         while True:
             logging.debug(f"Attempting to Detect markers: {must_see_ids}")
@@ -52,15 +46,7 @@ class TwoFingerTask(Environment):
 
     def _render_environment(self, state, environment_info):
 
-        image = (
-            cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
-            if self.is_inverted
-            else self.camera.get_frame()
-        )
-
-        image = cv2.undistort(
-            image, self.camera.camera_matrix, self.camera.camera_distortion
-        )
+        image = super()._render_environment(state, environment_info)
 
         num_gripper_markers = self.gripper.num_motors + 2
 
