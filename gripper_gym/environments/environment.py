@@ -120,6 +120,27 @@ class Environment(ABC):
         self.current_environment_info: dict = {}
         self.previous_environment_info: dict = {}
 
+    def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
+        while True:
+            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
+            frame = (
+                cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+                if self.is_inverted
+                else self.camera.get_frame()
+            )
+            marker_poses = self.marker_detector.get_marker_poses(
+                frame,
+                self.camera.camera_matrix,
+                self.camera.camera_distortion,
+                display=self.display,
+            )
+
+            # This will check that all the markers are detected correctly
+            if all(ids in marker_poses for ids in must_see_ids):
+                break
+
+        return marker_poses
+
     def _get_touch(self):
         if self.use_touch:
             return self.touch_sensor.get_latest()
@@ -316,8 +337,4 @@ class Environment(ABC):
 
     @abstractmethod
     def _check_success(self, current_environment_info):
-        pass
-
-    @abstractmethod
-    def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
         pass

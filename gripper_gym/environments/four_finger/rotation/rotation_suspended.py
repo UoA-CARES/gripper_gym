@@ -1,5 +1,4 @@
 import logging
-import math
 import os
 import time
 
@@ -7,16 +6,16 @@ import dynamixel_sdk as dxl
 from cares_lib.dynamixel.Servo import Servo
 
 import gripper_gym.tools.utils as utils
-from gripper_gym.configurations import TwoFingerFlatConfig
-from gripper_gym.environments.two_finger.translation.translation import (
-    TwoFingerTranslation,
-)
+from gripper_gym.configurations import FourFingerRotationSuspendedConfig
+from gripper_gym.environments.four_finger.rotation.rotation import FourFingerRotation
 
 
-class TwoFingerTranslationFlat(TwoFingerTranslation):
-    def __init__(self, gripper_id: int):
-
-        env_config = TwoFingerFlatConfig(gripper_id=gripper_id)
+class FourFingerRotationSuspended(FourFingerRotation):
+    def __init__(
+        self,
+        gripper_id: int,
+    ):
+        env_config = FourFingerRotationSuspendedConfig(gripper_id=gripper_id)
 
         gripper_config_path = os.path.expanduser(
             f"~/gripper_configs/{env_config.gripper_id}/gripper_config.json"
@@ -63,52 +62,26 @@ class TwoFingerTranslationFlat(TwoFingerTranslation):
             raise IOError(error_message)
         logging.debug(f"Succeeded to change the baudrate to {self.elevator_baudrate}")
 
-    # overriding method
     def _reset(self):
         self.init_elevator()
         self.elevator.enable_torque()
-        self.elevator.set_operating_mode(4)
 
-        # TODO implement object centred check
-        self.gripper.move([312, 712, 512, 512])
+        self.elevator.move(self.elevator_min)  # Lower Elevator
 
-        self.elevator.move(self.elevator_max)
-        time.sleep(0.5)
-        self.elevator.move(self.elevator_min)
+        time.sleep(0.5)  # Let it settle
 
-        self.gripper.home()
+        self.gripper.wiggle_home()  # Home Gripper
 
-    def _get_poses(self):
-        """
-        Gets the current state of the environment using the Aruco markers.
+        # Opening Grasp
+        self.elevator.move(self.elevator_max)  # Raise Elevator
 
-        Returns:
-        dict : A dictionary containing the poses of the gripper and object markers.
+        time.sleep(0.5)  # Let it settle
 
-        gripper: X-Y-Z-RPY Servos + X-Y-Z-RPY Finger-tips
-        object: X-Y-Z-RPY Object
-        """
-        poses = {}
-
-        # Servos + Finger Tips (2)
-        num_gripper_markers = self.gripper.num_motors + 2
-
-        # Gripper markers + Object (1)
-        num_markers = num_gripper_markers + 1
-
-        # maker_ids match servo ids (counting from 1)
-        marker_ids = [id for id in range(1, num_markers + 1)]
-
-        marker_poses = self._get_marker_poses(marker_ids)
-
-        poses["gripper"] = dict(
-            [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
+        # Grasp Cube - make this a config option
+        self.gripper.move(
+            [2048, 2200, 2350, 2048, 2200, 2350, 2048, 2200, 2350, 2048, 2200, 2350]
         )
 
-        # Object marker is the last one
-        # This assumes that the object marker is always the last one in the list
-        # and that it is not used by the gripper.
-        object_marker_id = num_markers
-        poses["object"] = marker_poses[object_marker_id]
+        time.sleep(0.5)  # Let it settle
 
-        return poses
+        self.elevator.move(self.elevator_min)

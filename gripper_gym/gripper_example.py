@@ -1,3 +1,5 @@
+import cv2
+import os
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -17,65 +19,79 @@ from cares_lib.dynamixel.Servo import Servo, DynamixelServoError, OperatingMode
 
 import dynamixel_sdk as dxl
 
+import gripper_gym.tools.utils as utils
+from cares_lib.vision.Camera import Camera
+from cares_lib.vision.STagDetector import STagDetector
+
+
+def get_marker_poses(
+    must_see_ids: list[int], camera, marker_detector, is_inverted
+) -> dict[int, dict]:
+    while True:
+        logging.debug(f"Attempting to Detect markers: {must_see_ids}")
+        frame = (
+            cv2.rotate(camera.get_frame(), cv2.ROTATE_180)
+            if is_inverted
+            else camera.get_frame()
+        )
+
+        cv2.imshow("Camera Frame", frame)
+        cv2.waitKey(10)
+
+        marker_poses = marker_detector.get_marker_poses(
+            frame,
+            camera.camera_matrix,
+            camera.camera_distortion,
+        )
+
+        # This will check that all the markers are detected correctly
+        if all(ids in marker_poses for ids in must_see_ids):
+            break
+
+    return marker_poses
+
 
 # Example of how to use Gripper
-def main(gripper_config):
-    logging.info(f"Running gripper {gripper_config.gripper_type}")
+def main():
+    gripper_id = 1
 
-    gripper = Gripper(gripper_config)
+    # camera_name = f"/dev/camera{gripper_id}"
+    camera_name = f"/dev/video0"
 
-    logging.info("Pinging Gripper to find all servos")
-    gripper.ping()
+    calibration_path = os.path.expanduser(f"~/gripper_configs/{gripper_id}")
+    camera_matrix_path = os.path.join(calibration_path, "camera_matrix.txt")
+    camera_distortion_path = os.path.join(calibration_path, "camera_distortion.txt")
 
-    logging.info("Moving the Gripper to a home position")
-    gripper.home()
+    camera = Camera(camera_name, camera_matrix_path, camera_distortion_path)
 
-    logging.info("Gripper State")
-    gripper_state = gripper.state()
-    logging.info(gripper_state)
+    stag_detector = STagDetector(marker_size=32.0, library_hd=11)
 
-    velocities = [-30, 0, 0, -50, 0, 0, -30, 0, 0]
-    logging.info(f"Set Velocity: {velocities}")
-    gripper.move_velocity(velocities, False)
+    while True:
+        marker_poses = get_marker_poses(
+            must_see_ids=[],
+            camera=camera,
+            marker_detector=stag_detector,
+            is_inverted=False,
+        )
 
-    start_time = time.perf_counter()
-    while time.perf_counter() < start_time + 10:
-        gripper.step()
-        time.sleep(0.1)
+        cube_pose = utils.get_cube_pose(
+            marker_poses=marker_poses,
+            cube_ids=[1, 2, 3, 4, 5, 6],
+            cube_size=32.0,
+        )
 
-    velocities = [30, 30, 30, 50, 30, 30, 30, 30, 30]
-    logging.info(f"Set Velocity: {velocities}")
-    gripper.move_velocity(velocities, False)
+        if cube_pose is not None:
+            radians = np.array(
+                cube_pose["orientation"]
+            )  # Assuming orientation is in radians
 
-    start_time = time.perf_counter()
-    while time.perf_counter() < start_time + 3:
-        gripper.step()
-        time.sleep(0.1)
+            # Convert to degrees
+            degrees = np.degrees(radians)
 
-    logging.info(f"Setting velocity to zero")
-    gripper.move_velocity([0, 0, 0, 0, 0, 0, 0, 0, 0], False)
+            print(f"Cube Position: {cube_pose['position']} Orientation: {degrees}")
 
-    start_time = time.perf_counter()
-    while time.perf_counter() < start_time + 2:
-        gripper.step()
-        time.sleep(0.1)
-
-    logging.info("Moving the Gripper to a home position")
-    gripper.home()
-
-    logging.info("Gripper State")
-    gripper_state = gripper.state()
-    logging.info(gripper_state)
-
-    logging.info("Closing the Gripper")
-    gripper.close()
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
-
-    config = pydantic.parse_file_as(
-        path=f"{file_path}/config_examples/gripper_9DOF_config_ID2.json",
-        type_=GripperConfig,
-    )
-    logging.info(f"Config: {config}")
-    main(config)
+    main()

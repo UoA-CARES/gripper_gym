@@ -1,5 +1,5 @@
 from gripper_gym.environments.environment import Environment
-from gripper_gym.environments.four_finger.rotation import (
+from gripper_gym.environments.four_finger.rotation.rotation import (
     FourFingerRotationFlat,
     FourFingerRotationSuspended,
 )
@@ -8,7 +8,7 @@ from gripper_gym.environments.four_finger.rotation import (
 #     FourFingerTranslationFlat,
 #     FourFingerTranslationSuspended,
 # )
-from gripper_gym.environments.two_finger.rotation.rotation import TwoFingerRotationTask
+from gripper_gym.environments.two_finger.rotation.rotation import TwoFingerRotation
 from gripper_gym.environments.two_finger.translation.translation_flat import (
     TwoFingerTranslationFlat,
 )

@@ -1,14 +1,14 @@
 import logging
-import os
-import random
+import math
 from enum import Enum
 
+import cv2
 import numpy as np
-from cares_lib.dynamixel.Servo import Servo
+from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 import gripper_gym.tools.utils as utils
-from gripper_gym.configurations import TwoFingerRotationConfig
-from gripper_gym.environments.two_finger.two_finger import TwoFingerTask
+from gripper_gym.configurations import FourFingerRotationConfig
+from gripper_gym.environments.four_finger.four_finger import FourFingerTask
 
 
 class GOAL_SELECTION_METHOD(Enum):
@@ -93,39 +93,17 @@ def relative_goal_90_180_270(object_current_pose):
     return (current_yaw + diff) % 360
 
 
-class TwoFingerRotation(TwoFingerTask):
+class FourFingerRotation(FourFingerTask):
 
     def __init__(
         self,
-        gripper_id: int,
+        env_config: FourFingerRotationConfig,
+        gripper_config: GripperConfig,
     ):
-        env_config = TwoFingerRotationConfig(gripper_id=gripper_id)
-
-        gripper_config_path = os.path.expanduser(
-            f"~/gripper_configs/{env_config.gripper_id}/gripper_config.json"
-        )
-        gripper_config = utils.load_gripper_config(gripper_config_path)
-
         super().__init__(env_config, gripper_config)
 
         self.goal_type = env_config.goal_type
         self.noise_tolerance = env_config.noise_tolerance
-
-        self.rotator_baudrate = env_config.rotator_baudrate
-        self.rotator_servo_id = env_config.rotator_servo_id
-
-        self.rotator = Servo(
-            self.gripper.port_handler,
-            self.gripper.packet_handler,
-            2,
-            self.rotator_servo_id,
-            1,
-            200,
-            200,
-            4095,
-            0,
-            model="XL330-M077-T",
-        )
 
     def _get_goal(self, rotator_angle):
         """
@@ -154,9 +132,6 @@ class TwoFingerRotation(TwoFingerTask):
         # No matching goal found, throw error
         raise ValueError(f"Goal selection method unknown: {self.goal_type}")
 
-    def _reset(self):
-        self.gripper.home()
-
     # overriding method
     def _choose_goal(self):
         """
@@ -169,78 +144,49 @@ class TwoFingerRotation(TwoFingerTask):
             f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_type.upper()).name}"
         )
 
-        rotator_steps = random.randint(0, 4095)
-        self.rotator.move(rotator_steps)
+        # Get the current object orientation
+        object_pose = None
+        while object_pose is None:
+            poses = self._get_poses()
+            object_pose = poses["object"]
+            if object_pose is None:
+                logging.warning("Unable to read object pose.")
+                self._reset()
 
-        rotator_angle = self.rotator.step_to_angle(rotator_steps)
-        logging.info(f"New Home Angle Generated: {rotator_angle}")
+        object_orientation = object_pose["orientation"][2]  # Get the yaw angle
 
-        return self._get_goal(rotator_angle)
+        logging.info(f"Starting Orientation: {object_orientation}")
 
-    # overriding method
+        return self._get_goal(object_orientation)
+
     def _environment_info_to_state(self, environment_info):
         state = []
 
         # Servo Angles - Steps
-        # state += environment_info["gripper"]["positions"]
+        state += environment_info["gripper"]["positions"]
 
-        # Servo Velocities - Steps per second
-        if self.action_type == "velocity":
-            state += environment_info["gripper"]["velocities"]
+        # Object position - XYZ
+        # Object - X Y mm
+        object_pose = environment_info["poses"]["object"]
+        if object_pose is None:
+            # Default position if object is not detected - indicates outside of bounds
+            # This is useful for tasks where the object might not be present
+            # or is outside the camera's view.
+            object_relative_angle = [-360]
+        else:
+            # Only take the yaw angle
+            object_relative_angle = object_pose["orientation"][:1]
 
-        # Servo + Two Finger Tips - X Y mm
-        for i in range(1, self.gripper.num_motors + 3):
-            servo_position = environment_info["poses"]["gripper"][i]
+        state += object_relative_angle
 
-            servo_relative_position = self._relative_position(servo_position)
-            state += servo_relative_position[:-1]  # Exclude Z for servo tips
-
-        # Rotator - angle degrees
-        state += environment_info["poses"]["rotator"]
-
-        # Goal State - angle degrees
-        state += self.goal
+        # Goal
+        state += environment_info["goal"]
 
         # Touch Sensor Values
         if self.use_touch:
             state += environment_info["touch"]
 
-        return state
-
-    def _get_poses(self):
-        """
-        Gets the current state of the environment using the Aruco markers.
-
-        Returns:
-        dict : A dictionary containing the poses of the gripper and object markers.
-
-        gripper: X-Y-Z-RPY Servos + X-Y-Z-RPY Finger-tips
-        object: X-Y-Z-RPY Object
-        """
-        poses = {}
-
-        # Servos + Finger Tips (2)
-        num_gripper_markers = self.gripper.num_motors + 2
-
-        # Gripper markers + Object (1)
-        num_markers = num_gripper_markers + 1
-
-        # maker_ids match servo ids (counting from 1)
-        marker_ids = [id for id in range(1, num_markers + 1)]
-
-        marker_poses = self._get_marker_poses(marker_ids)
-
-        poses["gripper"] = dict(
-            [i, marker_poses[i]] for i in range(1, num_gripper_markers + 1)
-        )
-
-        # Object marker is the last one
-        # This assumes that the object marker is always the last one in the list
-        # and that it is not used by the gripper.
-        rotator_position = self.rotator.current_position()
-        poses["rotator"] = round(self.rotator.step_to_angle(rotator_position))
-
-        return poses
+        return [round(val, 2) for val in state]
 
     # overriding method
     def _reward_function(self, previous_environment_info, current_environment_info):
@@ -276,4 +222,87 @@ class TwoFingerRotation(TwoFingerTask):
 
         return round(reward, 2), False
 
-    # TODO render environment with angle before and after rotation
+    def _render_environment(self, state, environment_info):
+        # Get base rendering of the four-finger environment
+        image = super()._render_environment(state, environment_info)
+
+        image = (
+            cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
+            if self.is_inverted
+            else self.camera.get_frame()
+        )
+
+        image = cv2.undistort(
+            image, self.camera.camera_matrix, self.camera.camera_distortion
+        )
+
+        # TODO
+        # Image Size X640 Y480
+        position = environment_info["poses"]["object"]["position"]
+        pixel_x = (
+            self.camera.camera_matrix[0, 0] * position[0] / 320
+            + self.camera.camera_matrix[0, 2]
+        )
+        pixel_y = (
+            self.camera.camera_matrix[1, 1] * position[1] / 240
+            + self.camera.camera_matrix[1, 2]
+        )
+        centre = [round(pixel_x), round(pixel_y)]
+
+        # TODO put arrow_end calculation into function
+        yaw = environment_info["poses"]["object"]["orientation"][2]
+        lineSize = 35
+        arrow_end_x = position[0] + (math.sin(math.radians(yaw)) * lineSize)
+        arrow_end_x = (
+            self.camera.camera_matrix[0, 0] * arrow_end_x / 320
+            + self.camera.camera_matrix[0, 2]
+        )
+        arrow_end_y = position[1] - (math.cos(math.radians(yaw)) * lineSize)
+        arrow_end_y = (
+            self.camera.camera_matrix[1, 1] * arrow_end_y / 240
+            + self.camera.camera_matrix[1, 2]
+        )
+        arrow_end_axis = [round(arrow_end_x), round(arrow_end_y)]
+
+        arrow_end_x = position[0] + (math.sin(math.radians(self.goal[0])) * lineSize)
+        arrow_end_x = (
+            self.camera.camera_matrix[0, 0] * arrow_end_x / 320
+            + self.camera.camera_matrix[0, 2]
+        )
+        arrow_end_y = position[1] - (math.cos(math.radians(self.goal[0])) * lineSize)
+        arrow_end_y = (
+            self.camera.camera_matrix[1, 1] * arrow_end_y / 240
+            + self.camera.camera_matrix[1, 2]
+        )
+        arrow_end_goal = [round(arrow_end_x), round(arrow_end_y)]
+
+        # Places a circle at the centre of the cube marker
+        cv2.circle(image, centre, 5, (0, 0, 255), -1)
+        # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.
+        cv2.arrowedLine(image, centre, arrow_end_axis, (255, 0, 0), 3)
+        # Draws an arrow of the markers desired X axis placement, i.e. the goal angle
+        cv2.arrowedLine(image, centre, arrow_end_goal, (255, 0, 0), 3)
+
+        cv2.putText(
+            image,
+            f"{'Current'}",
+            arrow_end_axis,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            image,
+            f"{'Goal'}",
+            arrow_end_goal,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        return image

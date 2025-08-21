@@ -1,3 +1,5 @@
+import math
+
 import cv2
 import numpy as np
 import pydantic
@@ -102,10 +104,69 @@ def get_cube_pose(
         [calculate_cube_center(marker_poses[id], cube_size) for id in cube_marker_ids]
     )
 
+    cube_orientations = np.array(
+        [calculate_cube_orientation(id, marker_poses[id]) for id in cube_marker_ids]
+    )
+
     # Calculate the final cube center by averaging
     cube_center = np.mean(cube_centers, axis=0)
+    cube_orientation = np.mean(cube_orientations, axis=0)
 
-    return {"position": cube_center, "orientation": [0.0, 0.0, 0.0]}
+    return {"position": cube_center, "orientation": cube_orientation}
+
+
+def get_orientation(r_vec):
+    r_matrix, _ = cv2.Rodrigues(r_vec)
+    roll, pitch, yaw = rotation_to_euler(r_matrix)
+
+    def validate_angle(degrees):
+        return degrees % 360
+
+    roll = validate_angle(math.degrees(roll))
+    pitch = validate_angle(math.degrees(pitch))
+    yaw = validate_angle(math.degrees(yaw))
+
+    return [roll, pitch, yaw]
+
+
+def calculate_cube_orientation(
+    marker_id: int, marker_pose: dict
+) -> tuple[float, float, float]:
+    """
+    Calculate the orientation of a cube given the position and orientation of one face.
+    Args:
+        marker_pose (dict): A dictionary containing the position and orientation of the marker.
+        cube_size (int): The size of the cube.
+    Returns:
+        numpy.ndarray: A 1D array of length 3 representing the roll, pitch, yaw angles of the cube.
+    """
+
+    # TODO: Veritfy that this is correct for all cube orientations
+    # Define the fixed rotation from cube to marker for each marker ID
+    # This is based on the assumption that the cube is aligned with the world axes
+    cube_to_marker_rotations = {
+        1: np.eye(3),  # front
+        4: cv2.Rodrigues(np.array([0, 0, np.pi / 2]))[0],  # right
+        6: cv2.Rodrigues(np.array([0, 0, np.pi]))[0],  # back
+        3: cv2.Rodrigues(np.array([0, 0, -np.pi / 2]))[0],  # left
+        2: cv2.Rodrigues(np.array([np.pi / 2, 0, 0]))[0],  # top
+        5: cv2.Rodrigues(np.array([-np.pi / 2, 0, 0]))[0],  # bottom
+    }
+
+    r_vec = np.array(marker_pose["r_vec"])
+
+    # Convert rvec (Rodrigues) to rotation matrix
+    marker_rot, _ = cv2.Rodrigues(r_vec)
+
+    # Get fixed rotation from cube to this marker
+    cube_to_marker = cube_to_marker_rotations[marker_id]
+
+    # Compute cube rotation in camera frame
+    cube_rot = np.dot(marker_rot, cube_to_marker.T)
+
+    cube_euler = rotation_to_euler(cube_rot)
+
+    return cube_euler
 
 
 def calculate_cube_center(marker_pose: dict, cube_size: float) -> np.ndarray:
@@ -118,8 +179,10 @@ def calculate_cube_center(marker_pose: dict, cube_size: float) -> np.ndarray:
         numpy.ndarray: A 1D array of length 3 representing the x, y, z coordinates of the center of the cube.
     """
 
+    print("Marker Pose:", marker_pose)
+
     marker_position = np.array(marker_pose["position"])
-    r_vec = np.array(marker_pose["orientation"]["r_vec"])
+    r_vec = np.array(marker_pose["r_vec"])
 
     # Calculate the rotation matrix from the Rodrigues vector
     rotation_matrix, _ = cv2.Rodrigues(r_vec)
@@ -131,3 +194,30 @@ def calculate_cube_center(marker_pose: dict, cube_size: float) -> np.ndarray:
     cube_center = marker_position - offset
 
     return cube_center
+
+
+def rotation_to_euler(rotation_matrix: np.ndarray) -> tuple[float, float, float]:
+    """
+    Convert a 3x3 rotation matrix to Euler angles (roll, pitch, yaw)
+    using ZYX convention (yaw around z, pitch around y, roll around x).
+
+    Returns angles in radians: roll, pitch, yaw
+    """
+    assert rotation_matrix.shape == (3, 3), "Input must be a 3x3 rotation matrix"
+
+    # Check for gimbal lock
+    if abs(rotation_matrix[2, 0]) >= 1.0:
+        pitch = -math.pi / 2 if rotation_matrix[2, 0] > 0 else math.pi / 2
+        roll = math.atan2(-rotation_matrix[0, 1], -rotation_matrix[0, 2])
+        yaw = 0.0
+    else:
+        pitch = -math.asin(rotation_matrix[2, 0])
+        cos_pitch = math.cos(pitch)
+        roll = math.atan2(
+            rotation_matrix[2, 1] / cos_pitch, rotation_matrix[2, 2] / cos_pitch
+        )
+        yaw = math.atan2(
+            rotation_matrix[1, 0] / cos_pitch, rotation_matrix[0, 0] / cos_pitch
+        )
+
+    return roll, pitch, yaw

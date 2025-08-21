@@ -24,8 +24,6 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
         super().__init__(env_config, gripper_config)
 
-        self.reward_function = env_config.reward_function
-
         self.max_value = 3500 if gripper_config.gripper_id == 1 else 4000
         self.min_value = 0
         self.goal_line = 45
@@ -76,27 +74,6 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
         self._lift_down()
         self.elevator.move(1000, timeout=1)
         self._lift_down()
-
-    def _get_marker_poses(self, must_see_ids: list[int]) -> dict[int, dict]:
-        while True:
-            logging.debug(f"Attempting to Detect markers: {must_see_ids}")
-            frame = (
-                cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
-                if self.is_inverted
-                else self.camera.get_frame()
-            )
-            marker_poses = self.marker_detector.get_marker_poses(
-                frame,
-                self.camera.camera_matrix,
-                self.camera.camera_distortion,
-                display=self.display,
-            )
-
-            # This will check that all the markers are detected correctly
-            if all(ids in marker_poses for ids in must_see_ids):
-                break
-
-        return marker_poses
 
     def _get_poses(self):
         """
@@ -151,14 +128,6 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
     def _reward_function(self, previous_environment_info, current_environment_info):
         match self.reward_function:
-            case "distance":
-                return self._reward_function_distance(
-                    previous_environment_info, current_environment_info
-                )
-            case "delta_change":
-                return self._reward_function_delta_change(
-                    previous_environment_info, current_environment_info
-                )
             case "staged":
                 return self._reward_function_staged(
                     previous_environment_info, current_environment_info
@@ -167,115 +136,10 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
                 return self._reward_function_touch_staged(
                     previous_environment_info, current_environment_info
                 )
-            case _:
-                return self._reward_function_staged(
-                    previous_environment_info, current_environment_info
-                )
 
-    # overriding method
-    def _reward_function_distance(
-        self, previous_environment_info, current_environment_info
-    ):
-        self.goal_range = 50
-        self.goal_reward = 60
-        done = False
-
-        reward = 0
-
-        target_goal = current_environment_info["goal"]
-
-        # This now converts the poses with respect to reference marker
-        # Exclude Z for object
-        object_previous = self._relative_position(
-            previous_environment_info["poses"]["object"]
-        )[:-1]
-        object_current = self._relative_position(
-            current_environment_info["poses"]["object"]
-        )[:-1]
-        logging.debug(
-            f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
+        return super()._reward_function(
+            previous_environment_info, current_environment_info
         )
-
-        goal_distance_before = math.dist(target_goal, object_previous)
-        goal_distance_after = math.dist(target_goal, object_current)
-
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
-
-        if goal_distance_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = self.goal_reward
-        elif (
-            goal_distance_after > self.goal_range
-            or object_current[1] >= self.bottom_line
-        ):
-            reward = 0
-        else:
-            reward = round((-goal_distance_after + self.goal_range), 2)
-
-        logging.debug(
-            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
-        )
-
-        print(object_current, reward)
-
-        return reward, done
-
-    # overriding method
-    def _reward_function_delta_change(
-        self, previous_environment_info, current_environment_info
-    ):
-        self.goal_range = 25
-        self.goal_reward = 4  # goal reward minus the potential moving away negativity
-        done = False
-
-        reward = 0
-
-        target_goal = current_environment_info["goal"]
-
-        # This now converts the poses with respect to reference marker
-        object_previous = self._relative_position(
-            previous_environment_info["poses"]["object"]
-        )[:-1]
-        object_current = self._relative_position(
-            current_environment_info["poses"]["object"]
-        )[:-1]
-        logging.debug(
-            f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
-        )
-
-        goal_distance_before = math.dist(target_goal, object_previous)
-        goal_distance_after = math.dist(target_goal, object_current)
-
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
-
-        if object_current[1] <= self.bottom_line:
-            reward = 1
-
-            delta_changes = goal_distance_before - goal_distance_after
-
-            raw_reward = delta_changes / goal_distance_before
-
-            reward += 1 if raw_reward >= 1 else -1 if raw_reward <= -1 else raw_reward
-
-            if goal_distance_after <= self.goal_range:
-                logging.info("----------Reached the Goal!----------")
-                reward += self.goal_reward + 1
-
-            if (
-                goal_distance_after >= self.goal_range
-                and -self.noise_tolerance <= delta_changes <= self.noise_tolerance
-            ):
-                reward += -0.5
-        else:
-            reward = -1
-
-        logging.debug(
-            f"Object Pose: {object_current} Goal Pose: {target_goal} Reward: {reward}"
-        )
-
-        print(object_current, reward)
-
-        return reward, done
 
     # overriding method
     def _reward_function_staged(
@@ -291,10 +155,10 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
 
         # This now converts the poses with respect to reference marker
         object_previous = self._relative_position(
-            previous_environment_info["poses"]["object"]
+            previous_environment_info["poses"]["object"]["position"]
         )[:-1]
         object_current = self._relative_position(
-            current_environment_info["poses"]["object"]
+            current_environment_info["poses"]["object"]["position"]
         )[:-1]
         logging.debug(
             f"Prev object: {object_previous}  Current object: {object_current} Target: {target_goal}"
