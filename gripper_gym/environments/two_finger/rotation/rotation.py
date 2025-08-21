@@ -1,8 +1,10 @@
 import logging
+import math
 import os
 import random
 from enum import Enum
 
+import cv2
 import numpy as np
 from cares_lib.dynamixel.Servo import Servo
 
@@ -127,6 +129,18 @@ class TwoFingerRotation(TwoFingerTask):
             model="XL330-M077-T",
         )
 
+    def _check_success(self, current_environment_info):
+        target_goal = current_environment_info["goal"]
+
+        # Exclude Z for object
+        current_rotation = current_environment_info["poses"]["rotator"]
+
+        goal_distance = utils.angular_difference(current_rotation, target_goal)
+
+        logging.debug(f"Distance to Goal: {goal_distance}")
+
+        return goal_distance <= self.noise_tolerance
+
     def _get_goal(self, rotator_angle):
         """
         Determines the goal function based on the current selection method.
@@ -138,17 +152,17 @@ class TwoFingerRotation(TwoFingerTask):
         # Determine which function to call based on passed in goal int value
         method = GOAL_SELECTION_METHOD[self.goal_type.upper()]
 
-        if method == GOAL_SELECTION_METHOD.FIXED.value:
+        if method == GOAL_SELECTION_METHOD.FIXED:
             return fixed_goals(rotator_angle, self.noise_tolerance)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_90:
             return relative_goal(1, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_180.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_180:
             return relative_goal(2, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_270.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_270:
             return relative_goal(3, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330:
             return relative_goal(4, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270:
             return relative_goal_90_180_270(rotator_angle)
 
         # No matching goal found, throw error
@@ -164,9 +178,8 @@ class TwoFingerRotation(TwoFingerTask):
         Returns:
         float: Chosen goal state.
         """
-        # Log selected goal
         logging.info(
-            f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_type.upper()).name}"
+            f"Goal selection method = {GOAL_SELECTION_METHOD[self.goal_type.upper()].name}"
         )
 
         rotator_steps = random.randint(0, 4095)
@@ -196,10 +209,10 @@ class TwoFingerRotation(TwoFingerTask):
             state += servo_relative_position[:-1]  # Exclude Z for servo tips
 
         # Rotator - angle degrees
-        state += environment_info["poses"]["rotator"]
+        state += [environment_info["poses"]["rotator"]]
 
         # Goal State - angle degrees
-        state += self.goal
+        state += [self.goal]
 
         # Touch Sensor Values
         if self.use_touch:
@@ -237,6 +250,10 @@ class TwoFingerRotation(TwoFingerTask):
         # Object marker is the last one
         # This assumes that the object marker is always the last one in the list
         # and that it is not used by the gripper.
+        object_marker_id = num_markers
+        poses["object"] = marker_poses[object_marker_id]
+
+        # Rotator position - get actual position in degrees from the servo
         rotator_position = self.rotator.current_position()
         poses["rotator"] = round(self.rotator.step_to_angle(rotator_position))
 
@@ -277,3 +294,122 @@ class TwoFingerRotation(TwoFingerTask):
         return round(reward, 2), False
 
     # TODO render environment with angle before and after rotation
+    def _render_environment(self, state, environment_info):
+        # Get base rendering of the four-finger environment
+        image = super()._render_environment(state, environment_info)
+
+        noise_tolerance_pixels = utils.mm_to_pixels(
+            self.noise_tolerance, self.reference_position[2], self.camera.camera_matrix
+        )
+        noise_tolerance_pixels = int(noise_tolerance_pixels)
+
+        # Draw object position
+        object_color = (0, 255, 0)
+
+        current_object_pose = environment_info["poses"]["object"]
+        image, current_object_pixel = utils.draw_circle(
+            image,
+            current_object_pose["position"],
+            self.noise_tolerance,
+            self.camera.camera_matrix,
+            object_color,
+            reference_position_mm=[0, 0, current_object_pose["position"][2]],
+        )
+
+        current_yaw = environment_info["poses"]["rotator"]
+        previous_yaw = self.previous_environment_info["poses"]["rotator"]
+
+        line_length = 50  # Length of the arrow lines in pixels
+
+        # Calculate the end points of the arrows
+        current_arrow_x = int(
+            current_object_pixel[0]
+            + (math.sin(math.radians(current_yaw)) * line_length)
+        )
+        current_arrow_y = int(
+            current_object_pixel[1]
+            - (math.cos(math.radians(current_yaw)) * line_length)
+        )
+
+        previous_arrow_x = int(
+            current_object_pixel[0]
+            + (math.sin(math.radians(previous_yaw)) * line_length)
+        )
+        previous_arrow_y = int(
+            current_object_pixel[1]
+            - (math.cos(math.radians(previous_yaw)) * line_length)
+        )
+
+        goal_arrow_x = int(
+            current_object_pixel[0] + (math.sin(math.radians(self.goal)) * line_length)
+        )
+        goal_arrow_y = int(
+            current_object_pixel[1] - (math.cos(math.radians(self.goal)) * line_length)
+        )
+
+        logging.info(
+            f"Current Yaw: {current_yaw}, Previous Yaw: {previous_yaw}, "
+            f"Current Arrow: ({current_arrow_x}, {current_arrow_y}), "
+            f"Previous Arrow: ({previous_arrow_x}, {previous_arrow_y}), "
+            f"Goal Arrow: ({goal_arrow_x}, {goal_arrow_y})"
+        )
+
+        # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.
+        cv2.arrowedLine(
+            image,
+            current_object_pixel,
+            (current_arrow_x, current_arrow_y),
+            (255, 0, 0),
+            3,
+        )
+        # Draws an arrow of the markers desired X axis placement, i.e. the goal angle
+        cv2.arrowedLine(
+            image,
+            current_object_pixel,
+            (previous_arrow_x, previous_arrow_y),
+            (0, 255, 0),
+            3,
+        )
+
+        cv2.arrowedLine(
+            image,
+            current_object_pixel,
+            (goal_arrow_x, goal_arrow_y),
+            (0, 0, 255),
+            3,
+        )
+
+        cv2.putText(
+            image,
+            f"{'Current'}",
+            (current_arrow_x, current_arrow_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            image,
+            f"{'Previous'}",
+            (previous_arrow_x, previous_arrow_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            image,
+            f"{'Goal'}",
+            (goal_arrow_x, goal_arrow_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        return image

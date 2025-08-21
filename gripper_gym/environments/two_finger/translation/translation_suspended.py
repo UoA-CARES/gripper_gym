@@ -141,6 +141,7 @@ class TwoFingerTranslationSuspended(TwoFingerTranslation):
             previous_environment_info, current_environment_info
         )
 
+    # TODO these reward functons need to be refactored
     # overriding method
     def _reward_function_staged(
         self, previous_environment_info, current_environment_info
