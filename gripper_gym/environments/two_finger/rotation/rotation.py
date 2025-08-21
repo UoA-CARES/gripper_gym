@@ -293,7 +293,6 @@ class TwoFingerRotation(TwoFingerTask):
 
         return round(reward, 2), False
 
-    # TODO render environment with angle before and after rotation
     def _render_environment(self, state, environment_info):
         # Get base rendering of the four-finger environment
         image = super()._render_environment(state, environment_info)

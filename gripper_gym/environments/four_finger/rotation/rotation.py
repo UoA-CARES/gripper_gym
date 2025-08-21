@@ -116,17 +116,17 @@ class FourFingerRotation(FourFingerTask):
         # Determine which function to call based on passed in goal int value
         method = GOAL_SELECTION_METHOD[self.goal_type.upper()]
 
-        if method == GOAL_SELECTION_METHOD.FIXED.value:
+        if method == GOAL_SELECTION_METHOD.FIXED:
             return fixed_goals(rotator_angle, self.noise_tolerance)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_90:
             return relative_goal(1, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_180.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_180:
             return relative_goal(2, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_270.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_270:
             return relative_goal(3, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330:
             return relative_goal(4, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270.value:
+        elif method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270:
             return relative_goal_90_180_270(rotator_angle)
 
         # No matching goal found, throw error
@@ -141,7 +141,7 @@ class FourFingerRotation(FourFingerTask):
         """
         # Log selected goal
         logging.info(
-            f"Goal selection method = {GOAL_SELECTION_METHOD(self.goal_type.upper()).name}"
+            f"Goal selection method = {GOAL_SELECTION_METHOD[self.goal_type.upper()].name}"
         )
 
         # Get the current object orientation
@@ -226,67 +226,108 @@ class FourFingerRotation(FourFingerTask):
         # Get base rendering of the four-finger environment
         image = super()._render_environment(state, environment_info)
 
-        image = (
-            cv2.rotate(self.camera.get_frame(), cv2.ROTATE_180)
-            if self.is_inverted
-            else self.camera.get_frame()
+        noise_tolerance_pixels = utils.mm_to_pixels(
+            self.noise_tolerance, self.reference_position[2], self.camera.camera_matrix
+        )
+        noise_tolerance_pixels = int(noise_tolerance_pixels)
+
+        # Draw object position
+        object_color = (0, 255, 0)
+
+        current_object_pose = environment_info["poses"]["object"]
+        previous_object_pose = self.previous_environment_info["poses"]["object"]
+
+        if current_object_pose is None:
+            logging.warning("Object pose is None, cannot render object.")
+            return image
+
+        image, current_object_pixel = utils.draw_circle(
+            image,
+            current_object_pose["position"],
+            self.noise_tolerance,
+            self.camera.camera_matrix,
+            object_color,
+            reference_position_mm=[0, 0, current_object_pose["position"][2]],
         )
 
-        image = cv2.undistort(
-            image, self.camera.camera_matrix, self.camera.camera_distortion
+        current_yaw = current_object_pose["orientation"][2]
+        previous_yaw = previous_object_pose["orientation"][2]
+
+        line_length = 50  # Length of the arrow lines in pixels
+
+        # Calculate the end points of the arrows
+        current_arrow_x = int(
+            current_object_pixel[0]
+            + (math.sin(math.radians(current_yaw)) * line_length)
+        )
+        current_arrow_y = int(
+            current_object_pixel[1]
+            - (math.cos(math.radians(current_yaw)) * line_length)
         )
 
-        # TODO
-        # Image Size X640 Y480
-        position = environment_info["poses"]["object"]["position"]
-        pixel_x = (
-            self.camera.camera_matrix[0, 0] * position[0] / 320
-            + self.camera.camera_matrix[0, 2]
+        previous_arrow_x = int(
+            current_object_pixel[0]
+            + (math.sin(math.radians(previous_yaw)) * line_length)
         )
-        pixel_y = (
-            self.camera.camera_matrix[1, 1] * position[1] / 240
-            + self.camera.camera_matrix[1, 2]
+        previous_arrow_y = int(
+            current_object_pixel[1]
+            - (math.cos(math.radians(previous_yaw)) * line_length)
         )
-        centre = [round(pixel_x), round(pixel_y)]
 
-        # TODO put arrow_end calculation into function
-        yaw = environment_info["poses"]["object"]["orientation"][2]
-        lineSize = 35
-        arrow_end_x = position[0] + (math.sin(math.radians(yaw)) * lineSize)
-        arrow_end_x = (
-            self.camera.camera_matrix[0, 0] * arrow_end_x / 320
-            + self.camera.camera_matrix[0, 2]
+        goal_arrow_x = int(
+            current_object_pixel[0] + (math.sin(math.radians(self.goal)) * line_length)
         )
-        arrow_end_y = position[1] - (math.cos(math.radians(yaw)) * lineSize)
-        arrow_end_y = (
-            self.camera.camera_matrix[1, 1] * arrow_end_y / 240
-            + self.camera.camera_matrix[1, 2]
+        goal_arrow_y = int(
+            current_object_pixel[1] - (math.cos(math.radians(self.goal)) * line_length)
         )
-        arrow_end_axis = [round(arrow_end_x), round(arrow_end_y)]
 
-        arrow_end_x = position[0] + (math.sin(math.radians(self.goal[0])) * lineSize)
-        arrow_end_x = (
-            self.camera.camera_matrix[0, 0] * arrow_end_x / 320
-            + self.camera.camera_matrix[0, 2]
+        logging.info(
+            f"Current Yaw: {current_yaw}, Previous Yaw: {previous_yaw}, "
+            f"Current Arrow: ({current_arrow_x}, {current_arrow_y}), "
+            f"Previous Arrow: ({previous_arrow_x}, {previous_arrow_y}), "
+            f"Goal Arrow: ({goal_arrow_x}, {goal_arrow_y})"
         )
-        arrow_end_y = position[1] - (math.cos(math.radians(self.goal[0])) * lineSize)
-        arrow_end_y = (
-            self.camera.camera_matrix[1, 1] * arrow_end_y / 240
-            + self.camera.camera_matrix[1, 2]
-        )
-        arrow_end_goal = [round(arrow_end_x), round(arrow_end_y)]
 
-        # Places a circle at the centre of the cube marker
-        cv2.circle(image, centre, 5, (0, 0, 255), -1)
         # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.
-        cv2.arrowedLine(image, centre, arrow_end_axis, (255, 0, 0), 3)
+        cv2.arrowedLine(
+            image,
+            current_object_pixel,
+            (current_arrow_x, current_arrow_y),
+            (255, 0, 0),
+            3,
+        )
         # Draws an arrow of the markers desired X axis placement, i.e. the goal angle
-        cv2.arrowedLine(image, centre, arrow_end_goal, (255, 0, 0), 3)
+        cv2.arrowedLine(
+            image,
+            current_object_pixel,
+            (previous_arrow_x, previous_arrow_y),
+            (0, 255, 0),
+            3,
+        )
+
+        cv2.arrowedLine(
+            image,
+            current_object_pixel,
+            (goal_arrow_x, goal_arrow_y),
+            (0, 0, 255),
+            3,
+        )
 
         cv2.putText(
             image,
             f"{'Current'}",
-            arrow_end_axis,
+            (current_arrow_x, current_arrow_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+
+        cv2.putText(
+            image,
+            f"{'Previous'}",
+            (previous_arrow_x, previous_arrow_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0, 255, 0),
@@ -297,7 +338,7 @@ class FourFingerRotation(FourFingerTask):
         cv2.putText(
             image,
             f"{'Goal'}",
-            arrow_end_goal,
+            (goal_arrow_x, goal_arrow_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
             (0, 255, 0),

@@ -3,6 +3,9 @@ from gripper_gym.environments.two_finger.rotation.rotation import TwoFingerRotat
 from gripper_gym.environments.two_finger.translation.translation_flat import (
     TwoFingerTranslationFlat,
 )
+from gripper_gym.environments.two_finger.translation.translation_suspended import (
+    TwoFingerTranslationSuspended,
+)
 
 
 class EnvironmentFactory:
@@ -23,12 +26,12 @@ class EnvironmentFactory:
         Environment: The environment object.
         """
 
-        environment = None
+        environment: Environment | None = None
         if domain == "two_finger":
             if task == "translation":
                 environment = TwoFingerTranslationFlat(gripper_id)
-            # elif task == "suspended_translation":
-            #     environment = TwoFingerTranslationSuspended()
+            elif task == "suspended_translation":
+                environment = TwoFingerTranslationSuspended(gripper_id)
             elif task == "rotation":
                 environment = TwoFingerRotation(gripper_id)
         # if domain == "four_finger":
