@@ -41,10 +41,13 @@ class FourFingerTranslation(FourFingerTask):
     def _check_success(self, current_environment_info):
         target_goal = current_environment_info["goal"]
 
+        object_pose = current_environment_info["poses"]["object"]
+        if object_pose is None:
+            # If object pose is None, we cannot compute success
+            return False
+
         # Exclude Z for object
-        object_current = self._relative_position(
-            current_environment_info["poses"]["object"]
-        )[:-1]
+        object_current = self._relative_position(object_pose)[:-1]
 
         goal_distance = math.dist(target_goal, object_current)
 
