@@ -105,6 +105,22 @@ class FourFingerRotation(FourFingerTask):
         self.goal_type = env_config.goal_type
         self.noise_tolerance = env_config.noise_tolerance
 
+    def _check_success(self, current_environment_info):
+        target_goal = current_environment_info["goal"]
+
+        object_pose = current_environment_info["poses"]["object"]
+        if object_pose is None:
+            logging.warning("Object pose is None, cannot check success.")
+            return False
+
+        current_rotation = object_pose["orientation"][2]  # Get the yaw angle
+
+        goal_distance = utils.angular_difference(current_rotation, target_goal)
+
+        logging.debug(f"Distance to Goal: {goal_distance}")
+
+        return goal_distance <= self.noise_tolerance
+
     def _get_goal(self, rotator_angle):
         """
         Determines the goal function based on the current selection method.
