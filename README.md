@@ -87,3 +87,46 @@ python run.py train cli gripper --domain four_finger --task suspended_translatio
 ```python
 python run.py train cli gripper --domain four_finger --task suspended_rotation SAC
 ```
+
+# Setting up Grippers
+To simplify connecting to the grippers we use UDEV rules to handle connections to the various USB devices. 
+
+## UDEV Rules
+Assign unique persistent names to USB devices (Dynamixel U2D2s, Arduino, Camera)
+
+1. Find USB device details. Run the command below to identify device details:
+    - Command. Note: Modify "/dev/ttyUSB0" to your device node.
+    ```
+    udevadm info --query=all --name=/dev/ttyUSB0  
+    ```
+    - Record the devices **idVendor**, **idProduct** and **idserial**, or some slight variation of those three keywords.
+2. Create new UDEV rule file:
+    - Create udev file. Note: "99-dynamixel" is able to be modified to suit the context. 
+    ```
+    sudo nano /etc/udev/rules.d/99-dynamixel.rules" 
+    ```
+    - Add rules as per the format below:
+    ```
+    SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6015", ATTRS{serial}=="A12345", SYMLINK+="gripper1"
+    ```
+    Note: the SYMLINK argument determines the custom name, e.g. gripper1 in this instance.
+
+    - File should have the format like below, e.g. "0403" and "6015" are Vendor and Product ids for the dynamixel U2D2. Serial can be full or shortened version.
+
+    ```
+    SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6015", ATTRS{serial}=="A12345", SYMLINK+="gripper1"
+    SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6015", ATTRS{serial}=="B67890", SYMLINK+="gripper2" 
+    ```
+    
+3. Reload the UDEV rules
+    ```
+    sudo udevadm control --reload-rules
+    sudo udevadm trigger
+    ```
+    
+4. Verify the rules:
+    - Unplug and replug device then check the symbolic links
+    ```
+    ls -l /dev/dynamixel* 
+    ```
+    - Re-log user if still unchanged
