@@ -111,6 +111,7 @@ def get_cube_pose(
     # Calculate the final cube center by averaging
     cube_center = np.mean(cube_centers, axis=0)
     cube_orientation = np.mean(cube_orientations, axis=0)
+    cube_orientation = np.degrees(cube_orientation)  # Convert to degrees
 
     return {"position": cube_center, "orientation": cube_orientation}
 
@@ -178,8 +179,6 @@ def calculate_cube_center(marker_pose: dict, cube_size: float) -> np.ndarray:
     Returns:
         numpy.ndarray: A 1D array of length 3 representing the x, y, z coordinates of the center of the cube.
     """
-
-    print("Marker Pose:", marker_pose)
 
     marker_position = np.array(marker_pose["position"])
     r_vec = np.array(marker_pose["r_vec"])

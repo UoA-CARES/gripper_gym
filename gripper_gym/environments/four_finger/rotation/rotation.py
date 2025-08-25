@@ -218,8 +218,17 @@ class FourFingerRotation(FourFingerTask):
         """
 
         target_goal = current_environment_info["goal"]
-        yaw_before = previous_environment_info["poses"]["rotator"]
-        yaw_after = current_environment_info["poses"]["rotator"]
+        object_pose_before = previous_environment_info["poses"]["object"]
+        object_pose_after = current_environment_info["poses"]["object"]
+
+        if object_pose_after is None:
+            return -1.0, False  # Penalize if object is not detected
+
+        if object_pose_before is None:
+            return 0, False  # No change in state, no reward
+
+        yaw_before = object_pose_before["orientation"][2]
+        yaw_after = object_pose_after["orientation"][2]
 
         # Compute angular error before/after (absolute shortest difference)
         goal_difference_before = utils.angular_difference(target_goal, yaw_before)
@@ -257,6 +266,12 @@ class FourFingerRotation(FourFingerTask):
             logging.warning("Object pose is None, cannot render object.")
             return image
 
+        if previous_object_pose is None:
+            logging.warning(
+                "Previous object pose is None, cannot render previous object."
+            )
+            return image
+
         image, current_object_pixel = utils.draw_circle(
             image,
             current_object_pose["position"],
@@ -268,6 +283,9 @@ class FourFingerRotation(FourFingerTask):
 
         current_yaw = current_object_pose["orientation"][2]
         previous_yaw = previous_object_pose["orientation"][2]
+
+        logging.info(f"Current Object Pose: {current_yaw}")
+        logging.info(f"Previous Object Pose: {previous_yaw}")
 
         line_length = 50  # Length of the arrow lines in pixels
 
@@ -295,13 +313,6 @@ class FourFingerRotation(FourFingerTask):
         )
         goal_arrow_y = int(
             current_object_pixel[1] - (math.cos(math.radians(self.goal)) * line_length)
-        )
-
-        logging.info(
-            f"Current Yaw: {current_yaw}, Previous Yaw: {previous_yaw}, "
-            f"Current Arrow: ({current_arrow_x}, {current_arrow_y}), "
-            f"Previous Arrow: ({previous_arrow_x}, {previous_arrow_y}), "
-            f"Goal Arrow: ({goal_arrow_x}, {goal_arrow_y})"
         )
 
         # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.

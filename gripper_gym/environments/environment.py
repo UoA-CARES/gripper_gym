@@ -77,10 +77,17 @@ class Environment(ABC):
 
         self.camera = Camera(camera_name, camera_matrix_path, camera_distortion_path)
 
+        self.maker_dictionary = env_config.marker_dictionary
+
+        # Extract Marker ID to configurations
         if env_config.aruco_detector == "Aruco":
-            self.marker_detector = ArucoDetector(env_config.marker_size)
+            self.marker_detector = ArucoDetector(
+                env_config.marker_size, dictionary_id=self.maker_dictionary
+            )
         elif env_config.aruco_detector == "STag":
-            self.marker_detector = STagDetector(env_config.marker_size)
+            self.marker_detector = STagDetector(
+                env_config.marker_size, library_hd=self.maker_dictionary
+            )
         else:
             raise ValueError(
                 f"Unsupported aruco_detector: {env_config.aruco_detector}. "
@@ -128,6 +135,7 @@ class Environment(ABC):
                 if self.is_inverted
                 else self.camera.get_frame()
             )
+
             marker_poses = self.marker_detector.get_marker_poses(
                 frame,
                 self.camera.camera_matrix,

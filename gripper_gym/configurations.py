@@ -26,7 +26,10 @@ class GripperEnvironmentConfig(SubscriptableClass):
     marker_size: Optional[int] = 18  # mm
 
     # Aruco Marker ID for the object
-    reference_marker_id: int = 1
+    reference_marker_id: int
+
+    # Marker Dictionary
+    marker_dictionary: int
 
     # Tolerance in position error for object being at goal
     noise_tolerance: float  # mm or degrees
@@ -57,6 +60,10 @@ class TwoFingerConfig(GripperEnvironmentConfig):
     """
 
     domain: str = "two_finger"
+
+    reference_marker_id: int = 1
+
+    marker_dictionary: int = 21
 
 
 class TwoFingerTranslationConfig(TwoFingerConfig):
@@ -150,6 +157,10 @@ class FourFingerConfig(GripperEnvironmentConfig):
     cube_size: float = 32.0  # mm
     cube_retries: int = 3  # Number of retries to get the cube pose
 
+    reference_marker_id: int = 7
+
+    marker_dictionary: int = 11
+
 
 class FourFingerTranslationConfig(FourFingerConfig):
     """
@@ -215,5 +226,5 @@ class FourFingerRotationSuspendedConfig(FourFingerRotationConfig):
     task: str = "rotation_suspended"
 
     elevator_baudrate: int = 1000000
-    elevator_servo_id: int = 10
+    elevator_servo_id: int = 13
     elevator_limits: list = [3000, 1000]  # [MAX,MIN]

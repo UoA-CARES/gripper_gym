@@ -41,7 +41,7 @@ class EnvironmentFactory:
         if domain == "two_finger":
             if task == "translation":
                 environment = TwoFingerTranslationFlat(gripper_id)
-            elif task == "suspended_translation":
+            elif task == "translation_suspended":
                 environment = TwoFingerTranslationSuspended(gripper_id)
             elif task == "rotation":
                 environment = TwoFingerRotation(gripper_id)
@@ -50,7 +50,7 @@ class EnvironmentFactory:
                 environment = FourFingerTranslationFlat(gripper_id)
             elif task == "rotation":
                 environment = FourFingerRotationFlat(gripper_id)
-            elif task == "suspended_rotation":
+            elif task == "rotation_suspended":
                 environment = FourFingerRotationSuspended(gripper_id)
 
         if environment is None:

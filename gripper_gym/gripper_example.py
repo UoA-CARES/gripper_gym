@@ -93,5 +93,20 @@ def main():
             time.sleep(0.5)
 
 
+def camera_test():
+    # camera = cv2.VideoCapture("/dev/video4")
+    camera = cv2.VideoCapture("/dev/camera2")
+    if not camera.isOpened():
+        raise IOError("Cannot open camera")
+
+    while True:
+        for _ in range(0, 5):
+            returned, frame = camera.read()
+
+        cv2.imshow("Camera Test", frame)
+        cv2.waitKey(10)
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    camera_test()
