@@ -81,12 +81,7 @@ def main():
         )
 
         if cube_pose is not None:
-            radians = np.array(
-                cube_pose["orientation"]
-            )  # Assuming orientation is in radians
-
-            # Convert to degrees
-            degrees = np.degrees(radians)
+            degrees = np.array(cube_pose["orientation"])
 
             print(f"Cube Position: {cube_pose['position']} Orientation: {degrees}")
 
@@ -95,7 +90,7 @@ def main():
 
 def camera_test():
     # camera = cv2.VideoCapture("/dev/video4")
-    camera = cv2.VideoCapture("/dev/camera2")
+    camera = cv2.VideoCapture("/dev/video0")
     if not camera.isOpened():
         raise IOError("Cannot open camera")
 
@@ -108,5 +103,5 @@ def camera_test():
 
 
 if __name__ == "__main__":
-    # main()
-    camera_test()
+    main()
+    # camera_test()

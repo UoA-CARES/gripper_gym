@@ -66,14 +66,14 @@ class FourFingerRotationSuspended(FourFingerRotation):
         self.init_elevator()
         self.elevator.enable_torque()
 
-        self.elevator.move(self.elevator_min)  # Lower Elevator
+        self.elevator.move(self.elevator_max)  # Lower Elevator
 
         time.sleep(0.5)  # Let it settle
 
         self.gripper.wiggle_home()  # Home Gripper
 
         # Opening Grasp
-        self.elevator.move(self.elevator_max)  # Raise Elevator
+        self.elevator.move(self.elevator_min)  # Raise Elevator
 
         time.sleep(0.5)  # Let it settle
 
@@ -84,4 +84,4 @@ class FourFingerRotationSuspended(FourFingerRotation):
 
         time.sleep(0.5)  # Let it settle
 
-        self.elevator.move(self.elevator_min)
+        self.elevator.move(self.elevator_max)

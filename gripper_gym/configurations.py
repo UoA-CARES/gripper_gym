@@ -227,4 +227,4 @@ class FourFingerRotationSuspendedConfig(FourFingerRotationConfig):
 
     elevator_baudrate: int = 1000000
     elevator_servo_id: int = 13
-    elevator_limits: list = [3000, 1000]  # [MAX,MIN]
+    elevator_limits: list = [4500, 1000]  # [MAX,MIN]
