@@ -2,100 +2,17 @@ import logging
 import math
 import os
 import random
-from enum import Enum
 
 import cv2
-import numpy as np
 from cares_lib.dynamixel.Servo import Servo
 
 import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import TwoFingerRotationConfig
+from gripper_gym.environments.rotation import RotationTaskMixin
 from gripper_gym.environments.two_finger.two_finger import TwoFingerTask
 
 
-class GOAL_SELECTION_METHOD(Enum):
-    FIXED = 0
-    RELATIVE_90 = 1
-    RELATIVE_180 = 2
-    RELATIVE_270 = 3
-    RELATIVE_BETWEEN_30_330 = 4
-    RELATIVE_90_180_270 = 5
-
-
-def fixed_goal():
-    """
-    Selects a random fixed goal from predefined options.
-    Returns:
-        int: Chosen target angle.
-    """
-    target_angle = np.random.randint(1, 5)
-    if target_angle == 1:
-        return 90
-    elif target_angle == 2:
-        return 180
-    elif target_angle == 3:
-        return 270
-    elif target_angle == 4:
-        return 0
-    return 90
-
-
-def fixed_goals(object_current_pose, noise_tolerance):
-    """
-    Generates fixed goals avoiding close angles.
-    Args:
-        object_current_pose (float): Current position of the object.
-        noise_tolerance (float): Tolerance value for noise.
-    Returns:
-        float: Target angle.
-    """
-
-    target_angle = fixed_goal()
-    while abs(object_current_pose - target_angle) < noise_tolerance:
-        target_angle = fixed_goal()
-    return target_angle
-
-
-def relative_goal(mode, object_current_pose):
-
-    target = 0
-    if mode == 1:
-        target = 90  # degrees to the right
-    elif mode == 2:
-        target = 180  # degrees to the right
-    elif mode == 3:
-        target = 270  # degrees to the right
-    elif mode == 4:
-        target = np.random.randint(30, 330)  # anywhere to anywhere
-
-    return (object_current_pose + target) % 360
-
-
-def relative_goal_90_180_270(object_current_pose):
-    """
-    Computes a relative goal based on the mode.
-    Args:
-        mode (int): Defines the relative angle.
-        object_current_pose (float): Current position of the object.
-    Returns:
-        float: Computed target angle.
-    """
-    mode = np.random.randint(1, 4)
-    logging.info(f"Target Angle Mode: {mode}")
-
-    diff = 0
-    if mode == 1:
-        diff = 90  # degrees to the right
-    elif mode == 2:
-        diff = 180  # degrees to the right
-    elif mode == 3:
-        diff = 270  # degrees to the right
-
-    current_yaw = object_current_pose
-    return (current_yaw + diff) % 360
-
-
-class TwoFingerRotation(TwoFingerTask):
+class TwoFingerRotation(TwoFingerTask, RotationTaskMixin):
 
     def __init__(
         self,
@@ -141,35 +58,12 @@ class TwoFingerRotation(TwoFingerTask):
 
         return goal_distance <= self.noise_tolerance
 
-    def _get_goal(self, rotator_angle):
-        """
-        Determines the goal function based on the current selection method.
-        Args:
-        object_state (float): Current state of the object.
-        Returns:
-        float: The target goal state.
-        """
-        # Determine which function to call based on passed in goal int value
-        method = GOAL_SELECTION_METHOD[self.goal_type.upper()]
-
-        if method == GOAL_SELECTION_METHOD.FIXED:
-            return fixed_goals(rotator_angle, self.noise_tolerance)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90:
-            return relative_goal(1, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_180:
-            return relative_goal(2, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_270:
-            return relative_goal(3, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330:
-            return relative_goal(4, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270:
-            return relative_goal_90_180_270(rotator_angle)
-
-        # No matching goal found, throw error
-        raise ValueError(f"Goal selection method unknown: {self.goal_type}")
-
     def _reset(self):
         self.gripper.home()
+
+    # overriding method
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        self._reward_function(previous_environment_info, current_environment_info)
 
     # overriding method
     def _choose_goal(self):
@@ -178,9 +72,6 @@ class TwoFingerRotation(TwoFingerTask):
         Returns:
         float: Chosen goal state.
         """
-        logging.info(
-            f"Goal selection method = {GOAL_SELECTION_METHOD[self.goal_type.upper()].name}"
-        )
 
         rotator_steps = random.randint(0, 4095)
         self.rotator.move(rotator_steps)
@@ -259,40 +150,6 @@ class TwoFingerRotation(TwoFingerTask):
 
         return poses
 
-    # overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
-        """
-        Computes the reward based on the target goal and the change in yaw.
-
-        Args:
-            previous_environment_info (dict): Previous state of the environment.
-            current_environment_info (dict): Current state of the environment.
-
-        Returns:
-            reward: The computed reward and a boolean indicating if the task is done.
-        """
-
-        target_goal = current_environment_info["goal"]
-        yaw_before = previous_environment_info["poses"]["rotator"]
-        yaw_after = current_environment_info["poses"]["rotator"]
-
-        # Compute angular error before/after (absolute shortest difference)
-        goal_difference_before = utils.angular_difference(target_goal, yaw_before)
-        goal_difference_after = utils.angular_difference(target_goal, yaw_after)
-
-        # Improvement (positive if moved closer)
-        delta_change = goal_difference_before - goal_difference_after
-
-        reward = 0
-        if goal_difference_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = 1.0
-        elif abs(delta_change) > self.noise_tolerance:
-            reward = delta_change / max(goal_difference_before, 1e-6)
-            reward = max(-1.0, min(1.0, reward))  # Clip reward to [-1, 1]
-
-        return round(reward, 2), False
-
     def _render_environment(self, state, environment_info):
         # Get base rendering of the four-finger environment
         image = super()._render_environment(state, environment_info)
@@ -344,13 +201,6 @@ class TwoFingerRotation(TwoFingerTask):
         )
         goal_arrow_y = int(
             current_object_pixel[1] - (math.cos(math.radians(self.goal)) * line_length)
-        )
-
-        logging.info(
-            f"Current Yaw: {current_yaw}, Previous Yaw: {previous_yaw}, "
-            f"Current Arrow: ({current_arrow_x}, {current_arrow_y}), "
-            f"Previous Arrow: ({previous_arrow_x}, {previous_arrow_y}), "
-            f"Goal Arrow: ({goal_arrow_x}, {goal_arrow_y})"
         )
 
         # Draws an arrow of the markers X axis reference, this is the axis which the angle refers to. The -Y axis is seen as 0/360 degrees.

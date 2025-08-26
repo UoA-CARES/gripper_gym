@@ -1,6 +1,5 @@
 import logging
 import math
-from random import randrange
 
 import cv2
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
@@ -8,9 +7,10 @@ from cares_lib.dynamixel.gripper_configuration import GripperConfig
 import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import FourFingerTranslationConfig
 from gripper_gym.environments.four_finger.four_finger import FourFingerTask
+from gripper_gym.environments.translation import TranslationTaskMixin
 
 
-class FourFingerTranslation(FourFingerTask):
+class FourFingerTranslation(FourFingerTask, TranslationTaskMixin):
 
     def __init__(
         self,
@@ -28,15 +28,11 @@ class FourFingerTranslation(FourFingerTask):
 
         self.noise_tolerance = env_config.noise_tolerance
 
-    # overriding method
     def _choose_goal(self):
-        x1, y1 = self.goal_min
-        x2, y2 = self.goal_max
+        return self._set_goal()
 
-        goal_x = randrange(x1, x2)
-        goal_y = randrange(y1, y2)
-
-        return [goal_x, goal_y]
+    def _reward_function(self, previous_environment_info, current_environment_info):
+        return self._compute_reward(previous_environment_info, current_environment_info)
 
     def _check_success(self, current_environment_info):
         target_goal = current_environment_info["goal"]
@@ -82,93 +78,6 @@ class FourFingerTranslation(FourFingerTask):
             state += environment_info["touch"]
 
         return [round(val, 2) for val in state]
-
-    # overriding method
-    def _reward_function(self, previous_environment_info, current_environment_info):
-        match self.reward_function:
-            case "delta":
-                return self._reward_function_delta(
-                    previous_environment_info, current_environment_info
-                )
-            case "distance":
-                return self._reward_function_linear(
-                    previous_environment_info, current_environment_info
-                )
-
-        return self._reward_function_delta(
-            previous_environment_info, current_environment_info
-        )
-
-    def _reward_function_delta(
-        self, previous_environment_info, current_environment_info
-    ):
-        reward = 0
-
-        target_goal = current_environment_info["goal"]
-
-        object_pose_current = current_environment_info["poses"]["object"]
-        object_pose_previous = previous_environment_info["poses"]["object"]
-
-        if object_pose_current is None:
-            # If current pose is None, we cannot compute a delta change
-            return 0.0, False
-
-        if object_pose_previous is None:
-            # If previous pose is None, we cannot compute a delta change
-            return 0.0, False
-
-        # This now converts the poses with respect to reference marker
-        # Exclude Z for object
-        object_current = self._relative_position(object_pose_current)[:-1]
-        object_previous = self._relative_position(object_pose_previous)[:-1]
-
-        goal_difference_before = math.dist(target_goal, object_previous)
-        goal_difference_after = math.dist(target_goal, object_current)
-
-        delta_change = goal_difference_before - goal_difference_after
-
-        reward = 0
-        if goal_difference_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = 1.0
-        elif abs(delta_change) > self.noise_tolerance:
-            reward = delta_change / max(goal_difference_before, 1e-6)
-            reward = max(-1.0, min(1.0, reward))  # Clip reward to [-1, 1]
-
-        return round(reward, 2), False
-
-    def _reward_function_linear(
-        self, previous_environment_info, current_environment_info
-    ):
-        target_goal = current_environment_info["goal"]
-
-        object_pose_current = current_environment_info["poses"]["object"]
-
-        # This now converts the poses with respect to reference marker
-        # Exclude Z for object
-        if object_pose_current is not None:
-            object_current = self._relative_position(object_pose_current)[:-1]
-
-            goal_distance_after = math.dist(target_goal, object_current)
-        else:
-            # Set to a value outside the goal range
-            goal_distance_after = self.goal_range + self.noise_tolerance
-
-        logging.debug(f"Distance to Goal: {goal_distance_after}")
-
-        reward = 0
-        if goal_distance_after <= self.noise_tolerance:
-            logging.info("----------Reached the Goal!----------")
-            reward = 1.0
-        else:
-            reward = max(
-                0.0,
-                1.0
-                - (goal_distance_after - self.noise_tolerance)
-                / (self.goal_range - self.noise_tolerance),
-            )
-
-        return round(reward, 2), False
 
     def _render_environment(self, state, environment_info):
         # Get base rendering of the four-finger environment

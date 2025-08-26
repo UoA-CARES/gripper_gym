@@ -1,99 +1,16 @@
 import logging
 import math
-from enum import Enum
 
 import cv2
-import numpy as np
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
 
 import gripper_gym.tools.utils as utils
 from gripper_gym.configurations import FourFingerRotationConfig
 from gripper_gym.environments.four_finger.four_finger import FourFingerTask
+from gripper_gym.environments.rotation import RotationTaskMixin
 
 
-class GOAL_SELECTION_METHOD(Enum):
-    FIXED = 0
-    RELATIVE_90 = 1
-    RELATIVE_180 = 2
-    RELATIVE_270 = 3
-    RELATIVE_BETWEEN_30_330 = 4
-    RELATIVE_90_180_270 = 5
-
-
-def fixed_goal():
-    """
-    Selects a random fixed goal from predefined options.
-    Returns:
-        int: Chosen target angle.
-    """
-    target_angle = np.random.randint(1, 5)
-    if target_angle == 1:
-        return 90
-    elif target_angle == 2:
-        return 180
-    elif target_angle == 3:
-        return 270
-    elif target_angle == 4:
-        return 0
-    return 90
-
-
-def fixed_goals(object_current_pose, noise_tolerance):
-    """
-    Generates fixed goals avoiding close angles.
-    Args:
-        object_current_pose (float): Current position of the object.
-        noise_tolerance (float): Tolerance value for noise.
-    Returns:
-        float: Target angle.
-    """
-
-    target_angle = fixed_goal()
-    while abs(object_current_pose - target_angle) < noise_tolerance:
-        target_angle = fixed_goal()
-    return target_angle
-
-
-def relative_goal(mode, object_current_pose):
-
-    target = 0
-    if mode == 1:
-        target = 90  # degrees to the right
-    elif mode == 2:
-        target = 180  # degrees to the right
-    elif mode == 3:
-        target = 270  # degrees to the right
-    elif mode == 4:
-        target = np.random.randint(30, 330)  # anywhere to anywhere
-
-    return (object_current_pose + target) % 360
-
-
-def relative_goal_90_180_270(object_current_pose):
-    """
-    Computes a relative goal based on the mode.
-    Args:
-        mode (int): Defines the relative angle.
-        object_current_pose (float): Current position of the object.
-    Returns:
-        float: Computed target angle.
-    """
-    mode = np.random.randint(1, 4)
-    logging.info(f"Target Angle Mode: {mode}")
-
-    diff = 0
-    if mode == 1:
-        diff = 90  # degrees to the right
-    elif mode == 2:
-        diff = 180  # degrees to the right
-    elif mode == 3:
-        diff = 270  # degrees to the right
-
-    current_yaw = object_current_pose
-    return (current_yaw + diff) % 360
-
-
-class FourFingerRotation(FourFingerTask):
+class FourFingerRotation(FourFingerTask, RotationTaskMixin):
 
     def __init__(
         self,
@@ -121,33 +38,6 @@ class FourFingerRotation(FourFingerTask):
 
         return goal_distance <= self.noise_tolerance
 
-    def _get_goal(self, rotator_angle):
-        """
-        Determines the goal function based on the current selection method.
-        Args:
-        object_state (float): Current state of the object.
-        Returns:
-        float: The target goal state.
-        """
-        # Determine which function to call based on passed in goal int value
-        method = GOAL_SELECTION_METHOD[self.goal_type.upper()]
-
-        if method == GOAL_SELECTION_METHOD.FIXED:
-            return fixed_goals(rotator_angle, self.noise_tolerance)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90:
-            return relative_goal(1, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_180:
-            return relative_goal(2, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_270:
-            return relative_goal(3, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_BETWEEN_30_330:
-            return relative_goal(4, rotator_angle)
-        elif method == GOAL_SELECTION_METHOD.RELATIVE_90_180_270:
-            return relative_goal_90_180_270(rotator_angle)
-
-        # No matching goal found, throw error
-        raise ValueError(f"Goal selection method unknown: {self.goal_type}")
-
     # overriding method
     def _choose_goal(self):
         """
@@ -155,11 +45,6 @@ class FourFingerRotation(FourFingerTask):
         Returns:
         float: Chosen goal state.
         """
-        # Log selected goal
-        logging.info(
-            f"Goal selection method = {GOAL_SELECTION_METHOD[self.goal_type.upper()].name}"
-        )
-
         # Get the current object orientation
         object_pose = None
         while object_pose is None:
@@ -283,9 +168,6 @@ class FourFingerRotation(FourFingerTask):
 
         current_yaw = current_object_pose["orientation"][2]
         previous_yaw = previous_object_pose["orientation"][2]
-
-        logging.info(f"Current Object Pose: {current_yaw}")
-        logging.info(f"Previous Object Pose: {previous_yaw}")
 
         line_length = 50  # Length of the arrow lines in pixels
 
