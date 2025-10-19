@@ -3,8 +3,10 @@ from environments.two_finger.translation import (
     TwoFingerTranslationSuspended,
 )
 from environments.two_finger.rotation import TwoFingerRotationTask
-from environments.four_finger.rotation import FourFingerRotationFlat
-from environments.four_finger.rotation import FourFingerRotationSuspended
+from environments.four_finger.rotation_with_depth import FourFingerRotationFlat
+from environments.four_finger.rotation_with_depth import FourFingerRotationSuspended
+# from environments.four_finger.rotation import FourFingerRotationFlat
+# from environments.four_finger.rotation import FourFingerRotationSuspended
 from environments.four_finger.translation import FourFingerTranslationFlat
 from environments.four_finger.translation import FourFingerTranslationSuspended
 

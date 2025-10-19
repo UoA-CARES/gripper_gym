@@ -6,8 +6,11 @@ import tools.utils as utils
 from configurations import GripperEnvironmentConfig
 from environments.environment import Environment
 import time
-
 from cares_lib.dynamixel.gripper_configuration import GripperConfig
+
+
+from determine_from_origin_class import CubeGripperTracker
+import numpy as np
 
 
 class FourFingerTask(Environment):
@@ -16,6 +19,9 @@ class FourFingerTask(Environment):
         env_config: GripperEnvironmentConfig,
         gripper_config: GripperConfig,
     ):
+        self.bg_tracker = CubeGripperTracker(yolo_model_path="/home/anyone/P4P/gripper_vision_P4P/BG-Arm.pt", realsense_id="211422061480", window_name="Camera 1 - BG")
+        self.yr_tracker = CubeGripperTracker(yolo_model_path="/home/anyone/P4P/gripper_vision_P4P/YR-Arm.pt", realsense_id="211422062075", window_name="Camera 2 - YR")
+
         self.touch_config = gripper_config.touch
         self.iscubedropped = False
         super().__init__(env_config, gripper_config)
@@ -80,6 +86,43 @@ class FourFingerTask(Environment):
                     
         return marker_poses
 
+    def cube_depth(self):
+            bg_cube = self.bg_tracker.last_cube_pos
+            yr_cube = self.yr_tracker.last_cube_pos
+
+            cubes = []
+            if bg_cube is not None and yr_cube is None:
+                self.yr_tracker.last_cube_pos = bg_cube
+            if yr_cube is not None and bg_cube is None:
+                self.bg_tracker.last_cube_pos = yr_cube
+
+            bg_cube = self.bg_tracker.get_cube_center_relative()
+            yr_cube = self.yr_tracker.get_cube_center_relative()
+
+            if bg_cube is not None: cubes.append(bg_cube)
+            if yr_cube is not None: cubes.append(yr_cube)
+
+            if not cubes:
+                return (0, 0, 0)  # or (0, 0, 0), or raise an error depending on context
+
+            # Average element-wise across all cube vectors
+            avg_position = sum(cubes) / len(cubes)
+            return avg_position
+
+    def gripper_depths(self):
+        gripper_bg_0 = self.bg_tracker.get_gripper_relative(0)
+        gripper_bg_1 = self.bg_tracker.get_gripper_relative(1)
+        gripper_yr_0 = self.yr_tracker.get_gripper_relative(0)
+        gripper_yr_1 = self.yr_tracker.get_gripper_relative(1)
+
+        # Handle cases where either might be None
+        gripper_bg_0 = gripper_bg_0 if gripper_bg_0 is not None else np.zeros(3)
+        gripper_bg_1 = gripper_bg_1 if gripper_bg_1 is not None else np.zeros(3)
+        gripper_yr_0 = gripper_yr_0 if gripper_yr_0 is not None else np.zeros(3)
+        gripper_yr_1 = gripper_yr_1 if gripper_yr_1 is not None else np.zeros(3)
+
+        # Concatenate into one long array
+        return np.concatenate([gripper_bg_0, gripper_bg_1, gripper_yr_0, gripper_yr_1])
 
     @abstractmethod
     def _environment_info_to_state(self, environment_info):
@@ -96,6 +139,12 @@ class FourFingerTask(Environment):
         environment_info["gripper"] = self.gripper.state()  # Gets gripper joint positions
         environment_info["poses"] = self._get_poses()       # Gets cube orientation
         environment_info["goal"] = self.goal                # Gets goal orientation
+
+        self.bg_tracker.update()
+        self.yr_tracker.update()
+
+        environment_info["cube_depth"] = self.cube_depth() # Gets cube 3D
+        environment_info["gripper_depths"] = self.gripper_depths()  # Gets gripper 3D
 
         return environment_info
 
